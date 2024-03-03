@@ -83,6 +83,12 @@ All the examples in this tutorial are written in Java.
 If you're new to Java, spend some time getting up to speed on the language and platform;
 a good place to start is https://dev.java/learn/[dev.java/learn].
 
+In this tutroial, we have extensively utilized JSON for data interchange between microservices. 
+Hence, understanding JSON and its usage within Java applications is crucial. 
+For a thorough introduction to JSON processing in Java, refer to the section on 
+link:https://jakartaee.github.io/jakartaee-documentation/jakartaee-tutorial/current/web/jsonp/jsonp.html#_introduction_to_json[Introduction to JSON]
+provided in the Jakarta EE Tutorial. 
+
 Each topic in this tutorial provides some background information, 
 but in general,
 we assume you have a basic understanding of RESTful Web Services. 
