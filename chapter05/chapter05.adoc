@@ -328,7 +328,8 @@ In this example, we’re injecting a property named "product.maintenanceMessage"
 
 As we saw, the Config API makes it easy to inject configuration properties into an application. The Config API defines a contract for config implementations. A ConfigSource is used to read configuration data from a particular source. For example, we could create a ConfigSource that reads configuration data from a file.
 
-`ConfigSource` interface has the following methods: 
+`ConfigSource` interface has the following methods:
+
 - `String getName()` : Returns the name of the ConfigSource. 
 - `int getOrdinal()` : Returns the ordinal of the ConfigSource. Ordinals are used to determine the precedence of ConfigSources. A higher ordinal means a higher precedence. 
 - `Map<String, String> getProperties()` : Returns a map of the properties in this ConfigSource. The keys in the map are the property names, and the values are the property values. 
@@ -469,18 +470,15 @@ public class PaymentService {
 }
 ----
 
-Explanation: 
+Explanation:
+
 - `@Path("/authorize")`: Defines the base URI for the RESTful service. This class will handle requests made to URIs that start with `/payment/api/authorize`.
 - `@RequestScoped`: Indicates that a new instance of `PaymentService` is created for each HTTP request.
 - `@POST`: Specifies that the `processPayment` method will respond to HTTP POST requests, which is appropriate for operations that change server state (in this case, processing a payment).
 - `@Consumes(MediaType.APPLICATION_JSON)`: Indicates that the method expects requests to have a payload formatted as JSON, aligning with how payment details might be sent.
 - `@Produces(MediaType.APPLICATION_JSON)`: Specifies that the method produces JSON-formatted responses, useful for indicating the result of the payment processing operation.
-- `Response processPayment(PaymentDetails paymentDetails)`: The method now returns a Response object, allowing for more flexible HTTP response handling. The PaymentDetails parameter would be a POJO (Plain Old Java Object) representing the payment information sent by the client.
-
-The clients can call to process payments through the e-Commerce application using this RESTful web service endpoint. The actual logic for calling the payment gateway API and handling the response would be implemented within this method, utilizing the injected configuration properties for authentication and endpoint URL.
-
-`ConfigSources` are hierarchical, which means that we can override properties from one `ConfigSource` with another `ConfigSource`. For example, we could create a `ConfigSource` that reads configuration data from a file, and another `ConfigSource` that reads configuration data from system properties. The system properties would take precedence over the file-based `ConfigSource`, which would take precedence over the default `ConfigSource`.
-
+- `Response processPayment(PaymentDetails paymentDetails)`: The method now returns a Response object, allowing for more flexible HTTP response handling. The PaymentDetails parameter would be a POJO (Plain Old Java Object) representing the payment information sent by the client. The clients can call to process payments through the e-Commerce application using this RESTful web service endpoint. The actual logic for calling the payment gateway API and handling the response would be implemented within this method, utilizing the injected configuration properties for authentication and endpoint URL.
+- `ConfigSources` are hierarchical, which means that we can override properties from one `ConfigSource` with another `ConfigSource`. For example, we could create a `ConfigSource` that reads configuration data from a file, and another `ConfigSource` that reads configuration data from system properties. The system properties would take precedence over the file-based `ConfigSource`, which would take precedence over the default `ConfigSource`.
 - `Property getProperty(String propertyName)` : Returns information about the given property. If the property is not found, this method returns `null`.
 
 === Enabling MicroProfile Config in Open Liberty
