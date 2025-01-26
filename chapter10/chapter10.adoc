@@ -1,1 +1,113 @@
+== Chapter 10: MicroProfile JWT Authentication
+
+In modern microservices architectures, securing communications between clients and services, as well as between individual services, is critical. JSON Web Token (JWT) authentication provides a lightweight and efficient mechanism to achieve this. MicroProfile JWT Authentication builds upon this standard, offering developers a seamless way to implement authentication and authorization in their Java microservices.
+
+This chapter focuses on JSON Web Token (JWT) Authentication in the context of MicroProfile, providing a secure and efficient method for authenticating and authorizing users in microservices architectures. 
+
+Topics covered in this chapter include:
+- JWT basics
+- User authentication
+- Claims
+- Scopes
+- Token expiration
+- Role-based access control
+- Endpoint security
+- Integration with identity providers
+- Token revocation
+- Best practices
+
+=== Introduction to JWT Authentication
+
+This chapter explores the fundamentals of JWT authentication, its implementation in MicroProfile, and best practices for ensuring security and efficiency. Topics include defining and validating user claims, managing token lifecycles, integrating with identity providers, and handling advanced scenarios like token revocation and refresh. With these tools, developers can build secure, scalable, and maintainable authentication systems for their microservices.
+
+=== What is a JSON Web Token (JWT)?
+
+A JSON Web Token or JWT is an open standard that defines a compact and self-contained way of securely transmitting information between parties as a JSON object. JWTs can represent any claim, such as identity, security roles, or session information. These claims can be verified and trusted because they are digitally signed. JWTs can be signed using a secret key or a public/private key pair. They can also be used for authorization by allowing users to access specific resources only if they have a valid JWT.
+
+The MicroProfile JSON Web Token specification defines how JWTs can be used in a microservice environment, including how to verify and validate tokens. It builds on the JWT standard and adds some additional features that are specific to microservices.
+
+=== Security Best Practices for Microservices
+
+Microservices are all the rage these days. But with more services comes more complexity – and with more complexity comes a greater risk of security breaches. So how do you go about securing your microservices?
+
+There are a few basic steps you can take to get started. First, make sure that each service is properly authenticated and authorized. Second, use encryption to protect sensitive data as it moves between services. Third, employ robust monitoring and logging tools to detect and track suspicious activity. And finally, be sure to keep your software up-to-date with the latest security patches.
+
+Following these steps will help you secure your microservices against the most common attacks, but it’s important to stay vigilant and always watch for new threats.
+
+Let’s now look into controlling user and role access to microservices with MicroProfile JSON Web Token.
+
+=== Use cases for JSON Web Tokens
+
+JSON Web Tokens can be used in the following scenarios:
+
+==== Authentication
+
+JWTs can be used to authenticate users. A user can be authenticated by providing a JWT with the correct signature. In-memory authentication is faster and more convenient as user credentials are stored in memory, but it is less secure because the data is more vulnerable to attack. DB stored user credentials are slower and more challenging to use, but they are more secure because the data is better protected either by encrypting it or through access control. Encryption makes it more difficult for hackers to access and steal information. Access control ensures that only authorized users have permission to view or modify the data.
+==== Authorization
+
+One common use case for JSON Web Tokens is an authorization. In this scenario, the JWT contains claims representing the user’s identity and security roles. These claims can determine what resources the user is allowed to access.
+For example, a user with the admin security role might be allowed to access all resources. In contrast, a user with the read-only security role might only be allowed to access resources marked as readable.
+
+==== Session information
+
+Another common use case for JSON Web Tokens is storing session information. In this scenario, the JWT contains claims representing the user’s session information, such as when the session started and when it will expire. This information can track a user’s session and ensure that it does not exceed a certain time limit.
+
+==== Claims-based identity
+
+JWTs can also be used to represent claims-based identity. In this scenario, the JWT contains claims representing the user’s identity, such as their name and email address. These claims can be used by applications to identify the user.
+
+For example, an application might use the user’s email address claim to look up their profile information in a database. Or, an application might use the user’s name claim to display the user’s name on a welcome page.
+JWTs can be used with other identity providers, such as LDAP or Active Directory, to provide a single sign-on experience for users.
+
+==== Information Exchange
+
+JWTs can also be used to exchange information between parties. In this scenario, the JWT contains claims representing the data being exchanged. For example, a JWT might contain an order id claim and a user id claim. These claims can be used by the application to look up the order and display it to the user.
+
+JWTs can exchange information and are often used in Single Sign-On (SSO) systems.
+
+==== Federation
+
+JWTs can also be used in federation scenarios. In this scenario, the JWT contains claims representing the user’s identity. These claims can be used by the application to identify the user and look up their profile information.
+
+JWTs can be used with other identity providers, such as Active Directory Federation Services (ADFS), to provide a single sign-on experience for users.
+
+=== Creating and Signing a JWT
+A JWT consists of three parts: a header, a payload, and a signature. Each part separated from the others by a dot (`.`) like:
+
+[source]
+----
+sdfdfsdfsdSDFJJEOKJA.0dsfDNFSUJSDJ.ASDSAasdhjasS
+----
+
+The header and payload are JSON objects, and the signature is a digital signature that can be used to verify that the JWT has not been tampered with.
+The header typically contains information about the algorithm used to sign the JWT, and the payload contains the actual claims. The claims can be anything you want to represent, such as the user’s name, email address, or security role.
+
+The header of a JWT contains the following information: 
+
+- The type of token (JWT) 
+- The algorithm used to create the signature (HS256)
+
+Here is an example header and payload:
+
+Header:
+[source, json]
+----
+{
+"typ": "JWT",
+"alg": "HS256"
+}
+----
+
+Payload:
+
+[source, json]
+----
+{
+"iss": "Bob",
+"exp": 1463808400,
+"http://example.com/is_root": true,
+"sub": "alice"
+}
+----
+
 
