@@ -91,6 +91,7 @@ The MicroProfile Fault Tolerance annotations provide a declarative way to implem
 | `@CircuitBreaker` | Defines a circuit breaker mechanism to prevent repeated calls to a failing method. Includes parameters like `failureRatio`, `delay`, and `requestVolumeThreshold`.
 | `@Fallback` | Specifies alternative logic to execute when the primary method fails. This ensures meaningful responses and graceful degradation.
 | `@Bulkhead` | Limits the number of concurrent method executions to isolate system resources and prevent cascading failures.
+| `@Asynchronous` | Ensures that the annotated method executes in a separate thread, allowing non-blocking execution. This is useful for improving responsiveness and handling long-running tasks asynchronously. 
 |===
 
 === Implementing Retry Policies and Configuration
