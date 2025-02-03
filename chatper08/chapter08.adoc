@@ -304,7 +304,12 @@ public class PaymentService {
     }
 ----
 
-In this example, the `@Timeout(1000)` annotation specifies that the `processPayment` method must complete within 1000 milliseconds (1 second). If the execution exceeds this time, a `TimeoutException` will be thrown, and the process will terminate. `@Asynchronous` ensures non-blocking execution by making the method run in a separate thread.
+In this example, the `@Timeout(1000)` annotation specifies that the `processPayment` method must complete within 1000 milliseconds (1 second). If the execution exceeds this time, a `TimeoutException` will be thrown, and the process will terminate. `@Asynchronous` ensures non-blocking execution by making the method run in a separate thread. To explore the benefits of asynchronous programming with MicroProfile Fault Tolerance, the following resources provide valuable insights and real-world examples:
+
+- link:https://openliberty.io/blog/2020/06/04/asynchronous-programming-microprofile-fault-tolerance.html[Asynchronous Programming with MicroProfile Fault Tolerance (Part 1)]
+- link:https://openliberty.io/blog/2020/06/05/asynchronous-programming-microprofile-fault-tolerance-part-2.html[Asynchronous Programming with MicroProfile Fault Tolerance (Part 2)]
+
+These articles explain how asynchronous execution enhances system responsiveness, reduces blocking, and ensures better resource utilization in MicroProfile applications.
 
 ==== Best Practices for Timeouts
 
@@ -433,7 +438,7 @@ public class ProductService {
 }
 ----
 
-This example demonstrates the use of MicroProfile Fault Tolerance annotations `@Timeout` and `@Fallback` to enhance the resilience of a ProductService. The `@Timeout` annotation ensures that the `getProducts()` method, which fetches product data from a database, completes within a specified duration (2 seconds in this case). If the method exceeds this time or an exception occurs, the `@Fallback` annotation directs the application to invoke the `getProductsFromCache()` method, which retrieves data from a cache. This approach ensures consistent service availability and a seamless user experience, even during database delays or failures​.
+This example demonstrates the use of MicroProfile Fault Tolerance annotations `@Timeout` and `@Fallback` to enhance the resilience of the `ProductService`. When `getProducts()` method is invoked, the application tries to retrieve product data from the database using `productRepository.findAllProducts()`. The `@Timeout(2000)` annotation ensures that this operation completes within 2 seconds. If the query executes successfully within this time, the method returns the product list as expected. However, if the execution time exceeds the timeout limit, a `TimeoutException` is triggered. Additionally, if an exception occurs within the time limit, the method also fails. To handle such failures gracefully, the `@Fallback` annotation specifies `getProductsFromCache()` as an alternative method. When a timeout or exception occurs, the fallback method is invoked, fetching product data from the cache instead of the database. This approach guarantees service availability and ensures a seamless user experience, even in scenarios where the database is slow or temporarily unavailable. For improved scalability and performance, `@Asynchronous` can be combined with `@Timeout` and `@Fallback`. This allows the method to execute in a non-blocking manner, freeing up system resources and enabling parallel processing of multiple requests. By utilizing asynchronous execution, the application can handle high loads efficiently while maintaining fault tolerance.
 
 ==== Best Practices for Fallbacks
 
