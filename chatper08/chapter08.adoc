@@ -12,9 +12,9 @@ This chapter explains how to enhance your microservices' resilience and reliabil
 - Implementing Retry Policies and Configuration
 - Avoiding and Managing Cascading Failures
 - Configuring Circuit Breaker
+- Using `@Asynchronous` Annotation
 - Setting Timeouts
 - Implementing Fallback Logic
-- Using `@Asynchronous` Annotation
 - Isolating Resources for Fault Tolerance
 
 == What is Fault Tolerance?
@@ -24,6 +24,12 @@ Fault tolerance is a system's ability to continue working correctly even in case
 == Key Strategies for Enhancing Fault Tolerance
 
 Some of the key strategies for enhancing the fault tolerance of a microservices-based application include:
+
+=== Asynchronous Execution
+
+Asynchronous execution allows operations to run in a separate thread. It means the caller does not have to wait for the operation to finish, making the application more responsive. For example, when a user searches for products in the product catalog service, the service can asynchronously fetch product recommendations from an external API while immediately returning the main search results to the user, ensuring a fast and responsive experience.
+
+When applied individually or in combination, these strategies form the foundation of a fault-tolerant microservices architecture. The following sections delve deeper into their implementation and best practices.
 
 === Timeout
 
@@ -53,12 +59,6 @@ image::../images/figure8-1.png[Figure 8-1: Circuit Breaker states, width=600, al
 
 For example, a circuit breaker can be applied to calls to an external inventory service in the Product Catalog Microservice. If the inventory service starts failing or becomes unresponsive, the circuit breaker will `open`, preventing repeated requests and reducing load. After a configured delay, the circuit breaker will `half-open` to test the availability of the inventory service with a few requests. If those succeed, the circuit breaker will `close`, resuming normal operations.
 
-=== Asynchronous Execution
-
-Asynchronous execution allows operations to run in a separate thread. It means the caller does not have to wait for the operation to finish, making the application more responsive. For example, when a user searches for products in the product catalog service, the service can asynchronously fetch product recommendations from an external API while immediately returning the main search results to the user, ensuring a fast and responsive experience.
-
-When applied individually or in combination, these strategies form the foundation of a fault-tolerant microservices architecture. The following sections delve deeper into their implementation and best practices.
-
 == Fault Tolerance API
 
 The Fault Tolerance API equips developers with annotations to enhance the resilience of microservices against failures. It integrates seamlessly with the MicroProfile Config API, enabling the dynamic configuration of fault tolerance behaviors without modifying the application code. This section will explore using the Fault Tolerance API to build a robust, fault-tolerant microservice.
@@ -85,13 +85,13 @@ The MicroProfile Fault Tolerance annotations provide a declarative way to implem
 === List of Annotations
 
 |=== 
-| Annotation | Description 
+| Annotation | Description
+| `@Asynchronous` | Ensures that the annotated method executes in a separate thread, allowing non-blocking execution. This is useful for improving responsiveness and handling long-running tasks asynchronously. 
 | `@Retry` | Specifies that the annotated method should automatically retry on failure. Parameters such as `maxRetries`, `delay`, `maxDuration`, and `jitter` control retry behavior. Configurations can be externalized using MicroProfile Config.
 | `@Timeout` | Specifies the maximum duration (in milliseconds) the method can execute before being aborted. If the timeout is exceeded, a `FaultToleranceException` is thrown. 
 | `@CircuitBreaker` | Defines a circuit breaker mechanism to prevent repeated calls to a failing method. Includes parameters like `failureRatio`, `delay`, and `requestVolumeThreshold`.
 | `@Fallback` | Specifies alternative logic to execute when the primary method fails. This ensures meaningful responses and graceful degradation.
 | `@Bulkhead` | Limits the number of concurrent method executions to isolate system resources and prevent cascading failures.
-| `@Asynchronous` | Ensures that the annotated method executes in a separate thread, allowing non-blocking execution. This is useful for improving responsiveness and handling long-running tasks asynchronously. 
 |===
 
 === Implementing Retry Policies and Configuration
@@ -257,6 +257,70 @@ In the above code, the circuit breaker opens if 50% of requests fail (`failureRa
 - **Set Realistic Failure Ratios and Thresholds:** Tailor parameters to your services' expected load and failure behavior.
 - **Monitor Metrics:** Use MicroProfile Metrics to monitor circuit breaker state transitions.
 - **Combine with Other Strategies:** Use circuit breakers alongside retries and timeouts for a robust fault tolerance setup.
+
+=== Using `@Asynchronous` Annotation
+
+The *`@Asynchronous`* annotation in MicroProfile Fault Tolerance is used to enable asynchronous execution of methods. It allows operations to run in a separate thread, freeing up the main thread for other tasks. This approach enhances the application's responsiveness and scalability, particularly in high-concurrency or latency-sensitive scenarios.
+
+==== Why Use `@Asynchronous`?
+
+1. *Improved Responsiveness*: The caller does not need to wait for the method execution to complete, allowing the application to remain interactive.
+2. *Non-Blocking Execution*: Long-running operations are offloaded to a separate thread, preventing bottlenecks.
+3. *Scalability*: By decoupling method execution from the calling thread, you can handle higher loads without increasing thread contention.
+
+==== Implementation
+
+Below is an example of using the *`@Asynchronous`* annotation with MicroProfile Fault Tolerance:
+
+[source,java]
+----
+package io.microprofile.tutorial.store.payment.service;
+
+import org.eclipse.microprofile.faulttolerance.Bulkhead;
+import jakarta.enterprise.context.ApplicationScoped;
+import org.eclipse.microprofile.faulttolerance.Asynchronous;
+import java.util.concurrent.CompletableFuture;
+
+@ApplicationScoped
+public class PaymentService {
+
+    /**
+     * Processes payments asynchronously
+     *
+     * @return A CompletableFuture with the result of the operation.
+     */
+    @Asynchronous
+    public CompletableFuture<String> processPayment() {
+        simulateDelay();
+        return CompletableFuture.completedFuture("Payment processed asynchronously.");
+    }
+
+    private void simulateDelay() {
+        try {
+            Thread.sleep(2000); // Simulating delay
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Error during simulated delay", e);
+        }
+    }
+}
+----
+
+==== Best Practices for Using @Asynchronous
+
+- *Use CompletableFuture or Future*: Return types like `CompletableFuture` allow asynchronous methods to integrate seamlessly with other asynchronous workflows.
+
+==== Asynchronous Execution in Fault Tolerance Strategies
+
+When used with other fault tolerance strategies, *`@Asynchronous`* provides a powerful mechanism to handle faults without impacting the system's responsiveness:
+
+1. *Asynchronous with Bulkhead*:
+   - Isolates resources while maintaining non-blocking execution.
+   - Handles concurrent requests efficiently using thread pools.
+
+2. *Asynchronous with Circuit Breaker*:
+   - Prevents system overload during failures by breaking the circuit for failing asynchronous methods.
+   - The circuit breaker's delay allows recovery while new threads are available for other tasks.
 
 === Setting Timeouts
 
@@ -446,74 +510,6 @@ This example demonstrates the use of MicroProfile Fault Tolerance annotations `@
 - **Provide Meaningful Responses:** The fallback response should maintain a reasonable user experience, even if it cannot replicate full functionality.
 - **Monitor Fallback Usage:** Use metrics to track the frequency of fallback execution, which can indicate service health and the need for improvements.
 - **Plan for Degraded Functionality:** Ensure the fallback behavior aligns with business priorities and provides the most critical features.
-
-=== Using `@Asynchronous` Annotation
-
-The *`@Asynchronous`* annotation in MicroProfile Fault Tolerance is used to enable asynchronous execution of methods. It allows operations to run in a separate thread, freeing up the main thread for other tasks. This approach enhances the application's responsiveness and scalability, particularly in high-concurrency or latency-sensitive scenarios.
-
-==== Why Use `@Asynchronous`?
-
-1. *Improved Responsiveness*: The caller does not need to wait for the method execution to complete, allowing the application to remain interactive.
-2. *Non-Blocking Execution*: Long-running operations are offloaded to a separate thread, preventing bottlenecks.
-3. *Scalability*: By decoupling method execution from the calling thread, you can handle higher loads without increasing thread contention.
-
-==== Implementation
-
-Below is an example of using the *`@Asynchronous`* annotation with MicroProfile Fault Tolerance:
-
-[source,java]
-----
-package io.microprofile.tutorial.store.payment.service;
-
-import org.eclipse.microprofile.faulttolerance.Bulkhead;
-import jakarta.enterprise.context.ApplicationScoped;
-import org.eclipse.microprofile.faulttolerance.Asynchronous;
-import java.util.concurrent.CompletableFuture;
-
-@ApplicationScoped
-public class PaymentService {
-
-    /**
-     * Processes payments asynchronously
-     *
-     * @return A CompletableFuture with the result of the operation.
-     */
-    @Asynchronous
-    public CompletableFuture<String> processPayment() {
-        simulateDelay();
-        return CompletableFuture.completedFuture("Payment processed asynchronously.");
-    }
-
-    private void simulateDelay() {
-        try {
-            Thread.sleep(2000); // Simulating delay
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Error during simulated delay", e);
-        }
-    }
-}
-----
-
-==== Best Practices for Using @Asynchronous
-
-- *Use CompletableFuture or Future*: Return types like `CompletableFuture` allow asynchronous methods to integrate seamlessly with other asynchronous workflows.
-- *Timeout Integration*: Combine *`@Asynchronous`* with *`@Timeout`* to ensure long-running asynchronous operations do not block system resources indefinitely.
-
-==== Asynchronous Execution in Fault Tolerance Strategies
-
-When used with other fault tolerance strategies, *`@Asynchronous`* provides a powerful mechanism to handle faults without impacting the system's responsiveness:
-
-1. *Asynchronous with Bulkhead*:
-   - Isolates resources while maintaining non-blocking execution.
-   - Handles concurrent requests efficiently using thread pools.
-
-2. *Asynchronous with Circuit Breaker*:
-   - Prevents system overload during failures by breaking the circuit for failing asynchronous methods.
-   - The circuit breaker's delay allows recovery while new threads are available for other tasks.
-
-3. *Asynchronous with Timeout*:
-   - Ensures operations terminate within an acceptable duration even when executed asynchronously.
 
 === Combining Fault Tolerance Strategies
 
