@@ -271,20 +271,27 @@ In distributed systems, slow responses from downstream services can cascade thro
 
 [source,java]
 ----
+package io.microprofile.tutorial.store.payment.service;
+
+import io.microprofile.tutorial.store.payment.entity.PaymentDetails;
+import io.microprofile.tutorial.store.payment.exception.CriticalPaymentException;
+import io.microprofile.tutorial.store.payment.exception.PaymentProcessingException;
+
+import jakarta.enterprise.context.ApplicationScoped;
+
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CompletableFuture;
+
+import org.eclipse.microprofile.faulttolerance.Asynchronous;
 import org.eclipse.microprofile.faulttolerance.Timeout;
 
+@ApplicationScoped
 public class PaymentService {
-
+    @Asynchronous
     @Timeout(1000)
-    public Response processPayment(PaymentDetails paymentDetails) throws PaymentProcessingException{
-   	
-        // Simulate a long-running process
-        try {
-            Thread.sleep(1500);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Processing interrupted");
-        }
+    public CompletionStage<String> processPayment(PaymentDetails paymentDetails) throws PaymentProcessingException{
+        simulateDelay();
+
         System.out.println("Processing payment for amount: " + paymentDetails.getAmount());
 
         // Simulating a transient failure
@@ -292,14 +299,12 @@ public class PaymentService {
             throw new PaymentProcessingException("Temporary payment processing failure");
         }
 
-        // response for successful payment processing
-        String result = "{\"status\":\"success\", \"message\":\"Payment processed successfully.\"}";
-        return Response.ok(result, MediaType.APPLICATION_JSON).build();
+        // Simulating successful processing
+        return CompletableFuture.completedFuture("{\"status\":\"success\", \"message\":\"Payment processed successfully.\"}");
     }
-}
 ----
 
-In this example, the `@Timeout(1000)` annotation specifies that the `processPayment` method must complete within 1000 milliseconds (1 second). If the execution exceeds this time, a `TimeoutException` will be thrown, and the process will terminate.
+In this example, the `@Timeout(1000)` annotation specifies that the `processPayment` method must complete within 1000 milliseconds (1 second). If the execution exceeds this time, a `TimeoutException` will be thrown, and the process will terminate. `@Asynchronous` ensures non-blocking execution by making the method run in a separate thread.
 
 ==== Best Practices for Timeouts
 
