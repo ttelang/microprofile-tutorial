@@ -50,9 +50,9 @@ In Java, context propagation is often implemented using thread-local variables o
 
 Together, these concepts form the foundation of distributed tracing, enabling developers to monitor, analyze, and optimize the performance of their microservices effectively.
 
-=== Instrumenting MicroProfile Telemetry
+=== Instrumenting with MicroProfile Telemetry
 
-Instrumenting Open Telemetry in an E-commerce Application
+Instrumenting an E-commerce Application with MicroProfile Telemetry
 
 *Step 1: Add the MicroProfile Telemetry Dependency*
 
