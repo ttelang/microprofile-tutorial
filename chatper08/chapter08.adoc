@@ -98,6 +98,7 @@ The MicroProfile Fault Tolerance annotations provide a declarative way to implem
 
 Retries are a fundamental fault tolerance strategy for managing transient failures such as temporary network outages or intermittent service unavailability. The `@Retry` annotation in the MicroProfile Fault Tolerance API provides a simple and effective way to implement retry policies. By customizing parameters such as the number of retries, delay between attempts, and conditions for retries, you can ensure your application responds to failures gracefully and minimizes downtime.
 
+==== Applying `@Retry` in `PaymentService` class
 Below is an example of applying the `@Retry` annotation in a `processPayment` method within a `PaymentService` class of the MicroProfile e-commerce project:
 
 [source,java]
@@ -130,6 +131,9 @@ public class PaymentService {
 }
 ----
 
+==== Defining the PaymentDetails Class
+To store the necessary payment information, the following `PaymentDetails` class is used. This class acts as a simple data container for payment-related details.
+
 [source,java]
 ----
 
@@ -145,7 +149,8 @@ class PaymentDetails {
     }
 }
 ----
-
+==== Creating Custom Exception Classes for Handling Failures
+The `PaymentProcessingException` class represents a recoverable error, which triggers retries when thrown.
 [source,java]
 ----
 
@@ -158,7 +163,7 @@ public class PaymentProcessingException extends Exception {
 }
 
 ----
-
+The `CriticalPaymentException` is considered a non-recoverable failure. If this exception occurs, the retry process is aborted.
 
 [source,java]
 ----
@@ -174,6 +179,7 @@ class CriticalPaymentException extends Exception {
 In this example, the `processPayment` method attempts to process a payment. If a transient failure occurs (e.g., `PaymentProcessingException`), the method retries up to three times (`maxRetries = 3`), and there is a delay of 2000 milliseconds between retries (`delay = 2000`), with a random variation of up to 500 milliseconds added to the delay (`jitter  = 500`) to avoid synchronized retries (e.g. thundering herd problem). 
 The retries are attempted only for the exception `PaymentProcessingException` (`retryOn = PaymentProcessingException.class`) and are aborted if a `CriticalPaymentException` is encountered (`abortOn = CriticalPaymentException.class`).
 
+This approach helps maintain application resilience while preventing unnecessary retries that could worsen critical failures.
 
 ==== Understanding the `@Retry` Parameters
 
