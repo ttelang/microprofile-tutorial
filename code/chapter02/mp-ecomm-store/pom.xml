@@ -9,21 +9,20 @@
   <version>1.0-SNAPSHOT</version>
   <packaging>war</packaging>
 
-  <name>mp-ecomm-store</name>
-  <!-- FIXME change it to the project's website -->
-  <url>http://www.example.com</url>
-
   <properties>
+    <openliberty.maven.version>3.10.1</openliberty.maven.version>
+    
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     
     <!-- Setting the source and target of the Java Compiler -->
-    <maven.compiler.source>17</maven.compiler.source>
-    <maven.compiler.target>17</maven.compiler.target>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
     
     <!-- Liberty configuration -->
-    <liberty.var.default.http.port>9080</liberty.var.default.http.port>
-    <liberty.var.default.https.port>9443</liberty.var.default.https.port>
+    <backend.service.http.port>5050</liberty.var.default.http.port>
+    <liberty.var.default.https.port>5051</liberty.var.default.https.port>
+    
     <liberty.var.app.context.root>mp-ecomm-store</liberty.var.app.context.root>
   </properties>
 
