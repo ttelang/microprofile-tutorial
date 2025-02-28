@@ -401,7 +401,7 @@ io.microprofile.tutorial.store.payment.service.ProductService/fetchData/Timeout/
 
 ==== Best Practices for Using @Asynchronous
 
-- *Use CompletableFuture or Future*: Return types like `CompletableFuture` allow asynchronous methods to integrate seamlessly with other asynchronous workflows.
+- *Use `CompletableStage` or `Future`*: Return types like `CompletableStage` allow asynchronous methods to integrate seamlessly with other asynchronous workflows.
 
 ==== Asynchronous Execution in Fault Tolerance Strategies
 
@@ -446,18 +446,20 @@ import org.eclipse.microprofile.faulttolerance.Timeout;
 public class PaymentService {
     @Asynchronous
     @Timeout(1000)
-    public CompletionStage<String> processPayment(PaymentDetails paymentDetails) throws PaymentProcessingException{
-        simulateDelay();
+    public CompletionStage<String> processPayment(PaymentDetails paymentDetails) {
+        return CompletableFuture.supplyAsync(() -> {
+            simulateDelay();
+            logger.info("Processing payment for amount: " + paymentDetails.getAmount());
 
-        System.out.println("Processing payment for amount: " + paymentDetails.getAmount());
+            if (Math.random() > 0.7) {
+                throw new PaymentProcessingException("Temporary payment processing failure");
+            }
 
-        // Simulating a transient failure
-        if (Math.random() > 0.7) {
-            throw new PaymentProcessingException("Temporary payment processing failure");
-        }
-
-        // Simulating successful processing
-        return CompletableFuture.completedFuture("{\"status\":\"success\", \"message\":\"Payment processed successfully.\"}");
+            return "{\"status\":\"success\", \"message\":\"Payment processed successfully.\"}";
+        }).exceptionally(ex -> {
+            logger.warning("Payment processing failed: " + ex.getMessage());
+            return "{\"status\":\"failure\", \"message\":\"Payment failed due to a temporary issue.\"}";
+        });
     }
 ----
 
@@ -694,6 +696,8 @@ import org.eclipse.microprofile.faulttolerance.Asynchronous;
 
 @ApplicationScoped
 public class PaymentService {
+
+    private static final Logger logger = Logger.getLogger(PaymentService.class.getName());
 
     /**
      * Processes payment transactions with limited concurrency to prevent
