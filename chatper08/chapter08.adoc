@@ -353,24 +353,30 @@ import org.eclipse.microprofile.faulttolerance.Bulkhead;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.faulttolerance.Asynchronous;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 @ApplicationScoped
 public class PaymentService {
 
+    private static final int SIMULATED_DELAY_MS = 2000;
+
     /**
      * Processes payments asynchronously
      *
-     * @return A CompletableFuture with the result of the operation.
+     * @return A CompletionStage with the result of the operation.
      */
     @Asynchronous
-    public CompletableFuture<String> processPayment() {
+    public CompletionStage<String> processPayment() {
         simulateDelay();
         return CompletableFuture.completedFuture("Payment processed asynchronously.");
     }
 
+    /**
+     * Simulates a delay in processing
+     */
     private void simulateDelay() {
         try {
-            Thread.sleep(2000); // Simulating delay
+            Thread.sleep(SIMULATED_DELAY_MS); // Simulating delay
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException("Error during simulated delay", e);
@@ -431,27 +437,41 @@ In distributed systems, slow responses from downstream services can cascade thro
 package io.microprofile.tutorial.store.payment.service;
 
 import io.microprofile.tutorial.store.payment.entity.PaymentDetails;
-import io.microprofile.tutorial.store.payment.exception.CriticalPaymentException;
 import io.microprofile.tutorial.store.payment.exception.PaymentProcessingException;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Logger;
 
 import org.eclipse.microprofile.faulttolerance.Asynchronous;
 import org.eclipse.microprofile.faulttolerance.Timeout;
 
 @ApplicationScoped
 public class PaymentService {
+
+    private static final int TIMEOUT_MS = 1000;
+    private static final double FAILURE_THRESHOLD = 0.7;
+
+    @Inject
+    private Logger logger;
+
+    /**
+     * Processes payments asynchronously with a timeout.
+     *
+     * @param paymentDetails the payment details
+     * @return a CompletionStage with the result of the operation
+     */
     @Asynchronous
-    @Timeout(1000)
+    @Timeout(TIMEOUT_MS)
     public CompletionStage<String> processPayment(PaymentDetails paymentDetails) {
         return CompletableFuture.supplyAsync(() -> {
             simulateDelay();
             logger.info("Processing payment for amount: " + paymentDetails.getAmount());
 
-            if (Math.random() > 0.7) {
+            if (Math.random() > FAILURE_THRESHOLD) {
                 throw new PaymentProcessingException("Temporary payment processing failure");
             }
 
@@ -461,6 +481,20 @@ public class PaymentService {
             return "{\"status\":\"failure\", \"message\":\"Payment failed due to a temporary issue.\"}";
         });
     }
+
+    /**
+     * Simulates a delay in processing.
+     */
+    private void simulateDelay() {
+        try {
+            Thread.sleep(2000); // Simulating delay
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.severe("Error during simulated delay: " + e.getMessage());
+            throw new RuntimeException("Error during simulated delay", e);
+        }
+    }
+}
 ----
 
 In this example, the `@Timeout(1000)` annotation specifies that the `processPayment` method must complete within 1000 milliseconds (1 second). If the execution exceeds this time, a `TimeoutException` will be thrown, and the process will terminate. `@Asynchronous` ensures non-blocking execution by making the method run in a separate thread. To explore the benefits of asynchronous programming with MicroProfile Fault Tolerance, the following resources provide valuable insights and real-world examples:
@@ -691,38 +725,58 @@ The semaphore-style bulkhead pattern limits the number of concurrent requests th
 package io.microprofile.tutorial.store.payment.service;
 
 import org.eclipse.microprofile.faulttolerance.Bulkhead;
-import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.faulttolerance.Asynchronous;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class PaymentService {
 
-    private static final Logger logger = Logger.getLogger(PaymentService.class.getName());
+    @Inject
+    private Logger logger;
+
+    @Inject
+    @ConfigProperty(name = "payment.simulatedDelay", defaultValue = "1000")
+    private int simulatedDelay;
+
+    @Inject
+    @ConfigProperty(name = "payment.bulkhead.value", defaultValue = "5")
+    private int bulkheadValue;
 
     /**
      * Processes payment transactions with limited concurrency to prevent
      * system overload and ensure stability during high traffic.
      *
      * The @Bulkhead annotation ensures that only a limited number of
-     * concurrent requests (5 in this case) can access this method.
+     * concurrent requests can access this method.
      * The @Asynchronous annotation enables the use of the thread pool
      * style bulkhead for non-blocking execution.
      *
      * @return A success message indicating the processing status.
      */
     @Asynchronous
-    @Bulkhead(value = 5)
-    public CompletableFuture<String> processPayment() {
+    @Bulkhead(value = bulkheadValue)
+    public CompletionStage<String> processPayment() {
+        logger.info("Starting payment processing...");
         simulateDelay();
+        logger.info("Payment processing completed.");
         return CompletableFuture.completedFuture("Payment processed asynchronously.");
     }
 
+    /**
+     * Simulates a delay in processing.
+     */
     private void simulateDelay() {
         try {
-            Thread.sleep(1000); // Simulating a delay
+            Thread.sleep(simulatedDelay); // Simulating delay
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException("Error during payment processing simulation", e);
+            logger.severe("Error during simulated delay: " + e.getMessage());
+            throw new RuntimeException("Error during simulated delay", e);
         }
     }
 }
@@ -742,10 +796,16 @@ package io.microprofile.tutorial.store.payment.service;
 
 import org.eclipse.microprofile.faulttolerance.Bulkhead;
 import jakarta.enterprise.context.ApplicationScoped;
+
 import org.eclipse.microprofile.faulttolerance.Asynchronous;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 @ApplicationScoped
 public class PaymentService {
+
+    private static final Logger logger = LoggerFactory.getLogger(PaymentService.class);
 
     /**
      * Processes payment transactions with limited concurrency using a thread pool
@@ -754,14 +814,14 @@ public class PaymentService {
      * The @Bulkhead annotation ensures that only a limited number of concurrent
      * requests (5 in this case) can access this method, and the @Asynchronous
      * annotation allows the use of the thread pool style bulkhead.
-     *
-     * @return A success message indicating the processing status.
      */
-    @Asynchronous
     @Bulkhead(value = 5, waitingTaskQueue = 10)
-    public void processPayment() {
-        simulateDelay();
-        System.out.println("Payment processed with limited concurrency.");
+    @Asynchronous
+    public CompletionStage<Void> processPayment() {
+        return CompletableFuture.runAsync(() -> {
+            simulateDelay();
+            System.out.println("Payment processed with limited concurrency.");
+        }).thenRun(() -> logger.info("Payment processed with limited concurrency."));
     }
 
     private void simulateDelay() {
@@ -773,7 +833,6 @@ public class PaymentService {
         }
     }
 }
-
 ----
 
 In this example, The method uses up to 5 concurrent threads (`value = 5`) from a thread pool and a queue of up to 10 tasks (`waitingTaskQueue = 10`).This configuration prevents failures in one operation from depleting shared resources.
@@ -786,12 +845,14 @@ Annotate the method without specific values:
 
 [source,java]
 ----
-@Asynchronous
-@Bulkhead
-public CompletableFuture<String> processPayment() {
+    @Asynchronous
+    @Bulkhead
+    public CompletionStage<String> processPayment() {
+    logger.info("Starting payment processing...");
     simulatePaymentProcessing();
+    logger.info("Payment processing completed.");
     return CompletableFuture.completedFuture("Payment processed successfully with an isolated thread pool.");
-}
+    }
 ----
 
 Define bulkhead parameters in `microprofile-config.properties`:
