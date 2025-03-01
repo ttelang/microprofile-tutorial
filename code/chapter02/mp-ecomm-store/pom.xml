@@ -20,7 +20,7 @@
     <maven.compiler.target>21</maven.compiler.target>
     
     <!-- Liberty configuration -->
-    <backend.service.http.port>5050</liberty.var.default.http.port>
+    <liberty.var.default.http.port>5050</liberty.var.default.http.port>
     <liberty.var.default.https.port>5051</liberty.var.default.https.port>
     
     <liberty.var.app.context.root>mp-ecomm-store</liberty.var.app.context.root>
