@@ -121,14 +121,19 @@ classes and interfaces included in the MicroProfile Configuration API:
 - `Config` - the class that is the main entry point to the configuration API
 and provides access to configuration data. The Config class provides
 static methods that can be used to access configuration properties.
+
 - `ConfigProvider` - a utility class for getting the Config instance. It
 allows retrieving the static instance of the Config object.
+
 - `ConfigBuilder` - An interface used to create a Config instance manually.
 It can add default sources, converters, and configuration sources.
+
 - `ConfigSource` - This class represents a source of configuration values.
 It reads configuration data from a specific source, such as system
 properties, environment variables, files, or data stores.
+
 - `Property` - It represents a key/value pair in the configuration data.
+
 - `Converter<T>` - This interface implements custom converters that convert
 configuration values from String to any desired type.
 
@@ -329,10 +334,15 @@ In this example, we’re injecting a property named "product.maintenanceMessage"
 As we saw, the Config API makes it easy to inject configuration properties into an application. The Config API defines a contract for config implementations. A ConfigSource is used to read configuration data from a particular source. For example, we could create a ConfigSource that reads configuration data from a file.
 
 `ConfigSource` interface has the following methods: 
+
 - `String getName()` : Returns the name of the ConfigSource. 
+
 - `int getOrdinal()` : Returns the ordinal of the ConfigSource. Ordinals are used to determine the precedence of ConfigSources. A higher ordinal means a higher precedence. 
+
 - `Map<String, String> getProperties()` : Returns a map of the properties in this ConfigSource. The keys in the map are the property names, and the values are the property values. 
+
 - `getValue(String propertyName)` : Returns the value of the given property. If the property is not found, this method returns null. 
+
 - `Set getPropertyNames()` : Returns a Set of the property names in this ConfigSource.
 
 Let’s implement a feature in our MicroProfile e-Commerce application to integrate payment gateway configuration dynamically by creating a PaymentServiceConfigSource (a custom ConfigSource) which could fetch API keys and endpoints. This would ensure that payment service configurations are up-to-date and can be changed without redeploying the application.
@@ -469,7 +479,8 @@ public class PaymentService {
 }
 ----
 
-Explanation: 
+**Explanation:**
+
 - `@Path("/authorize")`: Defines the base URI for the RESTful service. This class will handle requests made to URIs that start with `/payment/api/authorize`.
 - `@RequestScoped`: Indicates that a new instance of `PaymentService` is created for each HTTP request.
 - `@POST`: Specifies that the `processPayment` method will respond to HTTP POST requests, which is appropriate for operations that change server state (in this case, processing a payment).
