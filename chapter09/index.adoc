@@ -558,7 +558,7 @@ Sampling reduces the volume of traces collected and limits the exposure of sensi
 
 *Example:*
 
-Configure sampling to capture traces for debugging specific operations:
+Random sampling to limiting the amount of trace data collected:
 
 [source, properties]
 ----
