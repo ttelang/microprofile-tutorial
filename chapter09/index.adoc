@@ -18,6 +18,7 @@ In this chapter, we will explore the fundamentals of MicroProfile Telemetry, cov
 * Tools for Trace Analysis
 * Exporting the Traces
 * Types of Telemetry
+* Agent Instrumentation
 * Analyzing Traces
 * Security Considerations for Tracing
 
@@ -201,11 +202,11 @@ try {
 }
 ----
 
-=== Tools for Trace Analysis
+== Tools for Trace Analysis
 
 The following tools are commonly used for trace collection, visualization, and analysis in MicroProfile applications:
 
-==== OpenTelemetry Collector
+=== OpenTelemetry Collector
 
 The https://opentelemetry.io/docs/collector/[OpenTelemetry Collector] is an open-source telemetry processing system that acts as an intermediary between instrumented applications and observability backends such as Jaeger, Zipkin, and Prometheus. It is designed to receive, process, and export tracing data, making it a powerful tool for managing distributed traces in MicroProfile applications.
 
@@ -213,24 +214,24 @@ It is vendor-agnostic, which allows for seamless integration with multiple traci
 
 Designed for scalability, the OpenTelemetry Collector can be deployed as a standalone instance or distributed across multiple nodes, making it suitable for both small-scale applications and large enterprise-grade distributed systems.
 
-==== Jaeger
+=== Jaeger
 
 https://www.jaegertracing.io/[Jaeger] is an open-source distributed tracing system developed by Uber, widely used for monitoring microservices and visualizing request flows in cloud-native applications. It provides a powerful visualization interface that enables developers to inspect traces, analyze dependencies between services, and examine execution timelines, making it an essential tool for debugging performance bottlenecks.
 
 One of Jaeger’s key capabilities is service dependency analysis, which helps identify how microservices interact, providing insights into latency, failures, and request propagation. It also supports adaptive sampling strategies, allowing developers to control the volume of traces collected to optimize performance without overwhelming storage and processing resources. Additionally, Jaeger offers built-in storage options, allowing trace data to be stored in Elasticsearch, Cassandra, or Kafka, making it scalable and flexible for various deployment environments.
 
-==== Zipkin
+=== Zipkin
 
 https://zipkin.io/[Zipkin] is a distributed tracing system designed to help developers visualize and diagnose latency issues in microservices-based applications. It provides a lightweight and fast tracing solution, making it ideal for quick deployment with minimal resource usage. Its simplicity and efficiency make it a popular choice for teams looking to implement tracing without significant infrastructure overhead.
 
 One of Zipkin’s core strengths is its tag-based searching, which allows developers to filter traces based on metadata such as service name, request ID, or other custom attributes, enabling quick identification of relevant traces. It also offers dependency graph visualization, helping to uncover bottlenecks and inefficiencies in microservices interactions. To accommodate different storage needs, Zipkin supports multiple storage backends, including Elasticsearch, MySQL, and Cassandra, providing flexibility for various deployment scenarios.
 
-==== Grafana Tempo
+=== Grafana Tempo
 
 https://grafana.com/oss/tempo/[Grafana Tempo] is a distributed tracing backend. Unlike Jaeger and Zipkin, Tempo does not require indexing as it only requires object storage, making it highly scalable and cost-efficient for handling large volumes of trace data. This unique approach allows Tempo to store traces efficiently without increasing storage and query overhead, making it an ideal choice for high-performance microservices environments.
 One of Tempo’s key advantages is its tight integration with Grafana dashboards, enabling developers to correlate logs, metrics, and traces within a unified observability platform. Additionally, Tempo offers multi-backend support, meaning it can ingest and process trace data from OpenTelemetry, Jaeger, and Zipkin sources, ensuring compatibility with existing tracing setups. Its scalability makes it well-suited for large-scale microservices architectures, where efficiently managing distributed tracing data is crucial.
 
-=== Exporting the Traces
+== Exporting the Traces
 
 To export the traces we need to configure the exporter type and endpoint in the `src/main/resources/META-INF/microprofile-config.properties`.
 For using OTLP (OpenTelemetry Protocol) export, you need to add the following configuration in:
@@ -286,11 +287,12 @@ Ensure all the services of our MicroProfile E-commerce applications are running.
 Search using parameters like operation name, time range, or service for the traces associated with different microservices and confirm that the telemetry data is visible.
 View a detailed breakdown of each span within the trace, including timing and attributes.
 
-=== Types of Telemetry
+== Types of Telemetry
 
 MicroProfile Telemetry supports multiple approaches to instrumentation and tracing, ensuring flexibility for developers based on their observability needs. The three primary types of telemetry in MicroProfile Telemetry are:
 
-==== Automatic Instrumentation
+=== Automatic Instrumentation
+
 Automatic Instrumentation enables distributed tracing without requiring any modifications to the application code. This is particularly beneficial for Jakarta RESTful Web Services and MicroProfile REST Clients, as it enables seamless integration into distributed tracing systems following the semantic conventions of OpenTelemetry. This ensures compatibility across different tracing tools.
 
 For example, in the ProductService, which exposes a RESTful endpoint, automatic instrumentation ensures that incoming and outgoing HTTP requests are traced with minimal configuration, without requiring any additional code changes.
@@ -303,10 +305,10 @@ otel.sdk.disabled=false
 ----
 This ensures that OpenTelemetry's tracing capabilities are enabled for the application.
 
-==== Manual Instrumentation
+=== Manual Instrumentation
 Manual Instrumentation provides developers with fine-grained control over how telemetry data is collected and structured within a MicroProfile application. By explicitly defining spans, attributes, and trace propagation, developers can gain greater insight into application behavior beyond what automatic instrumentation provides.
 
-===== Using the @WithSpan Annotation
+==== Using the @WithSpan Annotation
 The `@WithSpan` annotation provides a simple way to create custom spans within a trace. By annotating a method with `@WithSpan`, a new span is automatically generated whenever the method is invoked. This span is linked to the current trace context, allowing developers to track key operations without manually managing span lifecycle.
 
 [source, java]
@@ -326,7 +328,7 @@ public class PaymentService {
 
 Every time processPayment is called, a new span is created. The span is automatically linked to the current trace context. No need for explicit span creation or lifecycle management. You can use `@WithSpan` for tracing key business operations, such as order processing, payment handling, or API requests.
 
-===== Using `SpanBuilder` for Custom Spans
+==== Using `SpanBuilder` for Custom Spans
 
 For greater flexibility, developers can manually create spans using the OpenTelemetry API. The `SpanBuilder` class provides the ability to define custom span names, making trace analysis more meaningful and structured. Additionally, developers can attach custom attributes to spans, enriching trace data with relevant metadata for deeper insights. This method also offers explicit control over the span lifecycle, allowing spans to be started and ended manually, ensuring they accurately represent specific business operations or execution flows within the application.
 
@@ -357,7 +359,7 @@ public class TraceResource {
 
 The method `tracer.spanBuilder("custom-span").startSpan()` creates a span with a specific name allowing developers to define meaningful trace segments for better observability. Using `span.setAttribute("custom.key", "customValue")`, custom metadata can be attached to the span, enriching trace data with relevant contextual information. Finally, calling `span.end()` explicitly marks the completion of the span, ensuring accurate tracking of execution duration. The `SpanBuilder` approach is particularly useful when developers require fine-grained control over when spans start and end, as well as the ability to include detailed metadata for enhanced trace analysis.
 
-===== Manual Tracing in `PaymentService`
+=== Manual Tracing in `PaymentService`
 
 To manually instrument the processPayment method in the PaymentService, we use OpenTelemetry’s API to create a custom span, add attributes, and control the span lifecycle.
 
@@ -416,15 +418,6 @@ Refer to the [https://opentelemetry.io/docs/zero-code/java/agent/getting-started
 Once enabled, the agent automatically instruments the application, seamlessly integrating with distributed tracing systems without requiring developer intervention. This makes it an efficient and non-intrusive way to implement observability in MicroProfile applications.
 
 Once enabled, the agent automatically instruments the application, seamlessly integrating with distributed tracing systems without requiring developer intervention. This makes it an efficient and non-intrusive way to implement observability in MicroProfile applications.
-
-== Best Practices for Context Propagation and Correlation
-
-. *Propagate Context Consistently: *Use standard headers like traceparent for HTTP and custom headers for other protocols.
-. *Log Trace Identifiers: *Include trace and span IDs in logs to correlate logs and traces effectively.
-. *Use Context Propagation Libraries:* Leverage tools like MicroProfile Context Propagation to simplify the management of context in asynchronous flows.
-. *Secure Context Data: *Ensure that trace metadata does not include sensitive information and is transmitted securely.
-
-By leveraging context propagation and correlation, developers can gain a unified view of distributed transactions, enabling effective debugging and optimization of microservices.
 
 == Analyzing Traces
 
