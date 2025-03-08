@@ -432,7 +432,7 @@ Once trace data is collected and exported to a backend system, analyzing these t
 
 ==== Visualizing Traces
 
-Tracing backends like *Jaeger*, *Zipkin*, or *OpenTelemetry Collector* provide visual interfaces to explore and analyze traces. These tools display traces as timelines or dependency graphs, making it easier to:
+Tracing backends like *Jaeger*, *Zipkin*, or *Graphana Tempo* provide visual interfaces to explore and analyze traces. These tools display traces as timelines or dependency graphs, making it easier to:
 
 * Understand the sequence of operations.
 * Identify the services and components involved in a request.
