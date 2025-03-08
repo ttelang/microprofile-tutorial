@@ -6,7 +6,7 @@ MicroProfile Telemetry specification provides a set of vendor-neutral APIs for i
 
 In this chapter, we will explore the fundamentals of MicroProfile Telemetry, covering topics such as tracing concepts, instrumenting Telemetry, setting up tracing providers, context propagation and correlation, analyzing traces, security considerations for tracing, and more. By the end of this chapter, you will learn how to effectively leverage distributed tracing for debugging, performance monitoring, and system optimization.
 
-== Topics to be covered:
+== Topics to be covered
 
 * Introduction to MicroProfile Telemetry
 * Tracing Concepts 
@@ -15,7 +15,9 @@ In this chapter, we will explore the fundamentals of MicroProfile Telemetry, cov
 ** Context Propagation
 ** Correlation
 * Instrumenting OpenTelemetry
+* Tools for Trace Analysis
 * Exporting the Traces
+* Types of Telemetry
 * Analyzing Traces
 * Security Considerations for Tracing
 
@@ -34,7 +36,7 @@ To address these challenges, MicroProfile Telemetry specification provides a sta
 
 MicroProfile Telemetry is vendor-neutral. It allows developers to switch between different OpenTelemetry implementations without modifying their application code. This flexibility ensures that MicroProfile applications can easily integrate with various observability platforms, making it easier to adopt, scale, and maintain Telemetry in modern cloud-native environments.
 
-== Tracing Concepts (Spans, Traces and Context Propagation)
+== Tracing Concepts
 
 Tracing is critical for observability. It allows developers to inspect the flow of requests as they traverse through distributed systems. Tracing provides visibility into the interactions and dependencies within a system by breaking down a request into multiple spans, and connecting them into traces with context propagated across services.
 
@@ -355,7 +357,7 @@ public class TraceResource {
 
 The method `tracer.spanBuilder("custom-span").startSpan()` creates a span with a specific name allowing developers to define meaningful trace segments for better observability. Using `span.setAttribute("custom.key", "customValue")`, custom metadata can be attached to the span, enriching trace data with relevant contextual information. Finally, calling `span.end()` explicitly marks the completion of the span, ensuring accurate tracking of execution duration. The `SpanBuilder` approach is particularly useful when developers require fine-grained control over when spans start and end, as well as the ability to include detailed metadata for enhanced trace analysis.
 
-==== Custom Tracing in processPayment Method of PaymentService
+===== Manual Tracing in `PaymentService`
 
 To manually instrument the processPayment method in the PaymentService, we use OpenTelemetry’s API to create a custom span, add attributes, and control the span lifecycle.
 
@@ -404,7 +406,7 @@ The `payment.process` span is manually created using `tracer.spanBuilder()`, all
 
 In the event of an error, the span captures and records the exception, ensuring failure details are logged for debugging. The span lifecycle is carefully managed, starting before the business logic executes and ending only after the process is completed in the `finally` block. This structured approach guarantees accurate performance monitoring and trace completeness, improving visibility into how payments are processed in a distributed system.
 
-====  Agent Instrumentation
+==  Agent Instrumentation
 
 Agent Instrumentation enables telemetry data collection without modifying application code by attaching a Java agent at runtime. This approach is particularly useful for legacy applications or scenarios where modifying source code is not feasible. The OpenTelemetry Java Agent dynamically instruments applications, automatically detecting and tracing interactions within commonly used frameworks such as Jakarta RESTful Web Services, database connections, and messaging systems.
 
@@ -415,7 +417,7 @@ Once enabled, the agent automatically instruments the application, seamlessly in
 
 Once enabled, the agent automatically instruments the application, seamlessly integrating with distributed tracing systems without requiring developer intervention. This makes it an efficient and non-intrusive way to implement observability in MicroProfile applications.
 
-==== Best Practices for Context Propagation and Correlation
+== Best Practices for Context Propagation and Correlation
 
 . *Propagate Context Consistently: *Use standard headers like traceparent for HTTP and custom headers for other protocols.
 . *Log Trace Identifiers: *Include trace and span IDs in logs to correlate logs and traces effectively.
@@ -424,13 +426,11 @@ Once enabled, the agent automatically instruments the application, seamlessly in
 
 By leveraging context propagation and correlation, developers can gain a unified view of distributed transactions, enabling effective debugging and optimization of microservices.
 
-=== Analyzing Traces
+== Analyzing Traces
 
 Once trace data is collected and exported to a backend system, analyzing these traces becomes a crucial step in understanding the behavior of your distributed microservices architecture. By examining traces, you can gain insights into system performance, identify bottlenecks, and detect failures or anomalies.
 
-==== Steps to Analyze Traces
-
-==== Visualizing Traces
+=== Visualizing Traces
 
 Tracing backends like *Jaeger*, *Zipkin*, or *Graphana Tempo* provide visual interfaces to explore and analyze traces. These tools display traces as timelines or dependency graphs, making it easier to:
 
@@ -438,7 +438,7 @@ Tracing backends like *Jaeger*, *Zipkin*, or *Graphana Tempo* provide visual int
 * Identify the services and components involved in a request.
 * Observe how requests propagate through the system.
 
-==== Identifying Bottlenecks
+=== Identifying Bottlenecks
 
 Traces highlight spans with long durations or repeated retries, which often point to bottlenecks or inefficiencies. Pay close attention to:
 
@@ -446,7 +446,7 @@ Traces highlight spans with long durations or repeated retries, which often poin
 * *Service Dependencies*: Examine how upstream and downstream services interact to find slow components.
 * *Retries and Failures*: Repeated spans or high failure rates indicate problematic dependencies or transient errors.
 
-==== Diagnosing Failures
+=== Diagnosing Failures
 
 Traces provide valuable information for diagnosing failures, including:
 
@@ -454,7 +454,7 @@ Traces provide valuable information for diagnosing failures, including:
 * *Exception Details*: Many tracing systems capture stack traces or error messages in spans.
 * *Service Impact*: Identify which upstream and downstream services are affected by the failure.
 
-==== Understanding Service Dependencies
+=== Understanding Service Dependencies
 
 Dependency graphs generated from traces show the interactions between services. These graphs help:
 
@@ -462,7 +462,7 @@ Dependency graphs generated from traces show the interactions between services. 
 * Detects circular dependencies or excessive coupling.
 * Plan optimizations by focusing on critical services.
 
-==== Correlating Traces with Logs and Metrics
+=== Correlating Traces with Logs and Metrics
 
 Traces, when combined with logs and metrics, provide a comprehensive picture of the system:
 
@@ -470,7 +470,7 @@ Traces, when combined with logs and metrics, provide a comprehensive picture of 
 * *Metrics*: Correlate trace performance data with system metrics like CPU usage, memory consumption, or request rates.
 Example: If a span indicates high latency, check corresponding logs and metrics to identify the underlying cause, such as a resource constraint or network delay.
 
-==== Best Practices for Analyzing Traces
+=== Best Practices for Analyzing Traces
 
 . *Establish Baselines*: Use traces to establish performance baselines for services.
 . *Monitor Critical Paths*: Focus on traces that traverse critical services or user-facing operations.
@@ -497,7 +497,7 @@ Here are some tips for analyzing traces:
 
 By following these tips, developers can effectively analyze traces to improve the performance and reliability of their microservices applications.
 
-==== Security Considerations for Tracing
+== Security Considerations for Tracing
 
 When implementing tracing in your applications, it is crucial to be mindful of security implications. Tracing involves collecting and storing data about application behavior, which can potentially expose sensitive information if not handled properly.
 
@@ -507,7 +507,7 @@ When implementing tracing in your applications, it is crucial to be mindful of s
 * *Storage:* Carefully manage the storage of trace data. Avoid storing traces indefinitely and implement data retention policies.
 * *Third-Party Services:* If using third-party tracing services, ensure they have robust security measures in place to protect your data.
 
-==== Avoid Capturing Sensitive Data
+=== Avoid Capturing Sensitive Data
 
 Traces often include attributes and metadata that can contain sensitive information. Avoid storing or transmitting sensitive details, such as:
 
@@ -525,7 +525,7 @@ span.setAttribute("user.id", "anonymized-user-id");
 span.setAttribute("credit.card.last4", "****1234");
 ----
 
-==== Encrypt Trace Data
+=== Encrypt Trace Data
 
 To prevent unauthorized access during transmission, ensure that telemetry data is encrypted. Use secure protocols such as HTTPS or TLS for exporting trace data to a backend.
  
@@ -539,14 +539,14 @@ otel.exporter.jaeger.endpoint=https://secure-jaeger-collector.example.com
 otel.exporter.otlp.endpoint=https://secure-collector.example.com
 ----
 
-==== Limit Trace Retention
+=== Limit Trace Retention
 
 Trace data can grow rapidly in distributed systems. Retaining it indefinitely increases the risk of exposing sensitive information. Implement retention policies to:
 
 * Retain traces only for the necessary duration for debugging or performance analysis.
 * Periodically purge older traces from storage.
 
-==== Access Control and Auditing
+=== Access Control and Auditing
 
 Restrict access to trace data to authorized personnel only. Ensure that your tracing backend implements robust authentication and authorization mechanisms.
 
@@ -555,7 +555,7 @@ Restrict access to trace data to authorized personnel only. Ensure that your tra
 * Use role-based access control (RBAC) to define permissions for viewing and managing traces.
 * Audit access to trace data regularly to identify potential misuse or breaches.
 
-==== Sampling Strategies to Minimize Exposure
+=== Sampling Strategies to Minimize Exposure
 
 Sampling reduces the volume of traces collected and limits the exposure of sensitive data by capturing only a subset of requests. Common strategies include:
 
@@ -573,7 +573,7 @@ otel.traces.sampler=traceidratio
 otel.traces.sampler.traceidratio=0.1
 ----
 
-==== Compliance with Regulations
+=== Compliance with Regulations
 
 Ensure that your tracing practices comply with data protection and privacy regulations such as GDPR, CCPA, or HIPAA. Key considerations include:
 
@@ -581,7 +581,7 @@ Ensure that your tracing practices comply with data protection and privacy regul
 * Informing users about telemetry collection in your privacy policy.
 * Providing mechanisms to opt out of tracing where required.
 
-==== Isolate Tracing Infrastructure
+=== Isolate Tracing Infrastructure
 
 The tracing infrastructure, such as Jaeger or OpenTelemetry Collector, should be isolated from the public internet and accessible only within secure networks. 
 
@@ -590,7 +590,7 @@ The tracing infrastructure, such as Jaeger or OpenTelemetry Collector, should be
 * Deploy tracing backends in private subnets or behind firewalls.
 * Use VPNs or dedicated connections for remote access to tracing dashboards.
 
-==== Monitor and Alert on Trace Anomalies
+=== Monitor and Alert on Trace Anomalies
 
 Tracing can help detect potential security incidents. Monitor traces for unusual patterns, such as:
 
@@ -600,7 +600,7 @@ Tracing can help detect potential security incidents. Monitor traces for unusual
 Set up alerts for these anomalies to investigate and mitigate potential issues. +
 By following these security considerations, you can leverage the benefits of distributed tracing without compromising the security of your system or the privacy of your users. Careful handling of trace data, coupled with robust encryption, access controls, and compliance practices, ensures that tracing remains a valuable yet secure component of your observability strategy.
 
-=== Conclusion
+== Conclusion
 
 MicroProfile Telemetry provides a robust foundation for observability in Java-based microservices, enabling developers to implement distributed tracing seamlessly. By leveraging this specification, you can gain deep insights into the flow of requests, identify bottlenecks, and enhance the reliability and performance of your applications. The integration of standardized tracing concepts like spans, traces, and context propagation ensures that developers can maintain a cohesive understanding of their system's behavior across service boundaries.
 
