@@ -414,7 +414,7 @@ Agent Instrumentation enables telemetry data collection without modifying applic
 
 One of the key advantages of agent-based instrumentation is that it requires no changes to the application's source code and eliminates the need for recompilation or redeployment. Instead, it can be activated by attaching the agent at application startup.
 
-Refer to the https://opentelemetry.io/docs/zero-code/java/agent/getting-started/ [OpenTelemetry Java Agent Getting Started page] for step-by-step instructions on enabling it for your application.
+Refer to the https://opentelemetry.io/docs/zero-code/java/agent/getting-started/[OpenTelemetry Java Agent Getting Started page] for step-by-step instructions on enabling it for your application.
 Once enabled, the agent automatically instruments the application, seamlessly integrating with distributed tracing systems without requiring developer intervention. This makes it an efficient and non-intrusive way to implement observability in MicroProfile applications.
 
 Once enabled, the agent automatically instruments the application, seamlessly integrating with distributed tracing systems without requiring developer intervention. This makes it an efficient and non-intrusive way to implement observability in MicroProfile applications.
