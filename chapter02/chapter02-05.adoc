@@ -23,7 +23,7 @@ microservices architecture.
 |REST resource classes (sometimes called controllers in other frameworks) are the entry points for HTTP requests. They interact with service classes to process these requests. Interfaces defining endpoints for REST services (e.g., ProductResource, ShoppingCartResource).
 
 |common
-|This package contains classes and interfaces that are shared across different microservices, such as utility classes, common configuration, exception handling, and security-related classes.
+|This package contains classes and interfaces that are shared across different microservices, such as utility classes, common configuration, and security-related classes.
 
 |client
 |For microservices to communicate with each other, they often use HTTP clients. This package contains interfaces or classes annotated for use with MicroProfile Rest Client or similar, facilitating easy communication between your services.
@@ -50,13 +50,17 @@ io.microprofile.tutorial.store
 │    ├── entity
 │    ├── repository
 │    ├── service
+│    ├── client
+│    ├── common
 │    └── util
 ├── cart
 │    ├── resource
+│    ├── config
 │    ├── entity
 │    ├── service
 │    ├── repository
 │    ├── client
+│    ├── common
 │    ├── exception
 │    └── util
 ├── user
@@ -65,6 +69,8 @@ io.microprofile.tutorial.store
 │    ├── service
 │    ├── repository
 │    ├── exception
+│    ├── client
+│    ├── common
 │    └── util
 ├── inventory
 │    ├── resource
@@ -72,6 +78,8 @@ io.microprofile.tutorial.store
 │    ├── service
 │    ├── repository
 │    ├── exception
+│    ├── client
+│    ├── common
 │    └── util
 ├── order
 │    ├── resource
@@ -79,6 +87,8 @@ io.microprofile.tutorial.store
 │    ├── service
 │    ├── repository
 │    ├── exception
+│    ├── client
+│    ├── common
 │    └── util
 ├── payment
 │    ├── resource
@@ -86,6 +96,8 @@ io.microprofile.tutorial.store
 │    ├── service
 │    ├── repository
 │    ├── exception
+│    ├── client
+│    ├── common
 │    └── util
 └── shipment
      ├── resource
@@ -93,6 +105,8 @@ io.microprofile.tutorial.store
      ├── service
      ├── repository
      ├── exception
+     ├── client
+     ├── common
      └── util
 ----
 
