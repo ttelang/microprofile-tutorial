@@ -123,4 +123,277 @@ product-service/mp-rest/url=http://localhost:8080/api/products
 product-service/mp-rest/followRedirects=true. 
 ----
 
+== Parameter Configurations
+
+In MicroProfile Rest Client, you can dynamically configure headers, query parameters, and path parameters dynamically using Jakarta RESTful Web Services annotations. These annotations bind method parameters to different parts of the HTTP request, enabling flexible and dynamic RESTful client interfaces that can efficiently interact with various endpoints.
+
+*Supported Parameter Annotations*
+
+. `@PathParam` – Binds a method parameter to a path variable in the URL.
+
+. `@QueryParam` – Maps a method parameter to a query string parameter in the request URL.
+
+. `@HeaderParam` – Attaches a method parameter to an HTTP request header.
+
+These annotations eliminate manual string concatenation, making REST client calls type-safe and maintainable.
+
+=== Using Path Parameters (`@PathParam`)
+
+Path parameters are used to insert dynamic values directly into the URL path.
+
+[source, java]
+----
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
+
+@RegisterRestClient
+@Path("/products")
+public interface ProductServiceClient {
+
+    @GET
+    @Path("/{id}")
+    Product getProductById(@PathParam("id") Long id);
+}
+----
+
+Example
+[source, java]
+----
+productServiceClient.getProductById(1L);
+----
+
+Resulting HTTP Request
+[source, http]
+----
+GET /products/1
+----
+
+==== Why Use @PathParam?
+
+. Ensures URL structure consistency by enforcing path variables
+. Prevents hardcoding URLs, making the code cleaner and maintainable.
+
+=== Using Query Parameters (`@QueryParam`)
+
+Query parameters are typically used for filtering, pagination, or optional parameters in the request URL.
+
+Example: 
+
+[source, java]
+----
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.QueryParam;
+import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
+
+@RegisterRestClient
+@Path("/products")
+public interface ProductServiceClient {
+
+    @GET
+    List<Product> getProductsByCategory(@QueryParam("category") String category);
+}
+----
+
+Example Call: 
+
+[source, java]
+----
+productServiceClient.getProductsByCategory("electronics");
+----
+
+Resulting HTTP Request:
+[source, http]
+----
+GET /products?category=electronics
+----
+
+==== Why Use @QueryParam?
+. Useful for filtering results (?category=electronics).
+. Ideal for pagination (?page=2&size=20).
+. Allows sending optional parameters without modifying the URL structure.
+
+=== Using Header Parameters (@HeaderParam)
+
+Header parameters are typically used for authentication, authorization, and metadata transmission between client and server.
+
+Example: 
+
+[source, java]
+----
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.HeaderParam;
+import jakarta.ws.rs.Path;
+import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
+
+@RegisterRestClient
+@Path("/orders")
+public interface OrderServiceClient {
+
+    @GET
+    List<Order> getOrders(@HeaderParam("Authorization") String authToken);
+}
+----
+
+Example Call:
+
+[source, java]
+----
+orderServiceClient.getOrders("Bearer my-secret-token");
+----
+
+Resulting HTTP Request:
+
+[source]
+----
+GET /orders
+Authorization: Bearer my-secret-token
+----
+
+==== Why Use @HeaderParam?
+. Used for passing authentication tokens (Authorization: Bearer token).
+. Helps with custom metadata exchange (e.g., X-Correlation-ID: 12345).
+. Avoids exposing sensitive data in URLs (e.g., API keys).
+
+== Handling Requests and Responses
+
+In MicroProfile Rest Client, handling requests and responses involves defining methods in your interface that map to RESTful service endpoints. This ensures that:
+
+. HTTP requests are automatically constructed based on method definitions.
+. Responses are efficiently deserialized into Java objects (DTOs) or processed manually using `Response`.
+
+By using Jakarta RESTful Web Services annotations, you can define GET, POST, PUT, and DELETE operations while MicroProfile handles serialization, deserialization, and request execution at runtime. 
+
+== Handling JSON Data formats
+
+By default, MicroProfile Rest Client supports JSON format without requiring additional configurations. Serialization and deserialization of request and response bodies are automatically handled using JSON-B (Jakarta JSON Binding) or JSON-P (Jakarta JSON Processing). 
+
+Developers can directly use Java objects as request bodies or response entities, eliminating the need for manual parsing.
+
+Example:
+
+[source, java]
+----
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.Consumes;
+import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
+
+@RegisterRestClient
+@Path("/products")
+@Produces("application/json")
+@Consumes("application/json")
+public interface ProductServiceClient {
+
+    @GET  
+    @Path("/{id}")  
+    Product getProductById(@PathParam("id") Long id); 
+}
+----
+
+*Explanation*
+
+. The `@Produces("application/json")` annotation specifies that the client expects JSON responses. This determines the value of the `Accept` header in HTTP requests.
+
+. The `@Consumes("application/json")` annotation specifies that the client sends JSON requests. This determines the value of the `Content-Type` header of the request.
+
+. By default the media type `"application/json"` is used if `@Produces` and `@Consumes` are not explicitly set.
+
+. MicroProfile Rest Client automatically serializes Java objects to JSON and deserializes responses into Product DTO (Data Transfer Object) Java object.
+
+=== Error Handling
+
+Effective handling of errors is crucial while consuming remote RESTful services. MicroProfile Rest Client provides a structured approach to error handling by mapping HTTP responses to exceptions using the `ResponseExceptionMapper` interface. 
+
+This mechanism allows developers to:
+
+. Convert specific HTTP response codes into custom exceptions.
+. Customize exception handling behavior at runtime.
+. Automatically throw mapped exceptions in client invocations.
+
+==== Using RequestExceptionMapper interface
+
+The `ResponseExceptionMapper` interface allows mapping an HTTP Response object to a `Throwable` (custom exception). This improves error handling by ensuring meaningful exceptions are thrown instead of manually checking response codes.
+
+*How it Works*
+
+. *Scanning and Prioritizing Exception Mappers*: When a client method is invoked, the runtime scans all registered `ResponseExceptionMapper` implementations. Mappers are then sorted in ascending order of priority, determined by the `@Priority` annotation. The mapper with the lowest numeric priority value is checked first. 
+
+. * Handling Responses: The `handles(int status, MultivaluedMap<String,Object> headers)` method determines whether a mapper should handle a given response. By default, it handles responses with status code 400 or higher, but we can override this behavior.
+
+. *Converting the Response to an Exception*: The `toThrowable(Response response)` method converts a response into a `Throwable` (exception). Checked exceptions are only thrown if the client method declares that it throws that type of exception of its superclass. Unchecked exceptions (RuntimeException) are always thrown.
+
+Example:
+
+[source, java]
+----
+package io.microprofile.tutorial.inventory.client;  
+
+import jakarta.ws.rs.GET;  
+import jakarta.ws.rs.Path;  
+import jakarta.ws.rs.PathParam;  
+import jakarta.ws.rs.core.Response;  
+import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;  
+import org.eclipse.microprofile.rest.client.annotation.RegisterProvider;  
+
+@RegisterRestClient(configKey = "product-service")  
+@RegisterProvider(ProductServiceResponseExceptionMapper.class)  
+@Path("/products")  
+public interface ProductServiceClient extends AutoCloseable {  
+
+    @GET  
+    @Path("/{id}")  
+    Response getProductById(@PathParam("id") Long id);  
+}
+----
+
+Explanation:
+
+. The REST client interface defines an endpoint for retrieving products.
+. The `@RegisterProvider` annotation registers `ProductServiceResponseExceptionMapper`, ensuring custom exception handling.
+
+And below is the corresponding `ResponseExceptionMapper`: 
+
+[source, java]
+----
+package io.microprofile.tutorial.inventory.client;  
+
+import jakarta.ws.rs.core.Response;  
+import org.eclipse.microprofile.rest.client.ext.ResponseExceptionMapper;  
+import io.microprofile.tutorial.inventory.dto.ProductNotFoundException;  
+
+public class ProductServiceResponseExceptionMapper implements ResponseExceptionMapper<Throwable> {  
+
+    @Override  
+    public Throwable toThrowable(Response response) {  
+        if (response.getStatus() == 404) {  
+            return new ProductNotFoundException("Product not found");  
+        }  
+        return new Exception("An unexpected error occurred");  
+    }  
+}
+---- 
+*Explanation:*
+
+If the response status code is `404`, a `ProductNotFoundException` is thrown. Otherwise, a generic exception is returned.
+
+=== Conclusion
+
+The MicroProfile Rest Client provides a declarative, type-safe, and efficient way to interact with RESTful services in Java microservices. It eliminates the need for boilerplate code, allowing developers to focus on business logic rather than low-level HTTP handling.
+
+By seamlessly integrating with other MicroProfile specifications—such as Config, Fault Tolerance, and JWT Authentication—the MicroProfile Rest Client enhances configurability, resilience, and security in cloud-native applications.
+
+==== Key Takeaways:
+
+* Removes boilerplate HTTP code, making REST clients concise and readable.
+* Automatically handles serialization and deserialization of JSON and XML data.
+* Supports CDI injection, enabling better lifecycle management.
+* Integrates with MicroProfile Fault Tolerance for retry policies and circuit breakers.
+* Enhances security through header propagation and authentication support.
+
+With MicroProfile Rest Client, building reliable and maintainable microservices that communicate over REST becomes simpler, more flexible, and more powerful.
+
 
