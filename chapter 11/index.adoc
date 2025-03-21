@@ -63,3 +63,64 @@ dependencies {
 ----
 
 > Tip: The MicroProfile Rest Client is an Eclipse Foundation project. For more details and updates on the project, visit the official repository: MicroProfile Rest Client on GitHub.
+
+== Creating MicroProfile Rest Client Interface
+
+To create a MicroProfile Rest Client interface, you need to define a Java interface and annotate it with annotations to map it to a RESTful service. 
+
+=== The `@RegisterRestClient` Annotation
+
+To use the MicroProfile Rest Client, annotate your client interface with `@RegisterRestClient`. This annotation registers the interface as a Rest client within MicroProfile runtime and enables it as a CDI bean, allowing it to be injected into other components. 
+
+Example: 
+
+[source, java]
+----
+package io.microprofile.tutorial.inventory.client;
+
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+
+import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
+
+import io.microprofile.tutorial.inventory.dto.Product;
+
+@RegisterRestClient(configKey = "product-service")
+@Path("/products")
+public interface ProductServiceClient extends AutoCloseable {
+
+    @GET
+    @Path("/{id}")
+    Product getProductById(@PathParam("id") Long id);
+}
+----
+
+Explanation: 
+In the above code, we define a `ProductServiceClient` within the package `io.microprofile.tutorial.inventory.client`. The interface serves as a Rest client for interaction with a remote product service. It extends `AutoCloseable` interface, allowing the client to be closed when no longer needed, improving resource management. 
+
+. `@RegisterRestClient` - declares the `ProductServiceClient` interface as a MicroProfile Rest Client, enabling it to be injected into other CDI-managed components. 
+
+. The attribute `configKey = "product-service"` enables configuration via MicroProfile Config (using for e.g. _microprofile-config.properties_ or environment variables).
+
+. `@Path(/products)` - specifies the base URI of the RESTful service. 
+
+. `@Path("/{id}")` – define a dynamic parameter `{id} `,  which will be replaced at runtime with actual values. 
+
+. `@PathParam("id")` - binds the method parameter `id` to the `{id}` path variable in the URL. 
+
+. `@GET` - indicates that this method handles HTTP GET requests. 
+
+. Return Type (`Product`) - The method returns a `Product` DTO (Data Transfer Object), which represents the retrieved product data.
+
+==== Configuration via MicroProfile Config:
+
+To configure the URI using MicroProfile Config, you need to add a config file named src/main/webapp/META-INF/microprofile-config.properties in your project. This file contains the configuration key and value pairs. In this example, we’re configuring the base URI to http://localhost:8080/api/products. We can configure other client properties, such as followRedirects. The followRedirects property specifies whether the client should automatically follow HTTP redirects (3xx status codes) when making RESTful web service calls.
+
+[source]
+----
+product-service/mp-rest/url=http://localhost:8080/api/products
+product-service/mp-rest/followRedirects=true. 
+----
+
+
