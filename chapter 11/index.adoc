@@ -1,0 +1,65 @@
+= Chapter 11: MicroProfile Rest Client
+
+In microservices architecture, developers often face the cumbersome task of implementing boilerplate code to consume REST APIs - manually constructing HTTP requests, parsing responses, and handling errors. The MicroProfile Rest Client specification addresses this by leveraging Jakarta RESTful Web Services (formerly JAX-RS) annotations to create type-safe Rest client interfaces. Instead of writing low-level HTTP logic, developers define Java interfaces that mirror the target service’s endpoints. At runtime, MicroProfile Rest Client dynamically generates an implementation of these interfaces, automating HTTP communication while ensuring compile-time consistency between the client and server contracts.
+
+This chapter introduces the MicroProfile Rest Client, a type-safe framework for simplifying service-to-service communication. We will begin by defining REST client interfaces using Jakarta RESTful Web Services annotations (`@GET`, `@Path`) and configuring endpoints via MicroProfile Config, and implementing HTTP invocation. Next, we will explore handling HTTP communication, processing response, and error handling. By the end of this chapter, you will be able to replace hand-written HTTP boilerplate code with declarative, maintainable clients—while adhering to Jakarta EE and MicroProfile standards.
+
+== Topics to be covered:
+
+* Introduction to MicroProfile Rest Client
+* Setting up Dependencies
+* Defining a Rest Client Interface
+* Parameter Configuration
+* Requests and Response Handling
+* Working with JSON Data formats
+* Error Handling Strategies
+
+== Introduction to MicroProfile Rest Client 
+
+The MicroProfile Rest Client specification simplifies RESTful service consumption in Java microservices by replacing error-prone manual HTTP handling with a type-safe, annotation-driven approach. Instead of writing boilerplate code, developers define Java interfaces that mirror the target service’s API. Using Jakarta RESTful Web Services annotations like @GET, and @Path, these interfaces declaratively map methods to HTTP operations (e.g., /users/{id} to getUser(id)). The framework then generates an implementation at runtime, automating communication while ensuring compile-time consistency between client and server contracts. Tight integration with MicroProfile Config and CDI allows seamless configuration and injection, making it ideal for building resilient, maintainable clients that align with modern microservices practices.
+
+==== Key Features of MicroProfile Rest Client
+
+The MicroProfile Rest Client simplifies RESTful service consumption in Java microservices with the following features:
+
+. *Type-Safe and Declarative APIs* - The MicroProfile Rest Client allows developers to define REST clients as Java interfaces using Jakarta RESTful Web Services annotations like `@GET`, `@POST`, `@PUT`, `@DELETE`, `@Path`, `@Consumes` and `@Produces`. This approach improves code clarity and ensures compile-time validation, reducing the possibility of runtime errors .
+. *Integration with CDI (Context and Dependency Injection)* - This specification allows developers to seamlessly inject MicroProfilce Rest Client interfaces using `@Inject` and `@RestClient` into CDI-managed beans, promoting better dependency management and integration with other components. By leveraging CDI lifecycle management, the MicroProfile Rest Client can benefit from scope management (e.g. `@ApplicationScoped`), proxying, and automatic initialization.
+. *Runtime Configurable with MicroProfile Config* -  The behavior of MicroProfile Rest Client can be dynamically configured using MicroProfile Config. This allows properties like the base URL and other client settings to be adjusted without recompilation. The configuration can be provided through _microprofile-config.properties_ or environment variables, making the client highly adaptable to different environments.
+. *Support for Asynchronous Execution* - For asynchronous execution, MicroProfile Rest Client can return `CompletionStage<T>`, allowing non-blocking requests. This significantly  improves performance & scalability in high-concurrency environments.
+. *Automatic Handling of Redirect Responses* -  MicroProfile Rest Client can automatically follow HTTP redirects, simplifying client implementation when working with services that return `3xx` responses.
+. *Secure Socket Layer (SSL) and Security Configuration* - Supports SSL/TLS configuration, including certificates and trust stores, ensuring secure communication between microservices.
+. *Propagation of Headers and Cookies* - Enables automatic propagation of HTTP headers, cookies and context (e.g., authentication tokens), facilitating session management across service calls.
+. *Exception Handling and Custom Providers* - Allows custom exception mapping and response handling, giving developers control over error response based on specific conditions, improving fault tolerance and user experience.
+. *Integration with MicroProfile Fault Tolerance* - This specification Supports resilience patterns like retries (`@Retry`), circuit breakers (`@CircuitBreaker`), and Bulkheads (`@Bulkhead`), ensuring stability in service-to-service communications.
+. *Integration with MicroProfile Long Running Actions (LRA)* -  MicroProfile Rest Client can coordinate distributed transactions using LRA annotations (e.g., `@LRA`), enabling compensation logic for long-running processes. This ensures consistency across services in complex workflows.
+. *Portability and Standards Compliance*: This specification enables MicroProfile Rest Client to work across different MicroProfile-compatible runtimes,  leveraging Jakarta EE standards (CDI, Jakarta RESTful Web Services, JSON Binding, JSON Processing). 
+
+== Setting up Dependency for MicroProfile Rest Client 
+
+To use MicroProfile Rest Client 3.1 in your project, you need to include the necessary dependencies in your build configuration. Below are configurations for Maven and Gradle:
+
+=== Maven Configuration
+For Maven-based projects, add the following dependency to your pom.xml file:
+
+[source, xml]
+----
+<dependency>
+    <groupId>org.eclipse.microprofile.rest.client</groupId>
+    <artifactId>microprofile-rest-client-api</artifactId>
+    <version>3.1</version>
+</dependency>
+---- 
+
+=== Gradle Configuration
+
+For Gradle-based projects, add the following dependency to your build.gradle file:
+
+[source, xml]
+----
+dependencies {
+    Implementation 'org.eclipse.microprofile.rest.client:microprofile-rest-client-api:3.1'
+    compileOnly 'org.eclipse.microprofile:microprofile:6.1'
+}
+----
+
+> Tip: The MicroProfile Rest Client is an Eclipse Foundation project. For more details and updates on the project, visit the official repository: MicroProfile Rest Client on GitHub.
