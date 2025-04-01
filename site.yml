@@ -1,11 +1,11 @@
 site:
   title: MicroProfile Tutorial
-  start_page: microprofile-tutorial::./index.adoc
+  start_page: index.adoc
 
 content:
   sources:
     - url: https://github.com/ttelang/microprofile-tutorial.git
-      branches: HEAD
+      branches: patch-15
       start_path: /
       
 ui:
