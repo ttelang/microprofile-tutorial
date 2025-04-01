@@ -9,7 +9,10 @@ content:
 
 ui:
   bundle:
-    url: https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/HEAD/raw/build/ui-bundle.zip?job=bundle-stable
-
+    url: https://github.com/jakartaee/jakartaee-documentation-ui/releases/download/latest/ui-bundle.zip
 output:
   dir: ./build/site
+
+runtime:
+  log:
+    level: debug
