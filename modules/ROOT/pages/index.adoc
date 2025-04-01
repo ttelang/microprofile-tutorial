@@ -69,9 +69,10 @@ The MicroProfile e-Commerce application compirses of multiple microservices, amo
 
 - **Shipping**: This microservice is responsible for managing the logistics of order delivery. It receives order details and shipping information from the Order Processing Microservice, ensuring that orders are shipped to customers in a timely and efficient manner. The Shipping Microservice plays a critical role in the post-purchase customer experience, managing expectations and communication regarding order delivery.
 
+:imagesdir: ../assets/images
 :figure-caption: Figure 
 .MicroProfile e-Commerce Application
-image::images/figureFM-1.png[MicroProfile e-Commerce Application]
+image::figureFM-1.png[MicroProfile e-Commerce Application]
 
 As you can see in the above figure, together these microservices form a robust and flexible e-Commerce application architecture, enabling scalable, efficient, and secure online shopping experiences.
 

@@ -55,7 +55,9 @@ A fallback provides a default response if an operation fails. It ensures the sys
 
 A circuit breaker stops an application from making too many unsuccessful requests to another system. If the number of failures exceeds a threshold, the circuit breaker will `open`, causing all subsequent requests to fail immediately. After a configured delay, the circuit breaker will `half-open` and allow limited requests. If those requests succeed, the circuit breaker will `close` and let all requests go through.
 
-image::../images/figure8-1.png[Figure 8-1: Circuit Breaker states, width=600, align="center"]
+:imagesdir: ../../assets/images
+.MicroProfile Fault Tolerance
+image::figure8-1.png[MicroProfile Fault Tolerance]
 
 For example, a circuit breaker can be applied to calls to an external inventory service in the Product Catalog Microservice. If the inventory service starts failing or becomes unresponsive, the circuit breaker will `open`, preventing repeated requests and reducing load. After a configured delay, the circuit breaker will `half-open` to test the availability of the inventory service with a few requests. If those succeed, the circuit breaker will `close`, resuming normal operations.
 

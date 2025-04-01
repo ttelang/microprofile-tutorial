@@ -124,6 +124,8 @@ Below is the list of MicroProfile Implementations, each offering a platform for 
 
 == Architecture Philosophy 
 
+:imagesdir: ../../assets/images
+
 The overall goal of MicroProfile architecture is to provide a lightweight enterprise-grade framework tailored for building cloud-native applications and enabling developers to build and deploy microservices with Java easily:
 
 - *Simplicity*: MicroProfile APIs are designed to be simple and easy to use. They avoid unnecessary complexity and focus on providing the essential functionality for building microservices.
@@ -142,7 +144,7 @@ The overall goal of MicroProfile architecture is to provide a lightweight enterp
 
 :figure-caption: Figure 
 .Architecture Philosophy of MicroProfile
-image::/images/figure1-2.png[Architecture Philosophy of MicroProfile]
+image::figure1-2.png[MicroProfile Architecture Philosophy]
 
 === Benefits of MicroProfile
 MicroProfile offers several benefits, making it a compelling choice for developing microservices, especially in Java-centric environments. These benefits include:

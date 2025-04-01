@@ -1,3 +1,6 @@
+= README
+:doctype: book
+
 image:https://badges.gitter.im/eclipse/microprofile-samples.svg[link="https://app.gitter.im/#/room/#eclipse/microprofile-tutorial"]
 
 # MicroProfile API Tutorial Content

@@ -1,5 +1,7 @@
 == Chapter 4: MicroProfile OpenAPI
 
+:imagesdir: ../../assets/images
+
 === Introduction 
 
 In the previous chapter, we saw how RESTful APIs facilitate language-agnostic access to web services from diverse environments. However, a clear and comprehensive contract is required to ensure seamless integration between clients and services. This need for a well-defined API contract has led to the adoption of the OpenAPI specification.
@@ -244,7 +246,7 @@ Swagger UI is then used to render this documentation in a user-friendly web inte
 
 :figure-caption: Swagger UI 
 .Swagger UI
-image::../images/figure4-1.png[Swagger UI]
+image::figure4-1.png[MicroProfile OpenAPI]
 
 == Annotations 
 
@@ -314,4 +316,4 @@ All of these annotations are defined in the org.eclipse.microprofile.openapi.ann
 
 == Summary
 
-By integrating the MicroProfile OpenAPI, developers can generate detailed, OpenAPI-compliant documentation automatically, fostering better understanding and interaction among services. By annotating `ProductResource` class, we generated API documentation as per Open API specification. This will ensure the services are readily discoverable, understandable, and usable, thereby accelerating development cycles and fostering a more robust and collaborative developer ecosystem. 
+By integrating the MicroProfile OpenAPI, developers can generate detailed, OpenAPI-compliant documentation automatically, fostering better understanding and interaction among services. By annotating `ProductResource` class, we generated API documentation as per Open API specification. This will ensure the services are readily discoverable, understandable, and usable, thereby accelerating development cycles and fostering a more robust and collaborative developer ecosystem.
