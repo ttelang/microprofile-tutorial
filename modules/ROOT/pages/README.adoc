@@ -1,8 +1,8 @@
 = README
 :doctype: book
 
-image:https://badges.gitter.im/eclipse/microprofile-samples.svg[link="https://app.gitter.im/#/room/#eclipse/microprofile-tutorial"]
+== Overview
 
-# MicroProfile API Tutorial Content
+image:https://badges.gitter.im/eclipse/microprofile-samples.svg[link="https://app.gitter.im/#/room/#eclipse/microprofile-tutorial"]
 
 This repo contains the source files that are used to build the _MicroProfile Tutorial_. The source files are authored in link:https://asciidoc.org/[AsciiDoc]. AsciiDoc is similar to markdown but is particularly suited for user documentation. The source files are processed and integrated into the MicroProfile Tutorial site using link:https://antora.org/[Antora], which is a tool for building documentation sites.

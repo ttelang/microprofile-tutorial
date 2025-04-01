@@ -1,6 +1,6 @@
 name: microprofile-tutorial
 title: MicroProfile Tutorial
 version: latest
+start_page: index
 nav:
   - modules/ROOT/pages/nav.adoc
-start_page: ROOT:index.adoc
