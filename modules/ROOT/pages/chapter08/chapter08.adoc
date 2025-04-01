@@ -56,6 +56,7 @@ A fallback provides a default response if an operation fails. It ensures the sys
 A circuit breaker stops an application from making too many unsuccessful requests to another system. If the number of failures exceeds a threshold, the circuit breaker will `open`, causing all subsequent requests to fail immediately. After a configured delay, the circuit breaker will `half-open` and allow limited requests. If those requests succeed, the circuit breaker will `close` and let all requests go through.
 
 :imagesdir: ../../assets/images
+:figure-caption: MicroProfile Fault Tolerance
 .MicroProfile Fault Tolerance
 image::figure8-1.png[MicroProfile Fault Tolerance]
 
