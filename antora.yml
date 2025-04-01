@@ -1,7 +1,6 @@
 name: microprofile-tutorial
 title: MicroProfile Tutorial
 version: latest
-start_page: index.adoc
-start_path: /
+start_page: microprofile-tutorial::./index.adoc
 nav:
-  - nav.adoc
+  - microprofile-tutorial::./nav.adoc

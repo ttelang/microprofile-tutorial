@@ -1,17 +1,19 @@
 site:
   title: MicroProfile Tutorial
-  start_page: index.adoc
+  url: https://microprofile.io
+  start_path: ./
+  name: microprofile-tutorial
+  version: latest
+  start_page: microprofile-tutorial::index.adoc
 
 content:
   sources:
-    - url: https://github.com/ttelang/microprofile-tutorial.git
-      branches: patch-15
-      start_path: /
-      
+    - url: .
+      start_path: .
+
 ui:
   bundle:
     url: https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/HEAD/raw/build/ui-bundle.zip?job=bundle-stable
-    snapshot: true
 
 output:
   dir: ./build/site
