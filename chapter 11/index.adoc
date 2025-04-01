@@ -452,7 +452,4 @@ By integrating seamlessly with other MicroProfile specifications—such as *Conf
 - Integrates with *Fault Tolerance* for retries, timeouts, and circuit breakers.
 - Enhances *security* through header propagation and authentication mechanisms.
 
-With the MicroProfile Rest Client, building robust and maintainable microservices that communicate over REST becomes *simpler*, *more flexible*, and *more powerful*.
-
-
-
+With the MicroProfile Rest Client, building robust and maintainable microservices that communicate over REST becomes *simpler*, *more flexible*, and *more powerful*. This concludes the MicroProfile tutorial. You are now equipped with the foundational knowledge to build robust, cloud-native microservices using the MicroProfile specification. Happy coding!!
