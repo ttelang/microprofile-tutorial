@@ -380,20 +380,79 @@ public class ProductServiceResponseExceptionMapper implements ResponseExceptionM
 
 If the response status code is `404`, a `ProductNotFoundException` is thrown. Otherwise, a generic exception is returned.
 
+=== Using the `RestClientBuilder` Class
+
+While *CDI-based injection* is commonly used for REST clients in MicroProfile, programmatic creation using the `RestClientBuilder` class is beneficial when CDI is unavailable or when dynamic client instantiation is required. This builder provides a *fluent API* for configuring and constructing REST client proxies without relying on constructors that require numerous arguments.
+
+Using `RestClientBuilder` simplifies object creation, improves code readability, and supports *method chaining*, where each configuration method returns the builder instance itself.
+
+==== Example: Inventory Service Calls Product Service
+
+In the MicroProfile Ecommerce Store, the `InventoryService` must verify whether a product exists before checking or updating inventory. This interaction can be handled by calling the `ProductService` using a REST client interface.
+
+[source,java]
+----
+package io.microprofile.tutorial.store.inventory.service;
+
+import io.microprofile.tutorial.store.inventory.client.ProductServiceClient;
+import io.microprofile.tutorial.store.product.entity.Product;
+import org.eclipse.microprofile.rest.client.RestClientBuilder;
+
+import java.net.URI;
+import java.util.concurrent.TimeUnit;
+
+public class InventoryService {
+
+    public boolean isProductAvailable(Long productId) {
+        try {
+            URI productApiUri = new URI("http://localhost:8080/api");
+
+            ProductServiceClient productClient = RestClientBuilder.newBuilder()
+                .baseUri(productApiUri)
+                .connectTimeout(3, TimeUnit.SECONDS)
+                .readTimeout(5, TimeUnit.SECONDS)
+                .build(ProductServiceClient.class);
+
+            Product product = productClient.getProductById(productId);
+
+            return product != null;
+        } catch (Exception e) {
+            // Log exception (omitted for brevity)
+            return false;
+        }
+    }
+}
+----
+
+==== Explanation
+
+- The `isProductAvailable()` method accepts a product ID and returns `true` if the product exists in the catalog.
+- A `URI` object is created pointing to the base path of the ProductService API.
+- A `ProductServiceClient` instance is created using the builder pattern:
+  * `newBuilder()` initializes the client builder.
+  * `baseUri()` sets the root endpoint of the target service.
+  * `connectTimeout()` and `readTimeout()` define connection and read timeouts respectively.
+  * `build()` finalizes and returns the configured client proxy.
+- If a `Product` object is successfully returned, `true` is returned.
+- Any exceptions are caught and handled appropriately, returning `false` in case of failure.
+
+This approach is especially useful for *utility services*, *batch jobs*, or environments where REST client configuration must be *dynamic or conditional*.
+
 === Conclusion
 
-The MicroProfile Rest Client provides a declarative, type-safe, and efficient way to interact with RESTful services in Java microservices. It eliminates the need for boilerplate code, allowing developers to focus on business logic rather than low-level HTTP handling.
+The *MicroProfile Rest Client* provides a declarative, type-safe, and efficient mechanism to interact with RESTful services in Java microservices. It reduces boilerplate code and lets developers focus on core business logic, while still offering fine-grained control through features like `RestClientBuilder`.
 
-By seamlessly integrating with other MicroProfile specifications—such as Config, Fault Tolerance, and JWT Authentication—the MicroProfile Rest Client enhances configurability, resilience, and security in cloud-native applications.
+By integrating seamlessly with other MicroProfile specifications—such as *Config*, *Fault Tolerance*, and *JWT Authentication*—the Rest Client helps enhance the *security*, *resilience*, and *maintainability* of cloud-native applications.
 
-==== Key Takeaways:
+==== Key Takeaways
 
-* Removes boilerplate HTTP code, making REST clients concise and readable.
-* Automatically handles serialization and deserialization of JSON and XML data.
-* Supports CDI injection, enabling better lifecycle management.
-* Integrates with MicroProfile Fault Tolerance for retry policies and circuit breakers.
-* Enhances security through header propagation and authentication support.
+- Removes boilerplate HTTP code, improving clarity and maintainability.
+- Automatically handles JSON serialization and deserialization.
+- Supports *CDI injection* for managed client lifecycles.
+- Integrates with *Fault Tolerance* for retries, timeouts, and circuit breakers.
+- Enhances *security* through header propagation and authentication mechanisms.
 
-With MicroProfile Rest Client, building reliable and maintainable microservices that communicate over REST becomes simpler, more flexible, and more powerful.
+With the MicroProfile Rest Client, building robust and maintainable microservices that communicate over REST becomes *simpler*, *more flexible*, and *more powerful*.
+
 
 
