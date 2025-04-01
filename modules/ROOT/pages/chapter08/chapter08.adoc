@@ -202,7 +202,7 @@ A retry policy specifies the conditions under which an operation should be retri
 
 Retry policies can be externalized using the MicroProfile Config API. This allows you to modify the retry behavior without changing the application code. Here’s how to externalize the configuration:
 
-1. Add the `@Retry` annotation with minimal attributes:
+* Add the `@Retry` annotation with minimal attributes:
 
 [source, java]
 ----
@@ -228,7 +228,7 @@ public class PaymentService {
 }
 ----
 
-2. Define the retry policy in a configuration file (e.g., microprofile-config.properties):
+* Define the retry policy in a configuration file (e.g., microprofile-config.properties):
 
 [source]
 ----
@@ -305,7 +305,7 @@ In the above code, the circuit breaker opens if 50% of requests fail (`failureRa
 
 Using MicroProfile Config, you can externalize circuit breaker parameters to make them adjustable without code changes as below:
 
-1. Update the `@CircuitBreaker` annotation:
+* Update the `@CircuitBreaker` annotation:
 
 [source, java]
 ----
@@ -319,7 +319,7 @@ public String getProduct(Long id) {
 }
 ----
 
-2. Define the configuration in *microprofile-config.properties*:
+* Define the configuration in *microprofile-config.properties*:
 
 ----
 io.microprofile.tutorial.store.payment.service.ProductService/fetchProductDetails/CircuitBreaker/requestVolumeThreshold=10
@@ -391,7 +391,7 @@ public class PaymentService {
 ==== Externalizing Timeout Configuration
 
 Timeout values can be externalized using the MicroProfile Config API, allowing flexibility to adjust values without modifying code. Here’s how:
-1. Define the @Timeout annotation without specifying the value:
+* Define the @Timeout annotation without specifying the value:
 
 [source, java]
 ----
@@ -401,7 +401,7 @@ public String fetchData() {
 }
 ----
 
-2. Configure the timeout in *microprofile-config.properties*:
+* Configure the timeout in *microprofile-config.properties*:
 
 [source]
 ----
@@ -640,7 +640,7 @@ This example demonstrates the use of MicroProfile Fault Tolerance annotations `@
 
 To externalize the @Timeout configuration using MicroProfile Config, you can replace the hardcoded timeout value with a configurable property. This allows us to modify the timeout dynamically without changing the source code.
 
-1. Define a Configurable Property: Use `@ConfigProperty` to inject the timeout value.
+* Define a Configurable Property: Use `@ConfigProperty` to inject the timeout value.
 
 [source, java]
 ----
@@ -663,7 +663,7 @@ public class ProductService {
     // ...
 ----
 
-2. Use the Configured Value in @Timeout Annotation: Define a getter method and using it in the annotation.
+* Use the Configured Value in @Timeout Annotation: Define a getter method and using it in the annotation.
 
 [source, java]
 ----
@@ -677,7 +677,7 @@ public class ProductService {
     }
 ----
 
-3. Define the Configuration Property: Configure the timeout in *microprofile-config.properties*:
+* Define the Configuration Property: Configure the timeout in *microprofile-config.properties*:
 
 [source]
 ----

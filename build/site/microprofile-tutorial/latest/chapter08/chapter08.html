@@ -487,12 +487,12 @@ The retries are attempted only for the exception <code>PaymentProcessingExceptio
 <div class="paragraph">
 <p>Retry policies can be externalized using the MicroProfile Config API. This allows you to modify the retry behavior without changing the application code. Here’s how to externalize the configuration:</p>
 </div>
-<div class="olist arabic">
-<ol class="arabic">
+<div class="ulist">
+<ul>
 <li>
 <p>Add the <code>@Retry</code> annotation with minimal attributes:</p>
 </li>
-</ol>
+</ul>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -518,12 +518,12 @@ public class PaymentService {
 }</code></pre>
 </div>
 </div>
-<div class="olist arabic">
-<ol class="arabic">
+<div class="ulist">
+<ul>
 <li>
 <p>Define the retry policy in a configuration file (e.g., microprofile-config.properties):</p>
 </li>
-</ol>
+</ul>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -672,12 +672,12 @@ public String getProduct(Long id) {
 <div class="paragraph">
 <p>Using MicroProfile Config, you can externalize circuit breaker parameters to make them adjustable without code changes as below:</p>
 </div>
-<div class="olist arabic">
-<ol class="arabic">
+<div class="ulist">
+<ul>
 <li>
 <p>Update the <code>@CircuitBreaker</code> annotation:</p>
 </li>
-</ol>
+</ul>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -691,12 +691,12 @@ public String getProduct(Long id) {
 }</code></pre>
 </div>
 </div>
-<div class="olist arabic">
-<ol class="arabic">
+<div class="ulist">
+<ul>
 <li>
 <p>Define the configuration in <strong>microprofile-config.properties</strong>:</p>
 </li>
-</ol>
+</ul>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -795,7 +795,7 @@ public class PaymentService {
 <h4 id="_externalizing_timeout_configuration"><a class="anchor" href="#_externalizing_timeout_configuration"></a>Externalizing Timeout Configuration</h4>
 <div class="paragraph">
 <p>Timeout values can be externalized using the MicroProfile Config API, allowing flexibility to adjust values without modifying code. Here’s how:
-1. Define the @Timeout annotation without specifying the value:</p>
+* Define the @Timeout annotation without specifying the value:</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -805,12 +805,12 @@ public String fetchData() {
 }</code></pre>
 </div>
 </div>
-<div class="olist arabic">
-<ol class="arabic">
+<div class="ulist">
+<ul>
 <li>
 <p>Configure the timeout in <strong>microprofile-config.properties</strong>:</p>
 </li>
-</ol>
+</ul>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -1118,12 +1118,12 @@ public class ProductService {
 <div class="paragraph">
 <p>To externalize the @Timeout configuration using MicroProfile Config, you can replace the hardcoded timeout value with a configurable property. This allows us to modify the timeout dynamically without changing the source code.</p>
 </div>
-<div class="olist arabic">
-<ol class="arabic">
+<div class="ulist">
+<ul>
 <li>
 <p>Define a Configurable Property: Use <code>@ConfigProperty</code> to inject the timeout value.</p>
 </li>
-</ol>
+</ul>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -1145,12 +1145,12 @@ public class ProductService {
     // ...</code></pre>
 </div>
 </div>
-<div class="olist arabic">
-<ol class="arabic">
+<div class="ulist">
+<ul>
 <li>
 <p>Use the Configured Value in @Timeout Annotation: Define a getter method and using it in the annotation.</p>
 </li>
-</ol>
+</ul>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -1164,12 +1164,12 @@ public class ProductService {
     }</code></pre>
 </div>
 </div>
-<div class="olist arabic">
-<ol class="arabic">
+<div class="ulist">
+<ul>
 <li>
 <p>Define the Configuration Property: Configure the timeout in <strong>microprofile-config.properties</strong>:</p>
 </li>
-</ol>
+</ul>
 </div>
 <div class="listingblock">
 <div class="content">
