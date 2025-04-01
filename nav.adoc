@@ -1,5 +1,5 @@
-* xref:index.adoc[Introduction]
-* xref:chapter01/chapter01.adoc[Chapter 1 - Introduction to MicroProfile]
+* xref:./index.adoc[Introduction] 
+* xref:./chapter01/chapter01.adoc[Chapter 1 - Introduction to MicroProfile]
 * Chapter 2 - Getting Started with MicroProfile
 * xref:chapter02/chapter02-00.adoc[Introduction]
 * xref:chapter02/chapter02-01.adoc[Create a Java Project]
