@@ -1,0 +1,6 @@
+name: microprofile-tutorial
+title: MicroProfile Tutorial
+version: latest
+start_page: microprofile-tutorial::index.adoc
+nav:
+  - nav.adoc
