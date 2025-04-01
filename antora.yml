@@ -3,4 +3,4 @@ title: MicroProfile Tutorial
 version: latest
 nav:
   - modules/ROOT/pages/nav.adoc
-start_page: ROOT:index.adoc
+start_page: index.adoc

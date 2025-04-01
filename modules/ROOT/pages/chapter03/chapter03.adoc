@@ -44,12 +44,9 @@ Let's delve deeper into some of the specifications included in the Jakarta Core 
 
 This specification simplifies the code by reducing the need for external configuration files and making the intentions behind code clear. Annotations are extensively used across various Jakarta EE specifications. 
 
-==== Key Features of Jakarta Annotation
-
+==== Key Features
 * *Simplification of Configuration*: Annotations reduce the need for XML configuration files, making the setup more straightforward and less error-prone.
-
 * *Enhanced Readability and Maintenance*: Code decorated with annotations is easier to read and maintain, as the configuration is co-located with the code it configures.
-
 * *Wide Adoption*: Used across the Jakarta EE platform for a variety of purposes, including dependency injection, defining REST endpoints, and configuring beans.
 
 === Jakarta Contexts and Dependency Injection (CDI) - CDI Lite
@@ -450,7 +447,7 @@ Explanation:
 
 * If a product with the same id is not found, the method returns a 404 (Not Found) error. Finally, the method returns a `Response` object with a status code of 204 (No Content) and a message indicating that an existing product has been updated.
 
-===== Verifying the PUT request
+==== Verifying the PUT request
 
 To test the PUT request, you can use the following cURL command. 
 
