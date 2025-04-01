@@ -1,4 +1,6 @@
 = Chapter 03: Jakarta EE 10 Core Profile
+:doctype: book
+:id: chapter03
 
 == Introduction
 
@@ -66,7 +68,7 @@ NOTE: The link:https://jakartaee.github.io/jakartaee-documentation/jakartaee-tut
 
 === Jakarta Interceptors
 
-Jakarta Interceptors allow developers to define methods that intercept business method invocations and lifecycle events on Jakarta EE components. This is particularly useful for implementing cross-cutting concerns such as logging, transactions, security, and more, without cluttering business logic..
+Jakarta Interceptors allow developers to define methods that intercept business method invocations and lifecycle events on Jakarta EE components. This is particularly useful for implementing cross-cutting concerns such as logging, transactions, security, and more, without cluttering business logic.
 
 ==== Key Features of Jakarta Interceptors
 

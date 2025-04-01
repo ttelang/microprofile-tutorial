@@ -48,7 +48,7 @@ Below are the assertions to test the `getProducts()` method of `ProductService`:
 * The `assertNotNull(products)`; assertion checks that products are not `null`. It ensures the method returns a list, even if it’s empty. 
 * The `assertEquals(2, products.size())`; assertion verifies that the list contains two products.
 
-==== Running Unit Tests with Maven
+=== Running Unit Tests with Maven
 
 To run the unit tests defined in ProductResourceTest, follow these steps:
 
