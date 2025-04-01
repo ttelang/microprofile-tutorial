@@ -1,6 +1,6 @@
 site:
   title: MicroProfile Tutorial
-  start_page: ROOT::index
+  start_page: microprofile-tutorial::ROOT:index.adoc
 
 content:
   sources:
