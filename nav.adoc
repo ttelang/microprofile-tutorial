@@ -13,7 +13,7 @@
 * xref:chapter05/chapter05.adoc[Chapter 5 - MicroProfile Configuration]
 * xref:chapter06/chapter06.adoc[Chapter 6 - MicroProfile Health]
 * xref:chapter07/chapter07.adoc[Chapter 7 - MicroProfile Metrics]
-* xref:chatper08/chapter08.adoc[Chapter 8 - MicroProfile Fault Tolerance]
+* xref:chapter08/chapter08.adoc[Chapter 8 - MicroProfile Fault Tolerance]
 * xref:chapter09/index.adoc[Chapter 9 - MicroProfile Telemetry]
 // * xref:chapter10/chapter10.adoc[Chapter 10 - MicroProfile JWT]
 // * xref:chapter11/chapter11.adoc[Chapter 11 - MicroProfile Rest Client]

@@ -1,12 +1,12 @@
 site:
   title: MicroProfile Tutorial
-  start_page: microprofile-tutorial::./index.adoc
+  start_page: microprofile-tutorial::index.adoc
 
 content:
   sources:
     - url: .
       branches: HEAD
-      start_path: .
+      start_path: /
       
 ui:
   bundle:
