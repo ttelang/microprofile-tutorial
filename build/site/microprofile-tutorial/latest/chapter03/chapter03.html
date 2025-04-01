@@ -135,6 +135,7 @@
 <main class="article">
 <div class="toolbar" role="navigation">
 <button class="nav-toggle"></button>
+  <a href="../index.html" class="home-link"></a>
 <nav class="breadcrumbs" aria-label="breadcrumbs">
   <ul>
     <li><a href="../index.html">MicroProfile Tutorial</a></li>
@@ -226,7 +227,7 @@
 <p>This specification simplifies the code by reducing the need for external configuration files and making the intentions behind code clear. Annotations are extensively used across various Jakarta EE specifications.</p>
 </div>
 <div class="sect3">
-<h4 id="_key_features_of_jakarta_annotation"><a class="anchor" href="#_key_features_of_jakarta_annotation"></a>Key Features of Jakarta Annotation</h4>
+<h4 id="_key_features"><a class="anchor" href="#_key_features"></a>Key Features</h4>
 <div class="ulist">
 <ul>
 <li>
@@ -279,7 +280,7 @@ The <a href="https://jakartaee.github.io/jakartaee-documentation/jakartaee-tutor
 <div class="sect2">
 <h3 id="_jakarta_interceptors"><a class="anchor" href="#_jakarta_interceptors"></a>Jakarta Interceptors</h3>
 <div class="paragraph">
-<p>Jakarta Interceptors allow developers to define methods that intercept business method invocations and lifecycle events on Jakarta EE components. This is particularly useful for implementing cross-cutting concerns such as logging, transactions, security, and more, without cluttering business logic..</p>
+<p>Jakarta Interceptors allow developers to define methods that intercept business method invocations and lifecycle events on Jakarta EE components. This is particularly useful for implementing cross-cutting concerns such as logging, transactions, security, and more, without cluttering business logic.</p>
 </div>
 <div class="sect3">
 <h4 id="_key_features_of_jakarta_interceptors"><a class="anchor" href="#_key_features_of_jakarta_interceptors"></a>Key Features of Jakarta Interceptors</h4>
@@ -668,7 +669,7 @@ Let us now create a RESTful API to manage a list of products for a store. This R
 <p><code>PUT /api/products</code>: Updates an existing product, the updated product details are provided as JSON in the request body</p>
 </li>
 <li>
-<p><code>DELETE /api/products/{id}</code>: Deletes a product, the product id is provided in the request URL path</p>
+<p><code>DELETE /api/products/chapter03</code>: Deletes a product, the product id is provided in the request URL path</p>
 </li>
 </ul>
 </div>
@@ -848,8 +849,8 @@ public Response updateProduct(Product product) {
 </li>
 </ul>
 </div>
-<div class="sect4">
-<h5 id="_verifying_the_put_request"><a class="anchor" href="#_verifying_the_put_request"></a>Verifying the PUT request</h5>
+<div class="sect3">
+<h4 id="_verifying_the_put_request"><a class="anchor" href="#_verifying_the_put_request"></a>Verifying the PUT request</h4>
 <div class="paragraph">
 <p>To test the PUT request, you can use the following cURL command.</p>
 </div>
