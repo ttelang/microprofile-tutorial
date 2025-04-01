@@ -1,8 +1,7 @@
 site:
   title: MicroProfile Tutorial
-  name: microprofile-tutorial
   url: https://microprofile.io
-  start_page: ./index.adoc
+  start_page: microprofile-tutorial::index.adoc
 
 content:
   sources:
