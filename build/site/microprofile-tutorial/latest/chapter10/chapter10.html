@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Untitled :: MicroProfile Tutorial</title>
+    <title>Chapter 10: JWT Authentication :: MicroProfile Tutorial</title>
     <meta name="generator" content="Antora 3.1.10">
     <link rel="stylesheet" href="../../../_/css/site.css">
   </head>
@@ -134,8 +134,8 @@
   <div class="toc-menu"></div>
 </aside>
 <article class="doc">
-<div class="sect1">
-<h2 id="_chapter_10_jwt_authentication"><a class="anchor" href="#_chapter_10_jwt_authentication"></a>Chapter 10: JWT Authentication</h2>
+<h1 class="page">Chapter 10: JWT Authentication</h1>
+<div id="preamble">
 <div class="sectionbody">
 <div class="paragraph">
 <p>In modern microservices architectures, where services are distributed and stateless,
@@ -147,8 +147,11 @@ securing communications between clients and services — and between individual 
 <div class="paragraph">
 <p>Built on top of Jakarta EE and tightly integrated with other MicroProfile APIs, MicroProfile JWT allows developers to build secure, interoperable, and portable microservices. It supports role-based access control (RBAC), simplifies identity management in stateless services, and avoids vendor lock-in by adhering to open specifications.</p>
 </div>
-<div class="sect2">
-<h3 id="_topics_to_be_covered"><a class="anchor" href="#_topics_to_be_covered"></a>Topics to be covered:</h3>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_topics_to_be_covered"><a class="anchor" href="#_topics_to_be_covered"></a>Topics to be covered:</h2>
+<div class="sectionbody">
 <div class="ulist">
 <ul>
 <li>
@@ -193,22 +196,26 @@ securing communications between clients and services — and between individual 
 </ul>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_introduction_to_jwt_authentication"><a class="anchor" href="#_introduction_to_jwt_authentication"></a>Introduction to JWT Authentication</h3>
+</div>
+<div class="sect1">
+<h2 id="_introduction_to_jwt_authentication"><a class="anchor" href="#_introduction_to_jwt_authentication"></a>Introduction to JWT Authentication</h2>
+<div class="sectionbody">
 <div class="paragraph">
 <p>In this section, we will explore what JSON Web Tokens are, how they work, and why they are foundational to implementing stateless authentication and authorization in microservices-based systems.</p>
 </div>
-<div class="sect3">
-<h4 id="_what_is_a_json_web_token_jwt"><a class="anchor" href="#_what_is_a_json_web_token_jwt"></a>What is a JSON Web Token (JWT)?</h4>
+<div class="sect2">
+<h3 id="_what_is_a_json_web_token_jwt"><a class="anchor" href="#_what_is_a_json_web_token_jwt"></a>What is a JSON Web Token (JWT)?</h3>
 <div class="paragraph">
 <p><a href="https://jwt.io/">JSON Web Token (JWT)</a>, defined by <a href="https://datatracker.ietf.org/doc/html/rfc7519">RFC 7519</a> is an open standard for securely transmitting information (claims) between parties as a JSON object. JWTs are digitally signed, ensuring their integrity and authenticity.</p>
 </div>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_structure_of_a_jwt"><a class="anchor" href="#_structure_of_a_jwt"></a>Structure of a JWT</h3>
+</div>
+<div class="sect1">
+<h2 id="_structure_of_a_jwt"><a class="anchor" href="#_structure_of_a_jwt"></a>Structure of a JWT</h2>
+<div class="sectionbody">
 <div class="paragraph">
-<p>A JWT consists of three Base64 encoded parts, separated by dots (.):</p>
+<p>A JWT consists of three Base64 encoded parts, separated by dots (<code>.</code>):</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -265,13 +272,13 @@ Example of claims in a JWT payload:</p>
 <pre class="highlightjs highlight"><code class="language-none hljs">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyMTIzIiwiaXNzIjoiaHR0cHM6Ly9hdXRoLmV4YW1wbGUuY29tIiwiZ3JvdXBzIjpbInVzZXIiLCJhZG1pbiJdfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c</code></pre>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_types_of_claims_in_microprofile_jwt"><a class="anchor" href="#_types_of_claims_in_microprofile_jwt"></a>Types of Claims in MicroProfile JWT</h4>
+<div class="sect2">
+<h3 id="_types_of_claims_in_microprofile_jwt"><a class="anchor" href="#_types_of_claims_in_microprofile_jwt"></a>Types of Claims in MicroProfile JWT</h3>
 <div class="paragraph">
 <p>Claims in JWTs can be categorized into two types:</p>
 </div>
-<div class="sect4">
-<h5 id="_standard_claims"><a class="anchor" href="#_standard_claims"></a>Standard Claims</h5>
+<div class="sect3">
+<h4 id="_standard_claims"><a class="anchor" href="#_standard_claims"></a>Standard Claims</h4>
 <div class="paragraph">
 <p>These are predefined claims with specific meanings, as defined by the JWT specification. MicroProfile JWT recognizes and validates these claims during token validation. Some commonly used standard claims include:</p>
 </div>
@@ -332,24 +339,26 @@ Example of claims in a JWT payload:</p>
 </tbody>
 </table>
 </div>
-<div class="sect4">
-<h5 id="_custom_claims"><a class="anchor" href="#_custom_claims"></a>Custom Claims</h5>
+<div class="sect3">
+<h4 id="_custom_claims"><a class="anchor" href="#_custom_claims"></a>Custom Claims</h4>
 <div class="paragraph">
 <p>These are application-specific claims that provide additional information about the user or entity. They can be used to extend authorization logic with application-specific claims (e.g., <code>department</code>, <code>region</code>). Custom claims are not part of the JWT specification but are often used to include domain-specific data, such as user preferences, tenant IDs, or other metadata. MicroProfile JWT allows developers to access these claims programmatically.</p>
 </div>
 </div>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_benefits_of_jwts_in_microservices"><a class="anchor" href="#_benefits_of_jwts_in_microservices"></a>Benefits of JWTs in Microservices?</h3>
+</div>
+<div class="sect1">
+<h2 id="_benefits_of_jwts_in_microservices"><a class="anchor" href="#_benefits_of_jwts_in_microservices"></a>Benefits of JWTs in Microservices?</h2>
+<div class="sectionbody">
 <div class="paragraph">
 <p>JWTs are a foundational technology for securing distributed systems due to their compact, self-contained, and stateless nature. These characteristics make them particularly well-suited for microservices architectures, where scalability, interoperability, and decentralized security are critical.</p>
 </div>
 <div class="paragraph">
 <p>JWTs are widely used in microservices for the following reasons:</p>
 </div>
-<div class="sect3">
-<h4 id="_statelessness_scalability"><a class="anchor" href="#_statelessness_scalability"></a>Statelessness &amp; Scalability</h4>
+<div class="sect2">
+<h3 id="_statelessness_scalability"><a class="anchor" href="#_statelessness_scalability"></a>Statelessness &amp; Scalability</h3>
 <div class="paragraph">
 <p>No Server-Side Sessions: JWTs eliminate the need for centralized session storage. Each token is self-contained, embedding all necessary user claims (e.g., roles, permissions) in its payload.</p>
 </div>
@@ -361,8 +370,8 @@ Example of claims in a JWT payload:</p>
 A payment service validates a JWT’s signature and exp claim without querying an authentication server.<br></p>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_interoperability"><a class="anchor" href="#_interoperability"></a>Interoperability</h4>
+<div class="sect2">
+<h3 id="_interoperability"><a class="anchor" href="#_interoperability"></a>Interoperability</h3>
 <div class="paragraph">
 <p>Open Standards: JWTs adhere to RFC 7519, ensuring compatibility across platforms (Java, .NET, Node.js) and frameworks (Spring Boot, Quarkus).</p>
 </div>
@@ -370,8 +379,8 @@ A payment service validates a JWT’s signature and exp claim without querying a
 <p>MicroProfile Integration: MicroProfile JWT standardizes validation and claim extraction, enabling seamless interoperability across Java microservices.</p>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_fine_grained_authorization"><a class="anchor" href="#_fine_grained_authorization"></a>Fine-Grained Authorization</h4>
+<div class="sect2">
+<h3 id="_fine_grained_authorization"><a class="anchor" href="#_fine_grained_authorization"></a>Fine-Grained Authorization</h3>
 <div class="paragraph">
 <p>Custom Claims: JWTs support custom claims (e.g., department, tenant_id) for granular access control.</p>
 </div>
@@ -379,8 +388,8 @@ A payment service validates a JWT’s signature and exp claim without querying a
 <p>Role-Based Access Control (RBAC): Map JWT claims (e.g., groups) to Jakarta EE roles using @RolesAllowed.</p>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_decentralized_security"><a class="anchor" href="#_decentralized_security"></a>Decentralized Security</h4>
+<div class="sect2">
+<h3 id="_decentralized_security"><a class="anchor" href="#_decentralized_security"></a>Decentralized Security</h3>
 <div class="paragraph">
 <p>Propagation Across Services: A JWT issued by an authentication service is propagated across microservices (e.g., Order Service, Inventory Service). Each service independently verifies the token and enforces access control.</p>
 </div>
@@ -405,8 +414,8 @@ fault tolerance.</p>
 </ul>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_enhanced_performance"><a class="anchor" href="#_enhanced_performance"></a>Enhanced Performance</h4>
+<div class="sect2">
+<h3 id="_enhanced_performance"><a class="anchor" href="#_enhanced_performance"></a>Enhanced Performance</h3>
 <div class="paragraph">
 <p>Lightweight Tokens: JWTs are compact (e.g., 500–1000 bytes), reducing network overhead.</p>
 </div>
@@ -415,8 +424,10 @@ fault tolerance.</p>
 </div>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_setting_up_microprofile_jwt"><a class="anchor" href="#_setting_up_microprofile_jwt"></a>Setting Up MicroProfile JWT</h3>
+</div>
+<div class="sect1">
+<h2 id="_setting_up_microprofile_jwt"><a class="anchor" href="#_setting_up_microprofile_jwt"></a>Setting Up MicroProfile JWT</h2>
+<div class="sectionbody">
 <div class="paragraph">
 <p>To use MicroProfile JWT in your project, add the following dependency to your <em>pom.xml</em> (for Maven):</p>
 </div>
@@ -439,8 +450,10 @@ fault tolerance.</p>
 </div>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_configuring_microprofile_jwt_validation"><a class="anchor" href="#_configuring_microprofile_jwt_validation"></a>Configuring MicroProfile JWT Validation</h3>
+</div>
+<div class="sect1">
+<h2 id="_configuring_microprofile_jwt_validation"><a class="anchor" href="#_configuring_microprofile_jwt_validation"></a>Configuring MicroProfile JWT Validation</h2>
+<div class="sectionbody">
 <div class="paragraph">
 <p>MicroProfile JWT requires validation rules configuration to be defined  in src/main/resources/microprofile-config.properties file. Below is an example configuration:</p>
 </div>
@@ -471,7 +484,6 @@ mp.jwt.verify.audiences=order-service,payment-service</code></pre>
 <p>Optionally, the <code>mp.jwt.verify.audiences</code> property can be used to specify the allowed audiences for the JWT, ensuring that the token is intended for the service.</p>
 </li>
 </ul>
-</div>
 </div>
 <div class="sect2">
 <h3 id="_public_key_setup"><a class="anchor" href="#_public_key_setup"></a>Public Key Setup</h3>
@@ -563,8 +575,9 @@ display the user’s name on a welcome page using the name claim.</p>
 <div class="paragraph">
 <p>JWTs are propagated via the <code>Authorization: Bearer</code> HTTP header across clients and services.</p>
 </div>
-<div class="sect3">
-<h4 id="_client_to_service"><a class="anchor" href="#_client_to_service"></a>Client-to-Service</h4>
+</div>
+<div class="sect2">
+<h3 id="_client_to_service"><a class="anchor" href="#_client_to_service"></a>Client-to-Service</h3>
 <div class="paragraph">
 <p>When a client authenticates (e.g., via a login endpoint), it receives a JWT from an authentication service. This token is then included in the header of subsequent requests to microservices. For example, a request header might look like this:</p>
 </div>
@@ -575,8 +588,8 @@ Authorization: Bearer eyJhbGciOiJSUzI1NiIs…</code></pre>
 </div>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_service_to_service"><a class="anchor" href="#_service_to_service"></a>Service-to-Service</h4>
+<div class="sect2">
+<h3 id="_service_to_service"><a class="anchor" href="#_service_to_service"></a>Service-to-Service</h3>
 <div class="paragraph">
 <p>In a multi-service workflow, the initial microservice (e.g., Order Service) forwards the same token to downstream services (e.g., Payment Service or Inventory Service).</p>
 </div>
@@ -584,8 +597,8 @@ Authorization: Bearer eyJhbGciOiJSUzI1NiIs…</code></pre>
 <p>Each service independently validates the JWT, ensuring decentralized and stateless security.</p>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_token_extraction"><a class="anchor" href="#_token_extraction"></a>Token Extraction</h4>
+<div class="sect2">
+<h3 id="_token_extraction"><a class="anchor" href="#_token_extraction"></a>Token Extraction</h3>
 <div class="paragraph">
 <p>MicroProfile JWT runtime handles token extraction and validation automatically. The token is parsed and validated as follows:</p>
 </div>
@@ -600,8 +613,8 @@ Authorization: Bearer eyJhbGciOiJSUzI1NiIs…</code></pre>
 </ul>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_token_validation"><a class="anchor" href="#_token_validation"></a>Token Validation</h4>
+<div class="sect2">
+<h3 id="_token_validation"><a class="anchor" href="#_token_validation"></a>Token Validation</h3>
 <div class="paragraph">
 <p>The token validation involves the following steps:</p>
 </div>
@@ -630,7 +643,6 @@ Authorization: Bearer eyJhbGciOiJSUzI1NiIs…</code></pre>
 </div>
 <div class="paragraph">
 <p>If valid, the JWT’s claims populate the <code>SecurityContext</code>. Otherwise, MicroProfile JWT rejects the request with a <code>401 Unauthorized</code> status.</p>
-</div>
 </div>
 </div>
 <div class="sect2">
@@ -726,7 +738,7 @@ public class OrderResource {
 </div>
 </div>
 <div class="paragraph">
-<p>The <code>GET /orders/{id}</code> service is accessible to users, whereeas the <code>DELETE /orders/{id}</code> is only available to the users with the admin role.</p>
+<p>The <code>GET /orders/chapter10</code> service is accessible to users, whereeas the <code>DELETE /orders/chapter10</code> is only available to the users with the admin role.</p>
 </div>
 </div>
 <div class="sect2">
@@ -740,8 +752,9 @@ public class OrderResource {
 mp.jwt.verify.roles=roles</code></pre>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_how_the_rbac_works"><a class="anchor" href="#_how_the_rbac_works"></a>How the RBAC Works</h4>
+</div>
+<div class="sect2">
+<h3 id="_how_the_rbac_works"><a class="anchor" href="#_how_the_rbac_works"></a>How the RBAC Works</h3>
 <div class="ulist">
 <ul>
 <li>
@@ -757,7 +770,6 @@ mp.jwt.verify.roles=roles</code></pre>
 </div>
 <div class="paragraph">
 <p>This approach ensures fine-grained security while maintaining compatibility with standard JWT practices.</p>
-</div>
 </div>
 </div>
 </div>
@@ -840,8 +852,11 @@ WWW-Authenticate: Bearer error="missing_token"</code></pre>
 </div>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_best_practices_for_jwt_authentication"><a class="anchor" href="#_best_practices_for_jwt_authentication"></a>Best Practices for JWT Authentication</h3>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_best_practices_for_jwt_authentication"><a class="anchor" href="#_best_practices_for_jwt_authentication"></a>Best Practices for JWT Authentication</h2>
+<div class="sectionbody">
 <div class="olist arabic">
 <ol class="arabic">
 <li>
@@ -857,7 +872,6 @@ WWW-Authenticate: Bearer error="missing_token"</code></pre>
 <p>Combine with Other Annotations - Use @PermitAll or @DenyAll alongside @RolesAllowed for flexible security policies.</p>
 </li>
 </ol>
-</div>
 </div>
 </div>
 </div>

@@ -179,10 +179,10 @@
 <h2 id="_introduction_to_microprofile_rest_client"><a class="anchor" href="#_introduction_to_microprofile_rest_client"></a>Introduction to MicroProfile Rest Client</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>The MicroProfile Rest Client specification simplifies RESTful service consumption in Java microservices by replacing error-prone manual HTTP handling with a type-safe, annotation-driven approach. Instead of writing boilerplate code, developers define Java interfaces that mirror the target service’s API. Using Jakarta RESTful Web Services annotations like @GET, and @Path, these interfaces declaratively map methods to HTTP operations (e.g., /users/{id} to getUser(id)). The framework then generates an implementation at runtime, automating communication while ensuring compile-time consistency between client and server contracts. Tight integration with MicroProfile Config and CDI allows seamless configuration and injection, making it ideal for building resilient, maintainable clients that align with modern microservices practices.</p>
+<p>The MicroProfile Rest Client specification simplifies RESTful service consumption in Java microservices by replacing error-prone manual HTTP handling with a type-safe, annotation-driven approach. Instead of writing boilerplate code, developers define Java interfaces that mirror the target service’s API. Using Jakarta RESTful Web Services annotations like @GET, and @Path, these interfaces declaratively map methods to HTTP operations (e.g., /users/chapter11 to getUser(id)). The framework then generates an implementation at runtime, automating communication while ensuring compile-time consistency between client and server contracts. Tight integration with MicroProfile Config and CDI allows seamless configuration and injection, making it ideal for building resilient, maintainable clients that align with modern microservices practices.</p>
 </div>
-<div class="sect3">
-<h4 id="_key_features_of_microprofile_rest_client"><a class="anchor" href="#_key_features_of_microprofile_rest_client"></a>Key Features of MicroProfile Rest Client</h4>
+<div class="sect2">
+<h3 id="_key_features_of_microprofile_rest_client"><a class="anchor" href="#_key_features_of_microprofile_rest_client"></a>Key Features of MicroProfile Rest Client</h3>
 <div class="paragraph">
 <p>The MicroProfile Rest Client simplifies RESTful service consumption in Java microservices with the following features:</p>
 </div>
@@ -322,10 +322,10 @@ In the above code, we define a <code>ProductServiceClient</code> within the pack
 <p><code>@Path(/products)</code> - specifies the base URI of the RESTful service.</p>
 </li>
 <li>
-<p><code>@Path("/{id}")</code> – define a dynamic parameter `{id} `,  which will be replaced at runtime with actual values.</p>
+<p><code>@Path("/chapter11")</code> – define a dynamic parameter `chapter11 `,  which will be replaced at runtime with actual values.</p>
 </li>
 <li>
-<p><code>@PathParam("id")</code> - binds the method parameter <code>id</code> to the <code>{id}</code> path variable in the URL.</p>
+<p><code>@PathParam("id")</code> - binds the method parameter <code>id</code> to the <code>chapter11</code> path variable in the URL.</p>
 </li>
 <li>
 <p><code>@GET</code> - indicates that this method handles HTTP GET requests.</p>

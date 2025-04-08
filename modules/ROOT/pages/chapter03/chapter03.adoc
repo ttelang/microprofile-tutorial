@@ -1,4 +1,4 @@
-= Chapter 03: Jakarta EE 10 Core Profile
+= Chapter 3: Jakarta EE 10 Core Profile
 :doctype: book
 :id: chapter03
 
