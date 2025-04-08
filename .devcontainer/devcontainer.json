@@ -7,7 +7,10 @@
 		"vscode": {
 			"extensions": [
 				"GitHub.copilot",
-				"asciidoctor.asciidoctor-vscode"
+				"asciidoctor.asciidoctor-vscode",
+				"microprofile-community.vscode-microprofile-pack",
+				"vscjava.vscode-java-pack",
+				"Open-Liberty.liberty-tools-vscode"
 			]
 		}
 	}
