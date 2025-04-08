@@ -1,6 +1,6 @@
-== Chapter 7: MicroProfile Metrics
+= Chapter 7: MicroProfile Metrics
 
-=== Introduction
+== Introduction
 
 This chapter provides a comprehensive and detailed overview of MicroProfile Metrics, a widely used specification for monitoring microservices. You will gain an understanding of the various types of metrics and how you can use them to monitor microservices effectively. Additionally, this chapter covers the standard metrics provided by MicroProfile and how you can leverage them to monitor various aspects of microservices.
 
@@ -10,7 +10,7 @@ This chapter also highlights the importance of integrating monitoring solutions 
 
 By the end of this chapter, you will have a deep understanding of MicroProfile Metrics and the various techniques for monitoring microservices. This chapter will equip you with the knowledge and skills to effectively monitor your microservices and ensure they perform optimally.
 
-=== Topics to be covered:
+== Topics to be covered:
 
 - Introduction to MicroProfile Metrics
 - Need for Metrics in Microservices
@@ -22,7 +22,7 @@ By the end of this chapter, you will have a deep understanding of MicroProfile M
 - Instrumenting Microservices with Metrics
 - Creating Custom Metrics
 
-=== Introduction to MicroProfile Metrics
+== Introduction to MicroProfile Metrics
 
 It is essential to monitor your microservices to ensure smooth operations. You can monitor a microservice using two different techniques: Metrics and health checking. Health checks provide information on the health status of a service, such as whether it is up and running, while Metrics offer more detailed information on its performance, such as response times, throughput, and error rates. In the previous chapter, we discussed health checks and their importance. This chapter will cover the MicroProfile Metrics specification, which provides a standardized way of collecting and exposing performance data for Java microservices.
 
@@ -34,7 +34,7 @@ Moreover, this specification defines a set of standard metrics that we can expos
 
 *Prometheus* is a powerful tool designed to monitor and collect metrics from your services. It provides a highly efficient time-series database system that securely stores your data for long-term analysis. With Prometheus, you can easily visualize and gain insights into your system's performance, allowing you to make informed decisions and optimize your services for better efficiency and reliability.
   
-=== Need for Metrics in Microservices
+== Need for Metrics in Microservices
 
 Metrics, enables developers and operators to monitor and measure the behavior of microservices at runtime. This observability is crucial for:
 
@@ -43,7 +43,7 @@ Metrics, enables developers and operators to monitor and measure the behavior of
 - *Troubleshooting*: Quickly pinpointing issues by analyzing trends in performance metrics, leading to reduced downtime.
 - *Service Health Monitoring*: Complementing the MicroProfile Health checks by providing deeper insights into the internal state of a service, beyond simple up/down statuses.
 
-=== Types of Metrics
+== Types of Metrics
 
 MicroProfile Metrics offers a range of customizable metrics that can be used to measure and monitor microservices' performance. It allows developing microservices that are observable, manageable, and which provide insights into their behavior. 
 
@@ -61,7 +61,7 @@ Note: Counters, Histograms, and Timers, which are updated synchronously when ann
 
 By leveraging these metrics, developers and operators can gain a deeper understanding of how their microservices are performing. They can use this information to identify areas where improvements can be made and optimize their microservices' performance. 
 
-=== MicroProfile Metrics Dependency
+== MicroProfile Metrics Dependency
 
 If you're using Maven, add the following dependency to your pom.xml file located in the root folder of your project:
 
@@ -83,7 +83,7 @@ dependencies {
 }
 ----
   
-=== Metrics Annotations
+== Metrics Annotations
 
 MicroProfile Metrics defines a set of annotations to be used for exposing metrics. These annotations can be used on classes, methods, or fields. Table 7-1 shows the list of Metrics Annotation along with their descriptions.
 
@@ -103,7 +103,7 @@ MicroProfile Metrics defines a set of annotations to be used for exposing metric
 
 Besides annotations, MicroProfile Metrics also defines a set of programmatic APIs for working with metrics. These APIs can be used to register custom metrics or access existing metrics.
 
-=== Categories of Metrics
+== Categories of Metrics
 
 In MicroProfile Metrics, metrics are organized into three distinct scopes: Base, Vendor, and Application. This categorization is designed to clearly separate metrics by their origin and relevance, making it easier for developers and operators to monitor and manage the performance of their microservices. Each scope serves a specific purpose and contains a different set of metrics:
 
@@ -120,11 +120,11 @@ Besides the standard scopes above, MicroProfile Metrics also supports custom sco
 
 Note: In version 5.x, base metrics have become optional. This allows for flexibility in environments where these metrics may not be necessary or where they can be sourced from alternative monitoring tools.
 
-=== Metric Registry
+== Metric Registry
 
 The *MetricRegistry* component acts as a container for storing and managing metrics within an application. It provides a structured way to collect, organize, and access various types of metrics (e.g., counters, gauges, histograms, and timers) for monitoring the behavior and performance of applications. It offers a centralized repository where metrics can be created and retrieved. This allows applications to consistently monitor critical operational and performance statistics.
 
-==== Types of Metric Registries
+=== Types of Metric Registries
 
 MicroProfile Metrics creates metric registries for each scope:
 
@@ -136,11 +136,11 @@ MicroProfile Metrics creates metric registries for each scope:
 
 A metric registry is created as per the above scopes to enable the organization of metrics based on their origin and relevance.
 
-==== Instrumenting Microservices with MicroProfile Metrics
+=== Instrumenting Microservices with MicroProfile Metrics
 
 Instrumenting microservices with MicroProfile Metrics enables developers to gain detailed insights into their application's operational health and performance. This level of observability is essential for maintaining scalable and resilient microservice architectures in dynamic environments.
 
-==== Tracking response time using `@Timed`
+=== Tracking response time using `@Timed`
 
 MicroProfile Metrics also allows you to track a method's response time as a timed metric. The code example below shows how to use the @Timed annotation to track the response time.
 
@@ -176,7 +176,7 @@ productLookupTime_seconds_max{method="getProduct",mp_scope="application",} 0.002
 …
 ----
 
-==== Tracking number of invocations using `@Counted`
+=== Tracking number of invocations using `@Counted`
 
 MicroProfile Metrics also allows you to track the number of invocations of a method as a counter metric. The code example below shows how to use the `@Counted` annotation to track the invocation count.
 
@@ -209,7 +209,7 @@ productAccessCount_total{mp_scope="application",} 3.0
 …
 ----
 
-=== Creating a Custom Metric
+== Creating a Custom Metric
 
 Creating a custom metric to track the number of products in a catalog involves using the MicroProfile Metrics API. This custom metric can be implemented as a gauge, which measures an instantaneous value (in this case, the current number of products in the catalog). 
 
@@ -243,6 +243,6 @@ This custom metric implementation provides a real-time insight into the size of 
 
 Vendors may, by their own implementation, support `/metrics?name=<name>` to directly retrieve that metric from all scopes. However, the specification itself only illustrates `/metrics?scope=<scope>&name=<name>`.
 
-=== Summary
+== Summary
 
 This Chapter delved into the intricacies of MicroProfile Metrics, illuminating its role as a pivotal specification for efficiently monitoring microservices. Now you are equipped with a thorough understanding of diverse metric types and their application for monitoring microservice performance. This chapter highlighted the need for regular microservice monitoring via metrics and health checks, emphasizing metrics for detailed performance insights such as response times and throughput. Through practical examples, this chapter showcases how to instrument microservices with MicroProfile Metrics, leveraging standard metrics, and creating custom metrics to monitor microservices comprehensively.

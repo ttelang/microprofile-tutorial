@@ -1,4 +1,5 @@
-== Chapter 10: JWT Authentication
+= Chapter 10: JWT Authentication
+:id: chapter10
 
 In modern microservices architectures, where services are distributed and stateless,
 securing communications between clients and services — and between individual services — is critical. JSON Web Token (JWT) provides a lightweight, self-contained and efficient mechanism for user authentication and authorization, enabling scalable and secure identity propagation across distributed systems. 
@@ -7,7 +8,7 @@ MicroProfile JWT is a specification that standardizes JWT-based authentication a
 
 Built on top of Jakarta EE and tightly integrated with other MicroProfile APIs, MicroProfile JWT allows developers to build secure, interoperable, and portable microservices. It supports role-based access control (RBAC), simplifies identity management in stateless services, and avoids vendor lock-in by adhering to open specifications.
 
-=== Topics to be covered:
+== Topics to be covered:
 - Introduction to JWT Authentication
 - Structure of JWT
 - Benefits of JWT in Microservice? 
@@ -22,17 +23,17 @@ Built on top of Jakarta EE and tightly integrated with other MicroProfile APIs, 
 - Security Best Practices for Microservices
 - Conclusion
 
-=== Introduction to JWT Authentication
+== Introduction to JWT Authentication
 
 In this section, we will explore what JSON Web Tokens are, how they work, and why they are foundational to implementing stateless authentication and authorization in microservices-based systems.
 
-==== What is a JSON Web Token (JWT)?
+=== What is a JSON Web Token (JWT)?
 
 https://jwt.io/[JSON Web Token (JWT)], defined by https://datatracker.ietf.org/doc/html/rfc7519[RFC 7519] is an open standard for securely transmitting information (claims) between parties as a JSON object. JWTs are digitally signed, ensuring their integrity and authenticity.
 
-=== Structure of a JWT
+== Structure of a JWT
 
-A JWT consists of three Base64 encoded parts, separated by dots (+.+): 
+A JWT consists of three Base64 encoded parts, separated by dots (`.`): 
 
 [source]
 ----
@@ -71,11 +72,11 @@ Example JWT Token:
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyMTIzIiwiaXNzIjoiaHR0cHM6Ly9hdXRoLmV4YW1wbGUuY29tIiwiZ3JvdXBzIjpbInVzZXIiLCJhZG1pbiJdfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
 ----
 
-==== Types of Claims in MicroProfile JWT
+=== Types of Claims in MicroProfile JWT
 
 Claims in JWTs can be categorized into two types:
 
-===== Standard Claims
+==== Standard Claims
 
 These are predefined claims with specific meanings, as defined by the JWT specification. MicroProfile JWT recognizes and validates these claims during token validation. Some commonly used standard claims include:
 
@@ -92,17 +93,17 @@ These are predefined claims with specific meanings, as defined by the JWT specif
 |`groups`|Groups, list of roles or users allowed to access the resource |`["user", "admin"]`
 |===
 
-===== Custom Claims
+==== Custom Claims
 
 These are application-specific claims that provide additional information about the user or entity. They can be used to extend authorization logic with application-specific claims (e.g., `department`, `region`). Custom claims are not part of the JWT specification but are often used to include domain-specific data, such as user preferences, tenant IDs, or other metadata. MicroProfile JWT allows developers to access these claims programmatically.
 
-=== Benefits of JWTs in Microservices?
+== Benefits of JWTs in Microservices?
 
 JWTs are a foundational technology for securing distributed systems due to their compact, self-contained, and stateless nature. These characteristics make them particularly well-suited for microservices architectures, where scalability, interoperability, and decentralized security are critical.
 
 JWTs are widely used in microservices for the following reasons:
 
-==== Statelessness & Scalability
+=== Statelessness & Scalability
 
 No Server-Side Sessions: JWTs eliminate the need for centralized session storage. Each token is self-contained, embedding all necessary user claims (e.g., roles, permissions) in its payload.
 
@@ -111,19 +112,19 @@ Independent Validation: Microservices validate JWTs locally using public keys, a
 Example:
 A payment service validates a JWT’s signature and exp claim without querying an authentication server. +
 
-==== Interoperability
+=== Interoperability
 
 Open Standards: JWTs adhere to RFC 7519, ensuring compatibility across platforms (Java, .NET, Node.js) and frameworks (Spring Boot, Quarkus).
 
 MicroProfile Integration: MicroProfile JWT standardizes validation and claim extraction, enabling seamless interoperability across Java microservices.
 
-==== Fine-Grained Authorization
+=== Fine-Grained Authorization
 
 Custom Claims: JWTs support custom claims (e.g., department, tenant_id) for granular access control.
 
 Role-Based Access Control (RBAC): Map JWT claims (e.g., groups) to Jakarta EE roles using @RolesAllowed.
 
-==== Decentralized Security
+=== Decentralized Security
 
 Propagation Across Services: A JWT issued by an authentication service is propagated across microservices (e.g., Order Service, Inventory Service). Each service independently verifies the token and enforces access control.
 
@@ -138,13 +139,13 @@ Example:
 
 - Inventory Service: Revalidates the same JWT without contacting the auth service.
 
-==== Enhanced Performance
+=== Enhanced Performance
 
 Lightweight Tokens: JWTs are compact (e.g., 500–1000 bytes), reducing network overhead.
 
 Parallel Validation: Multiple microservices can validate the same JWT concurrently.
 
-=== Setting Up MicroProfile JWT
+== Setting Up MicroProfile JWT
 
 To use MicroProfile JWT in your project, add the following dependency to your _pom.xml_ (for Maven):
 
@@ -165,7 +166,7 @@ For Gradle, add the following to your _build.gradle_:
 implementation 'org.eclipse.microprofile.jwt:microprofile-jwt-auth-api:2.1'
 ----
 
-=== Configuring MicroProfile JWT Validation
+== Configuring MicroProfile JWT Validation
 
 MicroProfile JWT requires validation rules configuration to be defined  in src/main/resources/microprofile-config.properties file. Below is an example configuration:
 
@@ -249,7 +250,7 @@ Understanding how JWTs propagate and are processed in a microservices architectu
 
 JWTs are propagated via the `Authorization: Bearer` HTTP header across clients and services. 
 
-==== Client-to-Service
+=== Client-to-Service
 
 When a client authenticates (e.g., via a login endpoint), it receives a JWT from an authentication service. This token is then included in the header of subsequent requests to microservices. For example, a request header might look like this: 
 
@@ -259,13 +260,13 @@ GET /api/orders HTTP/1.1
 Authorization: Bearer eyJhbGciOiJSUzI1NiIs…
 ----
 
-==== Service-to-Service
+=== Service-to-Service
 
 In a multi-service workflow, the initial microservice (e.g., Order Service) forwards the same token to downstream services (e.g., Payment Service or Inventory Service). 
 
 Each service independently validates the JWT, ensuring decentralized and stateless security.
 
-==== Token Extraction
+=== Token Extraction
 
 MicroProfile JWT runtime handles token extraction and validation automatically. The token is parsed and validated as follows:
 
@@ -273,7 +274,7 @@ MicroProfile JWT runtime handles token extraction and validation automatically. 
 
 - Decoding: The JWT is split into its header, payload, and signature components.
 
-==== Token Validation
+=== Token Validation
 The token validation involves the following steps: 
 
 - Signature Verification: The public key (configured via mp.jwt.verify.publickey.location) validates the token’s integrity.
@@ -373,7 +374,7 @@ If your JWT uses a claim other than groups to represent roles (e.g., roles or sc
 mp.jwt.verify.roles=roles
 ----
 
-==== How the RBAC Works
+=== How the RBAC Works
 
 - Token Validation: MicroProfile JWT validates the JWT’s signature and claims.
 
@@ -441,7 +442,7 @@ WWW-Authenticate: Bearer error="missing_token"
 HTTP/1.1 403 Forbidden
 ----
 
-=== Best Practices for JWT Authentication
+== Best Practices for JWT Authentication
 
 . Use Standard Claims - Prefer the groups claim for roles unless your identity provider uses a different claim.
 

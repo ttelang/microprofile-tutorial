@@ -1,21 +1,21 @@
-== Chapter 4: MicroProfile OpenAPI
+= Chapter 4: MicroProfile OpenAPI
 
 :imagesdir: ../../assets/images
 
-=== Introduction 
+== Introduction 
 
 In the previous chapter, we saw how RESTful APIs facilitate language-agnostic access to web services from diverse environments. However, a clear and comprehensive contract is required to ensure seamless integration between clients and services. This need for a well-defined API contract has led to the adoption of the OpenAPI specification.
 This chapter will explore the primary features of MicroProfile OpenAPI, demonstrate how to integrate it into your MicroProfile applications, and show you how to annotate your RESTful services to produce rich documentation that adheres to the OpenAPI specification. Furthermore, we will introduce the OpenAPI UI, a visual interface allowing developers and stakeholders to interact with and visualize the documented APIs, enhancing understanding and facilitating integration.
 
 
-=== Topics to be covered:
+== Topics to be covered:
 - Introduction to MicroProfile OpenAPI
 - API Specification using MicroProfile Open API
 - Generating API Documentation
 - Documenting Authentication and Authorization Requirements
 - Exploring the APIs using Swagger UI
 
-=== OpenAPI Specification
+== OpenAPI Specification
 
 The Open API Specification (OAS), formerly Swagger specification, is a technical specification that allows REST API providers to describe and publish their APIs using a format that various tools can consume. It defines a standard, language-agnostic interface to RESTful APIs, making it easy for third-party tools to generate documentation, client SDKs, and a range of tools that promote the seamless consumption of RESTful APIs.
 
@@ -42,7 +42,7 @@ The OpenAPI Specification fuels a rich ecosystem of tools that automate and supp
 * *API Testing*: Testing frameworks can leverage the specification to design robust tests.
 * *API Mocking*: Simplifies mocking APIs for testing and development purposes.
 
-=== Generating OpenAPI documents
+== Generating OpenAPI documents
 
 There are multiple ways in which you can generate OpenAPI documents. The most common way is to use annotations. This only requires augmenting your Jakarta Restful Web Services annotations with OpenAPI annotations. 
 
@@ -125,7 +125,7 @@ This property tells MicroProfile OpenAPI to scan our classes for annotations and
 
 Now that we have configured MicroProfile OpenAPI, we can build and run our application.
 
-=== How to view the generated documentation
+== How to view the generated documentation
 
 To view the generated documentation, we can use the OpenAPI UI tool. The Open API UI tool is a web-based tool that can be used to view the documentation for a REST API.
 
@@ -232,7 +232,7 @@ As we can see, MicroProfile OpenAPI has generated API documentation for our reso
 
 MicroProfile OpenAPI allows developers to produce these specifications directly from their codebase, leveraging annotations and/or providing OpenAPI documents statically. This direct generation ensures that the API documentation is always up to date with the code.
 
-=== Exploring the APIs using Swagger UI
+== Exploring the APIs using Swagger UI
 
 To open Swagger UI for the API documentation generated using MicroProfile OpenAPI, you will need to deploy your application to a server that supports MicroProfile, such as Open Liberty, WildFly, Quarkus, or Payara Micro. These servers automatically generate the OpenAPI documentation for your RESTful services based on the annotations in your code. 
 

@@ -1,4 +1,5 @@
 = Chapter 11: MicroProfile Rest Client
+:id: chapter11
 
 In microservices architecture, developers often face the cumbersome task of implementing boilerplate code to consume REST APIs - manually constructing HTTP requests, parsing responses, and handling errors. The MicroProfile Rest Client specification addresses this by leveraging Jakarta RESTful Web Services (formerly JAX-RS) annotations to create type-safe Rest client interfaces. Instead of writing low-level HTTP logic, developers define Java interfaces that mirror the target service’s endpoints. At runtime, MicroProfile Rest Client dynamically generates an implementation of these interfaces, automating HTTP communication while ensuring compile-time consistency between the client and server contracts.
 
@@ -18,7 +19,7 @@ This chapter introduces the MicroProfile Rest Client, a type-safe framework for 
 
 The MicroProfile Rest Client specification simplifies RESTful service consumption in Java microservices by replacing error-prone manual HTTP handling with a type-safe, annotation-driven approach. Instead of writing boilerplate code, developers define Java interfaces that mirror the target service’s API. Using Jakarta RESTful Web Services annotations like @GET, and @Path, these interfaces declaratively map methods to HTTP operations (e.g., /users/{id} to getUser(id)). The framework then generates an implementation at runtime, automating communication while ensuring compile-time consistency between client and server contracts. Tight integration with MicroProfile Config and CDI allows seamless configuration and injection, making it ideal for building resilient, maintainable clients that align with modern microservices practices.
 
-==== Key Features of MicroProfile Rest Client
+=== Key Features of MicroProfile Rest Client
 
 The MicroProfile Rest Client simplifies RESTful service consumption in Java microservices with the following features:
 
