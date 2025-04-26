@@ -482,4 +482,4 @@ MicroProfile JWT offers a standard-based, interoperable approach for securing mi
 
 * https://datatracker.ietf.org/doc/html/rfc7519[RFC 7519]
 * https://github.com/eclipse/microprofile-jwt-auth[MicroProfile JWT 2.1 Spec]
-Jakarta Security 3.0
+* https://jakarta.ee/specifications/security/3.0/[Jakarta Security 3.0]
