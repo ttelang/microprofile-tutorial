@@ -217,12 +217,6 @@ MicroProfile JWT integrates seamlessly with Jakarta EE’s `@RolesAllowed` annot
 mp.jwt.verify.roles=groups 
 ----
 
-=== Stateless Session information
-
-JWTs replace server-side sessions by storing session metadata. This allows applications to track user sessions and enforce session time limits without requiring server-side session storage. The stateless nature of JWTs makes them ideal for use in scalable, distributed systems.
-
-For example, a JWT might include an iat (issued at) claim and an exp (expiration) claim, which can be used to determine when the session started and when it will expire.
-
 === Claims-based identity
 
 JWTs are often used to represent claims-based identity, where the JWT contains claims representing the user’s identity, such as their name, email address, or other attributes. These claims can be used by applications to identify the user and personalize their experience.
