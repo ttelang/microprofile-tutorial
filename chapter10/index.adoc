@@ -108,7 +108,6 @@ These are application-specific claims that provide additional information about 
 
 === Benefits of using JWT in Microservices
 
-JWTs are a foundational technology for securing distributed systems due to their compact, self-contained, and stateless nature. These characteristics make them particularly well-suited for microservices architectures, where scalability, interoperability, and decentralized security are critical.
 
 JWTs are widely used in microservices for the following reasons:
 
