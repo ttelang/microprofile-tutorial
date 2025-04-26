@@ -244,7 +244,7 @@ For example, an enterprise SSO system can issue a JWT that grants access to HR, 
 
 == Request Flow in MicroProfile JWT
 
-Understanding how JWTs propagate and are processed in a microservices architecture is critical to implementing secure and scalable authentication. This section explains the lifecycle of a JWT from client to service, including token extraction, validation, and claim usage.
+Understanding how JWTs are propagated and processed in a microservices architecture is critical to implementing secure and scalable authentication. This section explains the lifecycle of a JWT from client to service, including token extraction, validation, and claim usage.
 
 === How JWTs are Propagated in Microservices
 
