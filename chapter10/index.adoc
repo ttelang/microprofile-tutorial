@@ -277,7 +277,7 @@ MicroProfile JWT runtime handles token extraction and validation automatically. 
 ==== Token Validation
 The token validation involves the following steps: 
 
-- Signature Verification: The public key (configured via mp.jwt.verify.publickey.location) validates the token’s integrity.
+- Signature Verification: The public key validates the token’s integrity.
 
 - Standard Claims Validation: The runtime then validates standard claims: 
 
