@@ -87,7 +87,7 @@ Claims in JWTs can be categorized into two types:
 
 ===== Standard Claims
 
-These are predefined claims with specific meanings, as defined by the JWT specification. MicroProfile JWT recognizes and validates these claims during token validation. Some commonly used standard claims include:
+These are predefined claims with specific meanings, as defined by the JWT specification. Some commonly used standard claims include:
 
 |===
 |*Claim*|*Description*|*Example*
