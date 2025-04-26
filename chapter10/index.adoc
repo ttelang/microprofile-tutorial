@@ -3,7 +3,7 @@
 In modern microservices architectures, where services are distributed and stateless,
 securing communications between clients and services — and between individual services — is critical. JSON Web Token (JWT) provides a lightweight, self-contained and efficient mechanism for user authentication and authorization, enabling scalable and secure identity propagation across distributed systems. 
 
-MicroProfile JWT is a specification that standardizes JWT-based authentication and authorization for Java microservices. By leveraging the JWT open standard (RFC and seamlessly integrates  with Jakarta EE security to provide role-based access 7519), it enables services to securely extract and validate claims such as identity, roles and permissions.
+MicroProfile JWT is a specification that standardizes JWT-based authentication and authorization for Java microservices. By leveraging the JWT open standard https://datatracker.ietf.org/doc/html/rfc7519[RFC 7519], it enables services to securely extract and validate claims such as identity, roles and permissions.
 
 MicroProfile JWT allows developers to build secure, interoperable, and portable microservices. It supports role-based access control (RBAC), simplifies identity management in stateless services, and avoids vendor lock-in by adhering to open specifications.
 
