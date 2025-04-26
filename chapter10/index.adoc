@@ -109,7 +109,7 @@ No Server-Side Sessions: JWTs eliminate the need for centralized session storage
 Independent Validation: Microservices validate JWTs locally using public keys, avoiding calls to a central authority. This reduces latency and scales horizontally.
 
 Example:
-A payment service validates a JWT’s signature and exp claim without querying an authentication server. +
+A payment service validates a JWT’s signature without querying an authentication server. +
 
 ==== Interoperability
 
