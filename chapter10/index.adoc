@@ -113,7 +113,7 @@ JWTs are widely used in microservices for the following reasons:
 
 ==== Statelessness & Scalability
 
-No Server-Side Sessions: JWTs eliminate the need for centralized session storage. Each token is self-contained, embedding all necessary user claims (e.g., roles, permissions) in its payload.
+JWTs eliminate the need for centralized session storage. Each token is self-contained, embedding all necessary user claims (e.g., roles, permissions) in its payload.
 
 Independent Validation: Microservices validate JWTs locally using public keys, avoiding calls to a central authority. This reduces latency and scales horizontally.
 
