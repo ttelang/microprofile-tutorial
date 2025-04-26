@@ -96,7 +96,7 @@ These are predefined claims with specific meanings, as defined by the JWT specif
 
 These are application-specific claims that provide additional information about the user or entity. They can be used to extend authorization logic with application-specific claims (e.g., `department`, `region`). Custom claims are not part of the JWT specification but are often used to include domain-specific data, such as user preferences, tenant IDs, or other metadata. MicroProfile JWT allows developers to access these claims programmatically.
 
-=== Benefits of JWTs in Microservices?
+=== Benefits of using JWT in Microservices
 
 JWTs are a foundational technology for securing distributed systems due to their compact, self-contained, and stateless nature. These characteristics make them particularly well-suited for microservices architectures, where scalability, interoperability, and decentralized security are critical.
 
