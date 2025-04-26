@@ -5,7 +5,7 @@ securing communications between clients and services — and between individual 
 
 MicroProfile JWT is a specification that standardizes JWT-based authentication and authorization for Java microservices. By leveraging the JWT open standard (RFC and seamlessly integrates  with Jakarta EE security to provide role-based access 7519), it enables services to securely extract and validate claims such as identity, roles and permissions.
 
-Built on top of Jakarta EE and tightly integrated with other MicroProfile APIs, MicroProfile JWT allows developers to build secure, interoperable, and portable microservices. It supports role-based access control (RBAC), simplifies identity management in stateless services, and avoids vendor lock-in by adhering to open specifications.
+MicroProfile JWT allows developers to build secure, interoperable, and portable microservices. It supports role-based access control (RBAC), simplifies identity management in stateless services, and avoids vendor lock-in by adhering to open specifications.
 
 === Topics to be covered:
 - Introduction to JWT Authentication
