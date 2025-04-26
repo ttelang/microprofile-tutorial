@@ -128,7 +128,6 @@ MicroProfile Integration: MicroProfile JWT standardizes validation and claim ext
 
 ==== Fine-Grained Authorization
 
-
 Role-Based Access Control (RBAC): Map JWT claims (e.g., groups) to Jakarta EE roles using @RolesAllowed.
 
 ==== Decentralized Security
@@ -145,12 +144,6 @@ Example:
 - Order Service: Validates the JWT and processes requests if groups include `users`.
 
 - Inventory Service: Revalidates the same JWT without contacting the auth service.
-
-==== Enhanced Performance
-
-Lightweight Tokens: JWTs are compact (e.g., 500–1000 bytes), reducing network overhead.
-
-Parallel Validation: Multiple microservices can validate the same JWT concurrently.
 
 === Setting Up MicroProfile JWT
 
