@@ -128,7 +128,6 @@ MicroProfile Integration: MicroProfile JWT standardizes validation and claim ext
 
 ==== Fine-Grained Authorization
 
-Custom Claims: JWTs support custom claims (e.g., department, tenant_id) for granular access control.
 
 Role-Based Access Control (RBAC): Map JWT claims (e.g., groups) to Jakarta EE roles using @RolesAllowed.
 
