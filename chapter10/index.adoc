@@ -106,8 +106,49 @@ These are predefined claims with specific meanings, as defined by the JWT specif
 
 These are application-specific claims that provide additional information about the user or entity. They can be used to extend authorization logic with application-specific claims (e.g., `department`, `region`). Custom claims are not part of the JWT specification but are often used to include domain-specific data, such as user preferences, tenant IDs, or other metadata. MicroProfile JWT allows developers to access these claims programmatically.
 
-=== Benefits of using JWT in Microservices
+=== Use cases for JSON Web Tokens
 
+JWTs are versatile tokens commonly used in modern applications for authentication, where they verify the identity of a user or service; for authorization, where they grant access to resources based on roles or permissions; and for information exchange, where they securely transmit data between parties.
+
+Below are key scenarios where JWTs shine in microservices environments:
+
+==== Authentication
+
+JWTs enable stateless authentication in distributed systems. When a user logs in, an authentication service issues a JWT containing claims like sub (user ID) and exp (expiration time). The client sends this token in the `Authorization: Bearer` header of subsequent requests, allowing microservices to verify the user’s identity without requiring repeated authentication.
+
+For example, A user authenticates with an Auth Service and receives a JWT. This JWT token grants access to other services such as product catalog or order management system without re-authentication.
+
+==== Authorization (Role-Based Access Control)
+
+JWTs are also used for authorization, enabling fine-grained access control based on user roles or permissions. The JWT payload typically includes a groups or roles claim, which specifies the user’s roles or permissions. For example, a user with the admin role might be allowed to access all resources while a user with the user role might only have access to specific resources. 
+
+MicroProfile JWT integrates seamlessly with Jakarta EE’s `@RolesAllowed` annotation, making it easy to enforce role-based access control (RBAC) in microservices. Role mapping can be configured in _microprofile-config.properties_: 
+
+[source]
+----
+mp.jwt.verify.roles=groups 
+----
+
+==== Claims-based identity
+
+JWTs are often used to represent claims-based identity, where the JWT contains claims representing the user’s identity, such as their name, email address, or other attributes. These claims can be used by applications to identify the user and personalize their experience.
+
+For example, an application might use the email claim to look up the user’s profile information in a database or 
+display the user’s name on a welcome page using the name claim.
+
+==== Information Exchange
+
+JWTs can securely exchange information between parties. The token payload can include custom claims representing the data being exchanged, such as an order ID or user ID. This makes JWTs useful in scenarios like Single Sign-On (SSO) systems, where information needs to be shared across multiple services.
+
+For example, a JWT might contain an `order_id` claim and a `user_id` claim, which can be used by an order management service to retrieve and display the user’s order details.
+
+==== Federation & Single Sign-On (SSO)
+
+JWTs facilitate identity federation by allowing integration of multiple trusted identity providers (e.g., Active Directory, LDAP) to provide a single sign-on (SSO) experience. In this case, the JWT contains claims representing the user’s identity, which can be used by applications to identify the user and retrieve their profile information.
+
+For example, an enterprise SSO system can issue a JWT that grants access to HR, Payroll, and CRM microservices. MicroProfile JWT validates the token’s iss (issuer) and aud (audience) to enforce trust boundaries.
+
+=== Benefits of using JWT in Microservices
 
 JWTs are widely used in microservices for the following reasons:
 
@@ -140,9 +181,7 @@ fault tolerance.
 Example:
 
 - Authentication Service: Issues a JWT with `sub: "user1"` and `groups: ["user"]`.
-
 - Order Service: Validates the JWT and processes requests if groups include `users`.
-
 - Inventory Service: Revalidates the same JWT without contacting the auth service.
 
 === Setting Up MicroProfile JWT
@@ -193,48 +232,6 @@ Explanation:
 === Public Key Setup
 
 Place the PEM-encoded public key in _src/main/resources/META-INF/publicKey.pem_. This key is used to verify incoming JWT signatures.
-
-== Use cases for JSON Web Tokens
-
-JWTs are versatile tokens commonly used in modern applications for authentication, where they verify the identity of a user or service; for authorization, where they grant access to resources based on roles or permissions; and for information exchange, where they securely transmit data between parties.
-
-Below are key scenarios where JWTs shine in microservices environments:
-
-=== Authentication
-
-JWTs enable stateless authentication in distributed systems. When a user logs in, an authentication service issues a JWT containing claims like sub (user ID) and exp (expiration time). The client sends this token in the `Authorization: Bearer` header of subsequent requests, allowing microservices to verify the user’s identity without requiring repeated authentication.
-
-For example, A user authenticates with an Auth Service and receives a JWT. This JWT token grants access to other services such as product catalog or order management system without re-authentication.
-
-=== Authorization (Role-Based Access Control)
-
-JWTs are also used for authorization, enabling fine-grained access control based on user roles or permissions. The JWT payload typically includes a groups or roles claim, which specifies the user’s roles or permissions. For example, a user with the admin role might be allowed to access all resources while a user with the user role might only have access to specific resources. 
-
-MicroProfile JWT integrates seamlessly with Jakarta EE’s `@RolesAllowed` annotation, making it easy to enforce role-based access control (RBAC) in microservices. Role mapping can be configured in _microprofile-config.properties_: 
-
-[source]
-----
-mp.jwt.verify.roles=groups 
-----
-
-=== Claims-based identity
-
-JWTs are often used to represent claims-based identity, where the JWT contains claims representing the user’s identity, such as their name, email address, or other attributes. These claims can be used by applications to identify the user and personalize their experience.
-
-For example, an application might use the email claim to look up the user’s profile information in a database or 
-display the user’s name on a welcome page using the name claim.
-
-=== Information Exchange
-
-JWTs can securely exchange information between parties. The token payload can include custom claims representing the data being exchanged, such as an order ID or user ID. This makes JWTs useful in scenarios like Single Sign-On (SSO) systems, where information needs to be shared across multiple services.
-
-For example, a JWT might contain an `order_id` claim and a `user_id` claim, which can be used by an order management service to retrieve and display the user’s order details.
-
-=== Federation & Single Sign-On (SSO)
-
-JWTs facilitate identity federation by allowing integration of multiple trusted identity providers (e.g., Active Directory, LDAP) to provide a single sign-on (SSO) experience. In this case, the JWT contains claims representing the user’s identity, which can be used by applications to identify the user and retrieve their profile information.
-
-For example, an enterprise SSO system can issue a JWT that grants access to HR, Payroll, and CRM microservices. MicroProfile JWT validates the token’s iss (issuer) and aud (audience) to enforce trust boundaries.
 
 == Request Flow in MicroProfile JWT
 
