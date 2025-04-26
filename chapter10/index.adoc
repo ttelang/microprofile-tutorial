@@ -1,16 +1,16 @@
 == Chapter 10: JWT Authentication
 
 In modern microservices architectures, where services are distributed and stateless,
-securing communications between clients and services — and between individual services — is critical. JSON Web Token (JWT) provides a lightweight, self-contained and efficient mechanism for user authentication and authorization, enabling scalable and secure identity propagation across distributed systems. 
+securing communications between clients and services — and between individual services — is critical. *JSON Web Token (JWT)* provides a lightweight, self-contained and efficient mechanism for user authentication and authorization, enabling scalable and secure identity propagation across distributed systems. 
 
-MicroProfile JWT is a specification that standardizes JWT-based authentication and authorization for Java microservices. By leveraging the JWT open standard https://datatracker.ietf.org/doc/html/rfc7519[RFC 7519], it enables services to securely extract and validate claims such as identity, roles and permissions.
+*MicroProfile JWT* is a specification that standardizes JWT-based authentication and authorization for Java microservices. By leveraging the JWT open standard https://datatracker.ietf.org/doc/html/rfc7519[RFC 7519], it enables services to securely extract and validate claims such as identity, roles, and permissions.
 
-MicroProfile JWT allows developers to build secure, interoperable, and portable microservices. It supports role-based access control (RBAC), simplifies identity management in stateless services, and avoids vendor lock-in by adhering to open specifications.
+MicroProfile JWT allows developers to build secure, interoperable, and portable microservices. It supports *role-based access control (RBAC)*, simplifies identity management in stateless services, and avoids vendor lock-in by adhering to open specifications.
 
 === Topics to be covered:
 - Introduction to JWT Authentication
 - Structure of JWT
-- Benefits of JWT in Microservice? 
+- Benefits of JWT in Microservices 
 - Setting up MicroProfile JWT
 - Configuring MicroProfile JWT
 - Use cases for JSON Web Tokens
@@ -28,7 +28,7 @@ In this section, we will explore what JSON Web Tokens are, how they work, and wh
 
 ==== What is a JSON Web Token (JWT)?
 
-https://jwt.io/[JSON Web Token (JWT)], defined by https://datatracker.ietf.org/doc/html/rfc7519[RFC 7519] is an open standard for securely transmitting information (claims) between parties as a JSON object. JWTs are digitally signed, ensuring their integrity and authenticity.
+A **JSON Web Token (JWT)** (see https://jwt.io/[JWT.io]), as defined in https://datatracker.ietf.org/doc/html/rfc7519[RFC 7519], is an open standard for securely transmitting information (claims) between parties as a JSON object. JWTs are digitally signed, ensuring their integrity and authenticity.
 
 === Structure of a JWT
 
@@ -272,7 +272,7 @@ The token validation involves the following steps:
 
 - Standard Claims Validation: The runtime then validates standard claims: 
 
-. `iss`: It should match the `mp.jwt.verity.issuer` configuration property. 
+. `iss`: It should match the `mp.jwt.verify.issuer` configuration property. 
 
 . `exp` : This checks if the token has not expired. 
 
