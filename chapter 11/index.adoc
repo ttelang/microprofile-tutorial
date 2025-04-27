@@ -1,8 +1,10 @@
 = Chapter 11: MicroProfile Rest Client
+:rest-client-spec-name: MicroProfile Rest Client
+:rest-client-spec-version: 3.1
 
 In microservices architecture, developers often face the cumbersome task of implementing boilerplate code to consume REST APIs - manually constructing HTTP requests, parsing responses, and handling errors. The MicroProfile Rest Client specification addresses this by leveraging Jakarta RESTful Web Services (formerly JAX-RS) annotations to create type-safe Rest client interfaces. Instead of writing low-level HTTP logic, developers define Java interfaces that mirror the target service’s endpoints. At runtime, MicroProfile Rest Client dynamically generates an implementation of these interfaces, automating HTTP communication while ensuring compile-time consistency between the client and server contracts.
 
-This chapter introduces the MicroProfile Rest Client, a type-safe framework for simplifying service-to-service communication. We will begin by defining REST client interfaces using Jakarta RESTful Web Services annotations (`@GET`, `@Path`) and configuring endpoints via MicroProfile Config, and implementing HTTP invocation. Next, we will explore handling HTTP communication, processing response, and error handling. By the end of this chapter, you will be able to replace hand-written HTTP boilerplate code with declarative, maintainable clients—while adhering to Jakarta EE and MicroProfile standards.
+This chapter introduces the MicroProfile Rest Client, a type-safe framework for simplifying service-to-service communication. We will begin by defining REST client interfaces using Jakarta RESTful Web Services annotations (`@GET`, `@Path`), configuring endpoints via MicroProfile Config, and implementing HTTP invocation. Next, we will explore handling HTTP communication, processing responses, and error handling. By the end of this chapter, you will be able to replace hand-written HTTP boilerplate code with declarative, maintainable clients while adhering to Jakarta EE and MicroProfile standards.
 
 == Topics to be covered:
 
@@ -16,14 +18,14 @@ This chapter introduces the MicroProfile Rest Client, a type-safe framework for 
 
 == Introduction to MicroProfile Rest Client 
 
-The MicroProfile Rest Client specification simplifies RESTful service consumption in Java microservices by replacing error-prone manual HTTP handling with a type-safe, annotation-driven approach. Instead of writing boilerplate code, developers define Java interfaces that mirror the target service’s API. Using Jakarta RESTful Web Services annotations like @GET, and @Path, these interfaces declaratively map methods to HTTP operations (e.g., /users/{id} to getUser(id)). The framework then generates an implementation at runtime, automating communication while ensuring compile-time consistency between client and server contracts. Tight integration with MicroProfile Config and CDI allows seamless configuration and injection, making it ideal for building resilient, maintainable clients that align with modern microservices practices.
+The MicroProfile Rest Client specification simplifies RESTful service consumption in Java microservices by replacing error-prone manual HTTP handling with a type-safe, annotation-driven approach. Instead of writing boilerplate code, developers define Java interfaces that mirror the target service’s API. Using Jakarta RESTful Web Services annotations like `@GET`, and `@Path`, these interfaces declaratively map methods to HTTP operations (e.g., `/users/{id}` to `getUser(id)`). The framework then generates an implementation at runtime, automating communication while ensuring compile-time consistency between client and server contracts. Tight integration with MicroProfile Config and CDI allows seamless configuration and injection, making it ideal for building resilient, maintainable clients that align with modern microservices practices.
 
 ==== Key Features of MicroProfile Rest Client
 
-The MicroProfile Rest Client simplifies RESTful service consumption in Java microservices with the following features:
+The MicroProfile Rest Client simplifies consuming RESTful services in Java microservices with the following key features:
 
 . *Type-Safe and Declarative APIs* - The MicroProfile Rest Client allows developers to define REST clients as Java interfaces using Jakarta RESTful Web Services annotations like `@GET`, `@POST`, `@PUT`, `@DELETE`, `@Path`, `@Consumes` and `@Produces`. This approach improves code clarity and ensures compile-time validation, reducing the possibility of runtime errors .
-. *Integration with CDI (Context and Dependency Injection)* - This specification allows developers to seamlessly inject MicroProfilce Rest Client interfaces using `@Inject` and `@RestClient` into CDI-managed beans, promoting better dependency management and integration with other components. By leveraging CDI lifecycle management, the MicroProfile Rest Client can benefit from scope management (e.g. `@ApplicationScoped`), proxying, and automatic initialization.
+. *Integration with CDI (Context and Dependency Injection)* - This specification allows developers to seamlessly inject MicroProfile Rest Client interfaces using `@Inject` and `@RestClient` into CDI-managed beans, promoting better dependency management and integration with other components. By leveraging CDI lifecycle management, the MicroProfile Rest Client can benefit from scope management (e.g., `@ApplicationScoped`), proxying, and automatic initialization.
 . *Runtime Configurable with MicroProfile Config* -  The behavior of MicroProfile Rest Client can be dynamically configured using MicroProfile Config. This allows properties like the base URL and other client settings to be adjusted without recompilation. The configuration can be provided through _microprofile-config.properties_ or environment variables, making the client highly adaptable to different environments.
 . *Support for Asynchronous Execution* - For asynchronous execution, MicroProfile Rest Client can return `CompletionStage<T>`, allowing non-blocking requests. This significantly  improves performance & scalability in high-concurrency environments.
 . *Automatic Handling of Redirect Responses* -  MicroProfile Rest Client can automatically follow HTTP redirects, simplifying client implementation when working with services that return `3xx` responses.
@@ -125,7 +127,7 @@ product-service/mp-rest/followRedirects=true.
 
 == Parameter Configurations
 
-In MicroProfile Rest Client, you can dynamically configure headers, query parameters, and path parameters dynamically using Jakarta RESTful Web Services annotations. These annotations bind method parameters to different parts of the HTTP request, enabling flexible and dynamic RESTful client interfaces that can efficiently interact with various endpoints.
+In MicroProfile Rest Client, you can dynamically configure headers, query parameters, and path parameters using Jakarta RESTful Web Services annotations. These annotations bind method parameters to different parts of the HTTP request, enabling flexible and dynamic RESTful client interfaces that can efficiently interact with various endpoints.
 
 *Supported Parameter Annotations*
 
@@ -264,7 +266,7 @@ In MicroProfile Rest Client, handling requests and responses involves defining m
 . HTTP requests are automatically constructed based on method definitions.
 . Responses are efficiently deserialized into Java objects (DTOs) or processed manually using `Response`.
 
-By using Jakarta RESTful Web Services annotations, you can define GET, POST, PUT, and DELETE operations while MicroProfile handles serialization, deserialization, and request execution at runtime. 
+Using Jakarta RESTful Web Services annotations, you can define standard HTTP operations such as @GET, @POST, @PUT, and @DELETE. The framework also supports additional methods like @HEAD, @OPTIONS, and @PATCH, providing complete control over HTTP communication when needed. Meanwhile, MicroProfile automatically handles serialization, deserialization, and request execution at runtime.
 
 == Handling JSON Data formats
 
@@ -306,7 +308,7 @@ public interface ProductServiceClient {
 
 === Error Handling
 
-Effective handling of errors is crucial while consuming remote RESTful services. MicroProfile Rest Client provides a structured approach to error handling by mapping HTTP responses to exceptions using the `ResponseExceptionMapper` interface. 
+Effective error handling is crucial when consuming remote RESTful services. MicroProfile Rest Client provides a structured approach to error handling by mapping HTTP responses to exceptions using the `ResponseExceptionMapper` interface. 
 
 This mechanism allows developers to:
 
@@ -314,7 +316,7 @@ This mechanism allows developers to:
 . Customize exception handling behavior at runtime.
 . Automatically throw mapped exceptions in client invocations.
 
-==== Using RequestExceptionMapper interface
+==== Using `ResponseExceptionMapper` interface
 
 The `ResponseExceptionMapper` interface allows mapping an HTTP Response object to a `Throwable` (custom exception). This improves error handling by ensuring meaningful exceptions are thrown instead of manually checking response codes.
 
@@ -324,7 +326,7 @@ The `ResponseExceptionMapper` interface allows mapping an HTTP Response object t
 
 . * Handling Responses: The `handles(int status, MultivaluedMap<String,Object> headers)` method determines whether a mapper should handle a given response. By default, it handles responses with status code 400 or higher, but we can override this behavior.
 
-. *Converting the Response to an Exception*: The `toThrowable(Response response)` method converts a response into a `Throwable` (exception). Checked exceptions are only thrown if the client method declares that it throws that type of exception of its superclass. Unchecked exceptions (RuntimeException) are always thrown.
+. *Converting the Response to an Exception*: The `toThrowable(Response response)` method converts a response into a `Throwable` (exception). Checked exceptions are only thrown if the client method declares that it throws that type of exception of its superclass. Unchecked exceptions (`RuntimeException`) are always thrown.
 
 Example:
 
@@ -452,4 +454,4 @@ By integrating seamlessly with other MicroProfile specifications—such as *Conf
 - Integrates with *Fault Tolerance* for retries, timeouts, and circuit breakers.
 - Enhances *security* through header propagation and authentication mechanisms.
 
-With the MicroProfile Rest Client, building robust and maintainable microservices that communicate over REST becomes *simpler*, *more flexible*, and *more powerful*. This concludes the MicroProfile tutorial. You are now equipped with the foundational knowledge to build robust, cloud-native microservices using the MicroProfile specification. Happy coding!!
+With MicroProfile Rest Client, building robust and maintainable microservices that communicate over REST becomes *simpler*, *more flexible*, and *more powerful*. This concludes the MicroProfile tutorial. You are now equipped with the foundational knowledge to build robust, cloud-native microservices using the MicroProfile specification. Thank you for following along, and happy coding!
