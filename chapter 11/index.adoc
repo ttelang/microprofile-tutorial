@@ -90,7 +90,7 @@ import io.microprofile.tutorial.inventory.dto.Product;
 
 @RegisterRestClient(configKey = "product-service")
 @Path("/products")
-public interface ProductServiceClient extends AutoCloseable {
+public interface ProductServiceClient {
 
     @GET
     @Path("/{id}")
@@ -99,21 +99,23 @@ public interface ProductServiceClient extends AutoCloseable {
 ----
 
 Explanation: 
-In the above code, we define a `ProductServiceClient` within the package `io.microprofile.tutorial.inventory.client`. The interface serves as a Rest client for interaction with a remote product service. It extends `AutoCloseable` interface, allowing the client to be closed when no longer needed, improving resource management. 
+In the above code, we define a `ProductServiceClient` within the package `io.microprofile.tutorial.inventory.client`. The interface serves as a Rest client for interaction with a remote product service. 
 
 . `@RegisterRestClient` - declares the `ProductServiceClient` interface as a MicroProfile Rest Client, enabling it to be injected into other CDI-managed components. 
 
-. The attribute `configKey = "product-service"` enables configuration via MicroProfile Config (using for e.g. _microprofile-config.properties_ or environment variables).
+. `configKey = "product-service"` - associates the client with a configuration key, allowing dynamic configuration via MicroProfile Config (e.g., using _microprofile-config.properties_ or environment variables).
 
-. `@Path(/products)` - specifies the base URI of the RESTful service. 
+. `@Path(/products)` - specifies the base URI path segement for the RESTful service. 
 
-. `@Path("/{id}")` – define a dynamic parameter `{id} `,  which will be replaced at runtime with actual values. 
+. `@GET` - indicates that the `getProductById()` method handles HTTP GET requests. 
 
-. `@PathParam("id")` - binds the method parameter `id` to the `{id}` path variable in the URL. 
+. `@Path("/{id}")` – define a dynamic URI path parameter `{id}`, which will be replaced at runtime with the actual value provided. 
 
-. `@GET` - indicates that this method handles HTTP GET requests. 
+. `@PathParam("id")` - binds the method parameter `id` to the `{id}` placeholder in the request URL. 
 
-. Return Type (`Product`) - The method returns a `Product` DTO (Data Transfer Object), which represents the retrieved product data.
+. Return Type (`Product`) - specifies that the method returns a `Product` Data Transfer Object (DTO), representing the retrieved product data.
+
+> Note: In CDI environments, it is recommended not to extend AutoCloseable in REST client interfaces. The container manages the lifecycle of injected clients automatically, ensuring proper resource handling without requiring manual closure.
 
 ==== Configuration via MicroProfile Config:
 
