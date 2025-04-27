@@ -324,7 +324,7 @@ The `ResponseExceptionMapper` interface allows mapping an HTTP Response object t
 
 . *Scanning and Prioritizing Exception Mappers*: When a client method is invoked, the runtime scans all registered `ResponseExceptionMapper` implementations. Mappers are then sorted in ascending order of priority, determined by the `@Priority` annotation. The mapper with the lowest numeric priority value is checked first. 
 
-. * Handling Responses: The `handles(int status, MultivaluedMap<String,Object> headers)` method determines whether a mapper should handle a given response. By default, it handles responses with status code 400 or higher, but we can override this behavior.
+. *Handling Responses*: The `handles(int status, MultivaluedMap<String,Object> headers)` method determines whether a mapper should handle a given response. By default, it handles responses with status code 400 or higher, but we can override this behavior.
 
 . *Converting the Response to an Exception*: The `toThrowable(Response response)` method converts a response into a `Throwable` (exception). Checked exceptions are only thrown if the client method declares that it throws that type of exception of its superclass. Unchecked exceptions (`RuntimeException`) are always thrown.
 
