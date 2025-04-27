@@ -418,18 +418,17 @@ import java.util.concurrent.TimeUnit;
 public class InventoryService {
 
     public boolean isProductAvailable(Long productId) {
-        try {
-            URI productApiUri = new URI("http://localhost:8080/api");
+        URI productApiUri = URI.create("http://localhost:8080/api");
 
-            ProductServiceClient productClient = RestClientBuilder.newBuilder()
+        try (ProductServiceClient productClient = RestClientBuilder.newBuilder()
                 .baseUri(productApiUri)
                 .connectTimeout(3, TimeUnit.SECONDS)
                 .readTimeout(5, TimeUnit.SECONDS)
-                .build(ProductServiceClient.class);
+                .build(ProductServiceClient.class)) {
 
             Product product = productClient.getProductById(productId);
-
             return product != null;
+
         } catch (Exception e) {
             // Log exception (omitted for brevity)
             return false;
@@ -441,20 +440,23 @@ public class InventoryService {
 ==== Explanation
 
 - The `isProductAvailable()` method accepts a product ID and returns `true` if the product exists in the catalog.
-- A `URI` object is created pointing to the base path of the ProductService API.
-- A `ProductServiceClient` instance is created using the builder pattern:
+- A `URI` object is created pointing to the base path of the ProductService API using `URI.create()`.
+- A `ProductServiceClient` instance is created using the builder pattern inside a `try-with-resource` block:
   * `newBuilder()` initializes the client builder.
   * `baseUri()` sets the root endpoint of the target service.
   * `connectTimeout()` and `readTimeout()` define connection and read timeouts respectively.
   * `build()` finalizes and returns the configured client proxy.
+- Because `ProductServiceClient` extends `AutoCloseable`, the try-with-resources block ensures that the client is automatically closed after the operation, preventing resource leaks.
 - If a `Product` object is successfully returned, `true` is returned.
 - Any exceptions are caught and handled appropriately, returning `false` in case of failure.
 
-This approach is especially useful for *utility services*, *batch jobs*, or environments where REST client configuration must be *dynamic or conditional*.
+This approach is especially useful for *utility services*, *batch jobs*, or environments where REST client configuration must be *dynamic or conditional*, and manual client lifecycle management is necessary.
+
+> Tip: When building MicroProfile REST clients programmatically (using `RestClientBuilder`), ensure that your client interface extends `AutoCloseable` and uses try-with-resources to release resources automatically.
 
 === Conclusion
 
-The *MicroProfile Rest Client* provides a declarative, type-safe, and efficient mechanism to interact with RESTful services in Java microservices. It reduces boilerplate code and lets developers focus on core business logic, while still offering fine-grained control through features like `RestClientBuilder`.
+The MicroProfile Rest Client provides a declarative, type-safe, and efficient mechanism for interacting with RESTful services in Java microservices. It reduces boilerplate code and lets developers focus on core business logic while still offering fine-grained control through features like `RestClientBuilder`.
 
 By integrating seamlessly with other MicroProfile specifications—such as *Config*, *Fault Tolerance*, and *JWT Authentication*—the Rest Client helps enhance the *security*, *resilience*, and *maintainability* of cloud-native applications.
 
