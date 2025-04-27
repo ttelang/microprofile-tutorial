@@ -124,7 +124,7 @@ To configure the URI using MicroProfile Config, you need to add a config file na
 [source]
 ----
 product-service/mp-rest/url=http://localhost:8080/api/products
-product-service/mp-rest/followRedirects=true. 
+product-service/mp-rest/followRedirects=true 
 ----
 
 == Parameter Configurations
