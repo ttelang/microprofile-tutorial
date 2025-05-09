@@ -9,7 +9,7 @@ content:
 
 ui:
   bundle:
-    url: https://github.com/jakartaee/jakartaee-documentation-ui/releases/download/latest/ui-bundle.zip
+    url: https://github.com/ttelang/microprofile-documentation-ui/releases/download/latest/ui-bundle.zip
 output:
   dir: ./build/site
 

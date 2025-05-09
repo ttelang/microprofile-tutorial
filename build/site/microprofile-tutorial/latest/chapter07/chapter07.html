@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Untitled :: MicroProfile Tutorial</title>
+    <title>Chapter 7: MicroProfile Metrics :: MicroProfile Tutorial</title>
     <meta name="generator" content="Antora 3.1.10">
     <link rel="stylesheet" href="../../../_/css/site.css">
   </head>
@@ -134,11 +134,10 @@
   <div class="toc-menu"></div>
 </aside>
 <article class="doc">
+<h1 class="page">Chapter 7: MicroProfile Metrics</h1>
 <div class="sect1">
-<h2 id="_chapter_7_microprofile_metrics"><a class="anchor" href="#_chapter_7_microprofile_metrics"></a>Chapter 7: MicroProfile Metrics</h2>
+<h2 id="_introduction"><a class="anchor" href="#_introduction"></a>Introduction</h2>
 <div class="sectionbody">
-<div class="sect2">
-<h3 id="_introduction"><a class="anchor" href="#_introduction"></a>Introduction</h3>
 <div class="paragraph">
 <p>This chapter provides a comprehensive and detailed overview of MicroProfile Metrics, a widely used specification for monitoring microservices. You will gain an understanding of the various types of metrics and how you can use them to monitor microservices effectively. Additionally, this chapter covers the standard metrics provided by MicroProfile and how you can leverage them to monitor various aspects of microservices.</p>
 </div>
@@ -152,8 +151,10 @@
 <p>By the end of this chapter, you will have a deep understanding of MicroProfile Metrics and the various techniques for monitoring microservices. This chapter will equip you with the knowledge and skills to effectively monitor your microservices and ensure they perform optimally.</p>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_topics_to_be_covered"><a class="anchor" href="#_topics_to_be_covered"></a>Topics to be covered:</h3>
+</div>
+<div class="sect1">
+<h2 id="_topics_to_be_covered"><a class="anchor" href="#_topics_to_be_covered"></a>Topics to be covered:</h2>
+<div class="sectionbody">
 <div class="ulist">
 <ul>
 <li>
@@ -186,8 +187,10 @@
 </ul>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_introduction_to_microprofile_metrics"><a class="anchor" href="#_introduction_to_microprofile_metrics"></a>Introduction to MicroProfile Metrics</h3>
+</div>
+<div class="sect1">
+<h2 id="_introduction_to_microprofile_metrics"><a class="anchor" href="#_introduction_to_microprofile_metrics"></a>Introduction to MicroProfile Metrics</h2>
+<div class="sectionbody">
 <div class="paragraph">
 <p>It is essential to monitor your microservices to ensure smooth operations. You can monitor a microservice using two different techniques: Metrics and health checking. Health checks provide information on the health status of a service, such as whether it is up and running, while Metrics offer more detailed information on its performance, such as response times, throughput, and error rates. In the previous chapter, we discussed health checks and their importance. This chapter will cover the MicroProfile Metrics specification, which provides a standardized way of collecting and exposing performance data for Java microservices.</p>
 </div>
@@ -204,8 +207,10 @@
 <p><strong>Prometheus</strong> is a powerful tool designed to monitor and collect metrics from your services. It provides a highly efficient time-series database system that securely stores your data for long-term analysis. With Prometheus, you can easily visualize and gain insights into your system&#8217;s performance, allowing you to make informed decisions and optimize your services for better efficiency and reliability.</p>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_need_for_metrics_in_microservices"><a class="anchor" href="#_need_for_metrics_in_microservices"></a>Need for Metrics in Microservices</h3>
+</div>
+<div class="sect1">
+<h2 id="_need_for_metrics_in_microservices"><a class="anchor" href="#_need_for_metrics_in_microservices"></a>Need for Metrics in Microservices</h2>
+<div class="sectionbody">
 <div class="paragraph">
 <p>Metrics, enables developers and operators to monitor and measure the behavior of microservices at runtime. This observability is crucial for:</p>
 </div>
@@ -226,8 +231,10 @@
 </ul>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_types_of_metrics"><a class="anchor" href="#_types_of_metrics"></a>Types of Metrics</h3>
+</div>
+<div class="sect1">
+<h2 id="_types_of_metrics"><a class="anchor" href="#_types_of_metrics"></a>Types of Metrics</h2>
+<div class="sectionbody">
 <div class="paragraph">
 <p>MicroProfile Metrics offers a range of customizable metrics that can be used to measure and monitor microservices' performance. It allows developing microservices that are observable, manageable, and which provide insights into their behavior.</p>
 </div>
@@ -257,8 +264,10 @@
 <p>By leveraging these metrics, developers and operators can gain a deeper understanding of how their microservices are performing. They can use this information to identify areas where improvements can be made and optimize their microservices' performance.</p>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_microprofile_metrics_dependency"><a class="anchor" href="#_microprofile_metrics_dependency"></a>MicroProfile Metrics Dependency</h3>
+</div>
+<div class="sect1">
+<h2 id="_microprofile_metrics_dependency"><a class="anchor" href="#_microprofile_metrics_dependency"></a>MicroProfile Metrics Dependency</h2>
+<div class="sectionbody">
 <div class="paragraph">
 <p>If you&#8217;re using Maven, add the following dependency to your pom.xml file located in the root folder of your project:</p>
 </div>
@@ -282,8 +291,10 @@
 </div>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_metrics_annotations"><a class="anchor" href="#_metrics_annotations"></a>Metrics Annotations</h3>
+</div>
+<div class="sect1">
+<h2 id="_metrics_annotations"><a class="anchor" href="#_metrics_annotations"></a>Metrics Annotations</h2>
+<div class="sectionbody">
 <div class="paragraph">
 <p>MicroProfile Metrics defines a set of annotations to be used for exposing metrics. These annotations can be used on classes, methods, or fields. Table 7-1 shows the list of Metrics Annotation along with their descriptions.</p>
 </div>
@@ -317,8 +328,10 @@
 <p>Besides annotations, MicroProfile Metrics also defines a set of programmatic APIs for working with metrics. These APIs can be used to register custom metrics or access existing metrics.</p>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_categories_of_metrics"><a class="anchor" href="#_categories_of_metrics"></a>Categories of Metrics</h3>
+</div>
+<div class="sect1">
+<h2 id="_categories_of_metrics"><a class="anchor" href="#_categories_of_metrics"></a>Categories of Metrics</h2>
+<div class="sectionbody">
 <div class="paragraph">
 <p>In MicroProfile Metrics, metrics are organized into three distinct scopes: Base, Vendor, and Application. This categorization is designed to clearly separate metrics by their origin and relevance, making it easier for developers and operators to monitor and manage the performance of their microservices. Each scope serves a specific purpose and contains a different set of metrics:</p>
 </div>
@@ -345,13 +358,15 @@ Application metrics are exposed under the path <code>/metrics?scope=vendor</code
 <p>Note: In version 5.x, base metrics have become optional. This allows for flexibility in environments where these metrics may not be necessary or where they can be sourced from alternative monitoring tools.</p>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_metric_registry"><a class="anchor" href="#_metric_registry"></a>Metric Registry</h3>
+</div>
+<div class="sect1">
+<h2 id="_metric_registry"><a class="anchor" href="#_metric_registry"></a>Metric Registry</h2>
+<div class="sectionbody">
 <div class="paragraph">
 <p>The <strong>MetricRegistry</strong> component acts as a container for storing and managing metrics within an application. It provides a structured way to collect, organize, and access various types of metrics (e.g., counters, gauges, histograms, and timers) for monitoring the behavior and performance of applications. It offers a centralized repository where metrics can be created and retrieved. This allows applications to consistently monitor critical operational and performance statistics.</p>
 </div>
-<div class="sect3">
-<h4 id="_types_of_metric_registries"><a class="anchor" href="#_types_of_metric_registries"></a>Types of Metric Registries</h4>
+<div class="sect2">
+<h3 id="_types_of_metric_registries"><a class="anchor" href="#_types_of_metric_registries"></a>Types of Metric Registries</h3>
 <div class="paragraph">
 <p>MicroProfile Metrics creates metric registries for each scope:</p>
 </div>
@@ -372,14 +387,14 @@ Application metrics are exposed under the path <code>/metrics?scope=vendor</code
 <p>A metric registry is created as per the above scopes to enable the organization of metrics based on their origin and relevance.</p>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_instrumenting_microservices_with_microprofile_metrics"><a class="anchor" href="#_instrumenting_microservices_with_microprofile_metrics"></a>Instrumenting Microservices with MicroProfile Metrics</h4>
+<div class="sect2">
+<h3 id="_instrumenting_microservices_with_microprofile_metrics"><a class="anchor" href="#_instrumenting_microservices_with_microprofile_metrics"></a>Instrumenting Microservices with MicroProfile Metrics</h3>
 <div class="paragraph">
 <p>Instrumenting microservices with MicroProfile Metrics enables developers to gain detailed insights into their application&#8217;s operational health and performance. This level of observability is essential for maintaining scalable and resilient microservice architectures in dynamic environments.</p>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_tracking_response_time_using_timed"><a class="anchor" href="#_tracking_response_time_using_timed"></a>Tracking response time using <code>@Timed</code></h4>
+<div class="sect2">
+<h3 id="_tracking_response_time_using_timed"><a class="anchor" href="#_tracking_response_time_using_timed"></a>Tracking response time using <code>@Timed</code></h3>
 <div class="paragraph">
 <p>MicroProfile Metrics also allows you to track a method&#8217;s response time as a timed metric. The code example below shows how to use the @Timed annotation to track the response time.</p>
 </div>
@@ -417,8 +432,8 @@ productLookupTime_seconds_max{method="getProduct",mp_scope="application",} 0.002
 </div>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_tracking_number_of_invocations_using_counted"><a class="anchor" href="#_tracking_number_of_invocations_using_counted"></a>Tracking number of invocations using <code>@Counted</code></h4>
+<div class="sect2">
+<h3 id="_tracking_number_of_invocations_using_counted"><a class="anchor" href="#_tracking_number_of_invocations_using_counted"></a>Tracking number of invocations using <code>@Counted</code></h3>
 <div class="paragraph">
 <p>MicroProfile Metrics also allows you to track the number of invocations of a method as a counter metric. The code example below shows how to use the <code>@Counted</code> annotation to track the invocation count.</p>
 </div>
@@ -454,8 +469,10 @@ productAccessCount_total{mp_scope="application",} 3.0
 </div>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_creating_a_custom_metric"><a class="anchor" href="#_creating_a_custom_metric"></a>Creating a Custom Metric</h3>
+</div>
+<div class="sect1">
+<h2 id="_creating_a_custom_metric"><a class="anchor" href="#_creating_a_custom_metric"></a>Creating a Custom Metric</h2>
+<div class="sectionbody">
 <div class="paragraph">
 <p>Creating a custom metric to track the number of products in a catalog involves using the MicroProfile Metrics API. This custom metric can be implemented as a gauge, which measures an instantaneous value (in this case, the current number of products in the catalog).</p>
 </div>
@@ -494,11 +511,12 @@ public class ProductResource {
 <p>Vendors may, by their own implementation, support <code>/metrics?name=&lt;name&gt;</code> to directly retrieve that metric from all scopes. However, the specification itself only illustrates <code>/metrics?scope=&lt;scope&gt;&amp;name=&lt;name&gt;</code>.</p>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_summary"><a class="anchor" href="#_summary"></a>Summary</h3>
+</div>
+<div class="sect1">
+<h2 id="_summary"><a class="anchor" href="#_summary"></a>Summary</h2>
+<div class="sectionbody">
 <div class="paragraph">
 <p>This Chapter delved into the intricacies of MicroProfile Metrics, illuminating its role as a pivotal specification for efficiently monitoring microservices. Now you are equipped with a thorough understanding of diverse metric types and their application for monitoring microservice performance. This chapter highlighted the need for regular microservice monitoring via metrics and health checks, emphasizing metrics for detailed performance insights such as response times and throughput. Through practical examples, this chapter showcases how to instrument microservices with MicroProfile Metrics, leveraging standard metrics, and creating custom metrics to monitor microservices comprehensively.</p>
-</div>
 </div>
 </div>
 </div>
