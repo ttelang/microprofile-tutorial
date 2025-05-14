@@ -1,4 +1,4 @@
-= MicroProfile Catalog Service
+= MicroProfile Ecommerce Store
 :toc: macro
 :toclevels: 3
 :icons: font
@@ -9,7 +9,7 @@ toc::[]
 
 == Overview
 
-The MicroProfile Catalog Service is a modern Jakarta EE 10 application built with MicroProfile 6.1 specifications and running on Open Liberty. This service provides a RESTful API for product catalog management with enhanced MicroProfile features.
+The MicroProfile E-Commere Store is a modern Jakarta EE 10 application built with MicroProfile 6.1 specifications and running on Open Liberty. Its product catalog service provides a RESTful API for product catalog management with enhanced MicroProfile features.
 
 This project demonstrates the key capabilities of MicroProfile OpenAPI.
 
@@ -56,7 +56,7 @@ This enables scanning of OpenAPI annotations in the application.
 
 [source]
 ----
-catalog/
+mp-ecomm-store/
 ├── src/
 │   ├── main/
 │   │   ├── java/
@@ -91,7 +91,7 @@ To build and run the application:
 ----
 # Clone the repository
 git clone https://github.com/yourusername/liberty-rest-app.git
-cd code/catalog
+cd code/mp-ecomm-store
 
 # Build the application
 mvn clean package
@@ -134,7 +134,7 @@ The application uses the following Liberty server configuration:
 
     <httpEndpoint httpPort="${default.http.port}" httpsPort="${default.https.port}"
                   id="defaultHttpEndpoint" host="*" />
-    <webApplication location="catalog.war" contextRoot="${app.context.root}"/>
+    <webApplication location="mp-ecomm-store.war" contextRoot="${app.context.root}"/>
 </server>
 ----
 
