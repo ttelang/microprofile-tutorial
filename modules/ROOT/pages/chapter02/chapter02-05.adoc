@@ -43,7 +43,7 @@ microservices architecture.
 
 [source, plaintext]
 io.microprofile.tutorial.store
-├── product
+├── catalog
 │    ├── resource
 │    ├── config
 │    ├── exception
