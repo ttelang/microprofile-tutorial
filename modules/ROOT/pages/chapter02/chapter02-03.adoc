@@ -76,11 +76,11 @@ import jakarta.ws.rs.core.MediaType;
 @Path("/products")
 @ApplicationScoped
 public class ProductResource {
-   private List<Product> products;
+
+   private List<Product> products = new ArrayList<>();
 
    public ProductResource() {
-       products = new ArrayList<>();
-
+       // Initialize the list with some sample products
        products.add(new Product(Long.valueOf(1L), "iPhone", "Apple iPhone 15", Double.valueOf(999.99)));
        products.add(new Product(Long.valueOf(2L), "MacBook", "Apple MacBook Air", Double.valueOf(1299.99)));
    }
@@ -88,7 +88,6 @@ public class ProductResource {
    @GET
    @Produces(MediaType.APPLICATION_JSON)
    public List<Product> getProducts() {
-       // Return a list of products
        return products;
    }   
 }
