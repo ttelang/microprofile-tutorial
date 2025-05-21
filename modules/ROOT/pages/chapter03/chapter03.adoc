@@ -137,12 +137,10 @@ Jakarta Annotations is used for defining RESTful services and injecting dependen
 ----
 package io.microprofile.tutorial.store.product.entity;
 
-
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.GeneratedValue;
 import jakarta.validation.constraints.NotNull;
-
 
 @Entity
 @Table(name = "Product")
@@ -200,6 +198,14 @@ public class ProductRepository {
 
    @PersistenceContext(unitName = "product-unit")
    private EntityManager em;
+
+   private List<Product> products = new ArrayList<>();
+
+   public ProductRepository() {
+        // Initialize the list with some sample products
+        products.add(new Product(1L, "iPhone", "Apple iPhone 15", 999.99));
+        products.add(new Product(2L, "MacBook", "Apple MacBook Air", 1299.0));
+   }
 
    public void createProduct(Product product) {
        em.persist(product);
@@ -272,24 +278,23 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 
-
 @Path("/products")
 @ApplicationScoped
 public class ProductResource {
 
+    private static final Logger LOGGER = Logger.getLogger(ProductResource.class.getName());
+    
+    // ... 
 
     @Inject
     private ProductRepository productRepository;
 
-
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @Transactional
-    public List<Product> getProducts() {
-        // Return a list of products
-        return productRepository.findAllProducts();
+    public Response getAllProducts() {
+        LOGGER.info("Fetching all products");
+        return Response.ok(products).build();
     }
-
 
     // Additional endpoint methods
 }
