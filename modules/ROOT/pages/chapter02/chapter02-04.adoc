@@ -1,4 +1,4 @@
-== Testing your microservice
+== Testing Your Microservice
 
 Testing your microservice is critical for ensuring the reliability and robustness of your microservice. Maven, being a powerful project build management tool, simplifies this process by automating the test execution.
 To create tests for your microservice, start by creating a class called `ProductResourceTest`, which contains unit tests for the `ProductResource` class as below:

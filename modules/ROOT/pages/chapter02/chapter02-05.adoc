@@ -43,7 +43,7 @@ microservices architecture.
 
 [source, plaintext]
 io.microprofile.tutorial.store
-├── product
+├── catalog
 │    ├── resource
 │    ├── config
 │    ├── exception
@@ -95,5 +95,3 @@ io.microprofile.tutorial.store
      ├── exception
      └── util
 ----
-
-TODO: Current package structure is just a proposal will update after completing the source code for all chapters

@@ -1,0 +1,26 @@
+# Install Antora 
+You can install Antora using npm. If you don't have npm installed, you can install it by following the instructions at https://docs.npmjs.com/getting-started/installing-node.
+
+```
+npm install -g @antora/cli @antora/site-generator-default 
+```
+
+# Building the site
+
+You can build the site by running the following command in the root directory of the project:
+
+```
+antora antora-assembler.yml
+```
+This command will generate the site in the `build/site` directory. You can then open the `index.html` file in your web browser to view the site.
+
+# Running the site locally
+You can run the site locally using Python's built-in HTTP server. First, navigate to the `build/site` directory:
+```
+cd build/site
+```
+Then, run the following command:
+```
+python3 -m http.server 8080
+```
+This will start a local server on port 8080. You can then open your web browser and navigate to `http://<hostname>:8080` to view the site.

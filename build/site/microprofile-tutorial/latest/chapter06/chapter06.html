@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Untitled :: MicroProfile Tutorial</title>
+    <title>Chapter 6: MicroProfile Health :: MicroProfile Tutorial</title>
     <meta name="generator" content="Antora 3.1.10">
     <link rel="stylesheet" href="../../../_/css/site.css">
   </head>
@@ -134,11 +134,10 @@
   <div class="toc-menu"></div>
 </aside>
 <article class="doc">
+<h1 class="page">Chapter 6: MicroProfile Health</h1>
 <div class="sect1">
-<h2 id="_chapter_6_microprofile_health"><a class="anchor" href="#_chapter_6_microprofile_health"></a>Chapter 6: MicroProfile Health</h2>
+<h2 id="_introduction"><a class="anchor" href="#_introduction"></a>Introduction</h2>
 <div class="sectionbody">
-<div class="sect2">
-<h3 id="_introduction"><a class="anchor" href="#_introduction"></a>Introduction</h3>
 <div class="paragraph">
 <p>This chapter provides an in-depth exploration of MicroProfile Health, a critical component for ensuring the reliability and
 availability of microservices. This specification aims to enhance the observability of microservices in a cloud environment
@@ -146,8 +145,10 @@ where automatic scaling, failover, and recovery are essential for maintaining se
 chapter, we will learn about different types of health checks and standard health indicators provided by MicroProfile.</p>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_topics_to_be_covered"><a class="anchor" href="#_topics_to_be_covered"></a>Topics to be covered:</h3>
+</div>
+<div class="sect1">
+<h2 id="_topics_to_be_covered"><a class="anchor" href="#_topics_to_be_covered"></a>Topics to be covered:</h2>
+<div class="sectionbody">
 <div class="ulist">
 <ul>
 <li>
@@ -180,8 +181,10 @@ chapter, we will learn about different types of health checks and standard healt
 </ul>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_overview_of_microprofile_health"><a class="anchor" href="#_overview_of_microprofile_health"></a>Overview of MicroProfile Health</h3>
+</div>
+<div class="sect1">
+<h2 id="_overview_of_microprofile_health"><a class="anchor" href="#_overview_of_microprofile_health"></a>Overview of MicroProfile Health</h2>
+<div class="sectionbody">
 <div class="paragraph">
 <p>The MicroProfile Health specification offers a standardized mechanism for microservices to report their health status. In the
 context of microservices, "health"  refers to the ability of a microservice to perform its functions correctly and efficiently.
@@ -193,16 +196,18 @@ other actions to maintain overall system reliability.</p>
 <p>Let’s delve into the essentials of MicroProfile Health, its importance, and how it works.</p>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_key_concepts"><a class="anchor" href="#_key_concepts"></a>Key Concepts</h3>
+</div>
+<div class="sect1">
+<h2 id="_key_concepts"><a class="anchor" href="#_key_concepts"></a>Key Concepts</h2>
+<div class="sectionbody">
 <div class="paragraph">
 <p>At its core, the MicroProfile Health specification defines a mechanism for microservices to report their health status via HTTP.
 These health checks can be used by external systems to verify the operational status of the services. This is crucial in modern cloud
 environments where automated processes continuously monitor service health, initiate failover procedures, and manage load balancing
 to ensure high availability and reliability.</p>
 </div>
-<div class="sect3">
-<h4 id="_health_check"><a class="anchor" href="#_health_check"></a>Health Check</h4>
+<div class="sect2">
+<h3 id="_health_check"><a class="anchor" href="#_health_check"></a>Health Check</h3>
 <div class="paragraph">
 <p>A <strong>health check</strong> is a test that can be used to determine the health of an application or service. This mechanism is implemented via
 standard HTTP endpoints that respond with the health status of the service. These endpoints are typically exposed at predefined paths,
@@ -212,14 +217,16 @@ MicroProfile may offer built-in mechanisms or simplified configurations to defin
 </div>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_types_of_health_checks"><a class="anchor" href="#_types_of_health_checks"></a>Types of Health Checks</h3>
+</div>
+<div class="sect1">
+<h2 id="_types_of_health_checks"><a class="anchor" href="#_types_of_health_checks"></a>Types of Health Checks</h2>
+<div class="sectionbody">
 <div class="paragraph">
 <p>MicroProfile Health Check defines three main types of health checks, each with its own annotation to indicate the MicroProfile Health
 runtime about the type of check being performed, allowing it to execute and report health check responses appropriately. These are:</p>
 </div>
-<div class="sect3">
-<h4 id="_liveness_checks"><a class="anchor" href="#_liveness_checks"></a>Liveness Checks</h4>
+<div class="sect2">
+<h3 id="_liveness_checks"><a class="anchor" href="#_liveness_checks"></a>Liveness Checks</h3>
 <div class="paragraph">
 <p>Liveness checks help to determine if a microservice is in a state where it can perform its functions correctly. A failing liveness
 check suggests that the microservice is in a broken state, and the only way to recover might be to restart the microservice. This
@@ -227,8 +234,8 @@ check suggests that the microservice is in a broken state, and the only way to r
 or dysfunctional. Liveness checks are annotated with <code>@Liveness</code>.</p>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_readiness_checks"><a class="anchor" href="#_readiness_checks"></a>Readiness Checks</h4>
+<div class="sect2">
+<h3 id="_readiness_checks"><a class="anchor" href="#_readiness_checks"></a>Readiness Checks</h3>
 <div class="paragraph">
 <p>Readiness checks are used to determine if a microservice is ready to process requests. If a readiness check fails, it indicates that
 the microservice should not receive any inbound requests because it’s not ready to handle them properly. This can be due to the
@@ -236,8 +243,8 @@ application still initializing, waiting for dependencies, or any other condition
 incoming requests. Readiness checks are annotated with <code>@Readiness</code>.</p>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_startup_checks"><a class="anchor" href="#_startup_checks"></a>Startup Checks</h4>
+<div class="sect2">
+<h3 id="_startup_checks"><a class="anchor" href="#_startup_checks"></a>Startup Checks</h3>
 <div class="paragraph">
 <p>Startup checks are designed for verifying the microservice’s health immediately after it has started. This type of check is useful
 for applications that require additional initialization time or need to perform certain actions before they are ready to serve requests.
@@ -249,8 +256,10 @@ necessary pre-service tasks.These checks are annotated with <code>@Startup</code
 </div>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_exposing_health_checks"><a class="anchor" href="#_exposing_health_checks"></a>Exposing Health Checks</h3>
+</div>
+<div class="sect1">
+<h2 id="_exposing_health_checks"><a class="anchor" href="#_exposing_health_checks"></a>Exposing Health Checks</h2>
+<div class="sectionbody">
 <div class="paragraph">
 <p>Health checks are exposed via HTTP endpoints automatically without additional configuration needed from the developer’s side. The runtime
 environment provides these endpoints:</p>
@@ -275,8 +284,8 @@ environment provides these endpoints:</p>
 <p>These endpoints return a JSON object containing the overall status (UP or DOWN) and individual health check responses, including their names,
 statuses, and optional data.</p>
 </div>
-<div class="sect3">
-<h4 id="_example_json_response"><a class="anchor" href="#_example_json_response"></a>Example JSON Response</h4>
+<div class="sect2">
+<h3 id="_example_json_response"><a class="anchor" href="#_example_json_response"></a>Example JSON Response</h3>
 <div class="paragraph">
 <p>For example a <code>LivenessCheck</code>, if accessed via <code>/health/live</code>, the JSON response might look something like this when the service is healthy:</p>
 </div>
@@ -301,21 +310,21 @@ that services are only used when they are in a healthy state and can correctly p
 maintainability of applications.</p>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_standard_health_check"><a class="anchor" href="#_standard_health_check"></a>Standard Health Check</h4>
+<div class="sect2">
+<h3 id="_standard_health_check"><a class="anchor" href="#_standard_health_check"></a>Standard Health Check</h3>
 <div class="paragraph">
 <p>Applications can implement multiple health checks of each kind. The overall health status reported by the application is a logical AND of all individual
 health checks. A special endpoint <code>/health</code> aggregates the results from all three types of checks.</p>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_implementing_and_exposing_health_check"><a class="anchor" href="#_implementing_and_exposing_health_check"></a>Implementing and Exposing Health Check</h4>
+<div class="sect2">
+<h3 id="_implementing_and_exposing_health_check"><a class="anchor" href="#_implementing_and_exposing_health_check"></a>Implementing and Exposing Health Check</h3>
 <div class="paragraph">
 <p>To implement health checks for microservices using MicroProfile Health, you would generally follow a pattern to define health check procedures that align with the services' operational characteristics. The Health Check API allows us to expose information about the health of our application. This information can be used by load balancers and other tools to determine if an application is healthy.</p>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_the_healthcheck_interface"><a class="anchor" href="#_the_healthcheck_interface"></a>The <code>HealthCheck</code> interface</h4>
+<div class="sect2">
+<h3 id="_the_healthcheck_interface"><a class="anchor" href="#_the_healthcheck_interface"></a>The <code>HealthCheck</code> interface</h3>
 <div class="paragraph">
 <p>The <code>HealthCheck</code> functional interface uses CDI beans with annotations (<code>@Liveness</code>, <code>@Readiness</code>, and, <code>@Startup</code>) to mark a class as a health checker for liveness, readiness and startup. They are automatically discovered and registered by the runtime. Implementations of this interface are expected to be provided by applications.</p>
 </div>
@@ -336,8 +345,8 @@ public interface HealthCheck {
 <p>You can check out the actual code here - <a href="https://github.com/eclipse/microprofile-health/blob/main/api/src/main/java/org/eclipse/microprofile/health/HealthCheck.java" class="bare">https://github.com/eclipse/microprofile-health/blob/main/api/src/main/java/org/eclipse/microprofile/health/HealthCheck.java</a></p>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_the_healthcheckresponse_class"><a class="anchor" href="#_the_healthcheckresponse_class"></a>The <code>HealthCheckResponse</code> class</h4>
+<div class="sect2">
+<h3 id="_the_healthcheckresponse_class"><a class="anchor" href="#_the_healthcheckresponse_class"></a>The <code>HealthCheckResponse</code> class</h3>
 <div class="paragraph">
 <p>The <code>HealthCheckResponse</code> class is used to represent the result of a health check invocation. It contains information about the health check, such as name, state (up or down), and data that can be used for troubleshooting.</p>
 </div>
@@ -386,8 +395,8 @@ public class HealthCheckResponse {
 <p>The provided code snippet offers a conceptual and simplified implementation of the <code>HealthCheckResponse</code> class to illustrate how health check responses can be structured within the MicroProfile Health framework. To view the actual <code>HealthCheckResponse</code> class source code, please visit: <a href="https://github.com/eclipse/microprofile-health/blob/main/api/src/main/java/org/eclipse/microprofile/health/HealthCheckResponse.java" class="bare">https://github.com/eclipse/microprofile-health/blob/main/api/src/main/java/org/eclipse/microprofile/health/HealthCheckResponse.java</a></p>
 </div>
 </div>
-<div class="sect3">
-<h4 id="_the_healthcheckresponsebuilder_class"><a class="anchor" href="#_the_healthcheckresponsebuilder_class"></a>The <code>HealthCheckResponseBuilder</code> class</h4>
+<div class="sect2">
+<h3 id="_the_healthcheckresponsebuilder_class"><a class="anchor" href="#_the_healthcheckresponsebuilder_class"></a>The <code>HealthCheckResponseBuilder</code> class</h3>
 <div class="paragraph">
 <p>The <code>HealthCheckResponseBuilder</code> abstract class provides a fluent API for constructing instances of <code>HealthCheckResponse</code>. This means you can chain method calls to set various properties of the response in a single statement, improving code readability and maintainability.</p>
 </div>
@@ -428,8 +437,10 @@ public abstract class HealthCheckResponseBuilder {
 </div>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_steps_for_implementing_health_checks"><a class="anchor" href="#_steps_for_implementing_health_checks"></a>Steps for Implementing Health Checks</h3>
+</div>
+<div class="sect1">
+<h2 id="_steps_for_implementing_health_checks"><a class="anchor" href="#_steps_for_implementing_health_checks"></a>Steps for Implementing Health Checks</h2>
+<div class="sectionbody">
 <div class="paragraph">
 <p>Below are the steps for implementing Health Checks for each of the microservices:</p>
 </div>
@@ -471,8 +482,8 @@ When implementing MicroProfile Health checks, including the MicroProfile Health 
 <div class="paragraph">
 <p>The health information can be used by other tools to help keep our application running well.</p>
 </div>
-<div class="sect3">
-<h4 id="_implementing_health_checks"><a class="anchor" href="#_implementing_health_checks"></a>Implementing Health Checks</h4>
+<div class="sect2">
+<h3 id="_implementing_health_checks"><a class="anchor" href="#_implementing_health_checks"></a>Implementing Health Checks</h3>
 <div class="paragraph">
 <p>Health checks in MicroProfile are implemented as CDI beans that implement the <code>HealthCheck</code> interface. Each health check procedure is a method that returns a <code>HealthCheckResponse</code>. You can define different types of health checks (readiness, liveness, and startup) depending on the type of check by annotating the health check class with <code>@Readiness</code>, <code>@Liveness</code>, or <code>@Startup</code>. These methods return a <code>HealthCheckResponse</code> object, which includes the health check status (UP or DOWN) and additional metadata about the health check.</p>
 </div>
@@ -613,15 +624,19 @@ public class ProductServiceStartupCheck implements HealthCheck{
 </div>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_integration_with_cdi"><a class="anchor" href="#_integration_with_cdi"></a>Integration with CDI</h3>
+</div>
+<div class="sect1">
+<h2 id="_integration_with_cdi"><a class="anchor" href="#_integration_with_cdi"></a>Integration with CDI</h2>
+<div class="sectionbody">
 <div class="paragraph">
 <p>The specification also emphasizes the importance of integrating health checks with the application’s Context and Dependency Injection (CDI) context, enabling health check procedures to be automatically discovered and invoked by the runtime.
 MicroProfile Health thus provides a robust and standardized way to implement health checks, facilitating the management and orchestration of microservices in a cloud environment.</p>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_accessing_health_checks"><a class="anchor" href="#_accessing_health_checks"></a>Accessing Health Checks</h3>
+</div>
+<div class="sect1">
+<h2 id="_accessing_health_checks"><a class="anchor" href="#_accessing_health_checks"></a>Accessing Health Checks</h2>
+<div class="sectionbody">
 <div class="paragraph">
 <p>Once defined, these health check procedures are automatically discovered and invoked by the MicroProfile Health runtime. They are accessible through standardized HTTP endpoints provided by MicroProfile Health (<code>/health</code>, <code>/health/live</code>, <code>/health/ready</code>, <code>/health/started</code>) and can be used by orchestration tools (like Kubernetes) or monitoring systems to manage and monitor the health of your microservices.</p>
 </div>
@@ -629,8 +644,10 @@ MicroProfile Health thus provides a robust and standardized way to implement hea
 <p>This approach allows you to tailor health checks to the operational specifics of each microservice, providing a robust mechanism for observing and managing your application’s health in a cloud-native environment.</p>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_kubernetes_probe_configuration"><a class="anchor" href="#_kubernetes_probe_configuration"></a>Kubernetes Probe Configuration</h3>
+</div>
+<div class="sect1">
+<h2 id="_kubernetes_probe_configuration"><a class="anchor" href="#_kubernetes_probe_configuration"></a>Kubernetes Probe Configuration</h2>
+<div class="sectionbody">
 <div class="paragraph">
 <p>Integrating MicroProfile Health checks with Kubernetes probes allows you to leverage Kubernetes' native capabilities to manage the lifecycle of your containers based on their current health status. Specifically, you can map Liveness, Readiness, and Startup probes in Kubernetes to the corresponding health check types defined by the MicroProfile Health specification.</p>
 </div>
@@ -682,8 +699,10 @@ readinessProbe:
 <p>It&#8217;s important to adjust the <code>initialDelaySeconds</code>, <code>timeoutSeconds</code>, <code>periodSeconds</code>, and <code>failureThreshold</code> according to the specifics of your application to ensure that Kubernetes accurately reflects the state of your containers based on its health checks.</p>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_best_practices_for_effective_health_checks"><a class="anchor" href="#_best_practices_for_effective_health_checks"></a>Best Practices for Effective Health Checks</h3>
+</div>
+<div class="sect1">
+<h2 id="_best_practices_for_effective_health_checks"><a class="anchor" href="#_best_practices_for_effective_health_checks"></a>Best Practices for Effective Health Checks</h2>
+<div class="sectionbody">
 <div class="paragraph">
 <p>Here are some best practices for implementing and utilizing health checks effectively:</p>
 </div>
@@ -716,8 +735,10 @@ readinessProbe:
 <p>By following these best practices, you can effectively implement and expose health checks in your MicroProfile applications, improving observability and reliability, especially in cloud-native environments.</p>
 </div>
 </div>
-<div class="sect2">
-<h3 id="_summary"><a class="anchor" href="#_summary"></a>Summary</h3>
+</div>
+<div class="sect1">
+<h2 id="_summary"><a class="anchor" href="#_summary"></a>Summary</h2>
+<div class="sectionbody">
 <div class="paragraph">
 <p>This chapter provided a comprehensive overview of MicroProfile Health, emphasizing its critical role in enhancing the observability and reliability of microservices within cloud environments. Key topics included an introduction to the MicroProfile Health specification, detailed explanations of health check types (liveness, readiness, and startup checks), and guidance on implementing, exposing, and effectively utilizing these health checks.</p>
 </div>
@@ -729,7 +750,6 @@ readinessProbe:
 </div>
 <div class="paragraph">
 <p>The chapter also touched on best practices for effective health checks, including defining meaningful checks, utilizing health check responses, handling failures gracefully, and securing health check endpoints. In conclusion, MicroProfile Health offers a robust framework for monitoring and managing the health of microservices, ensuring that services remain reliable and available in dynamic cloud environments. By following the guidelines and best practices outlined in this chapter, developers can effectively implement and leverage health checks to maintain the overall health of their applications.</p>
-</div>
 </div>
 </div>
 </div>
