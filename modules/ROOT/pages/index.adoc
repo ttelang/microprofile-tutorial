@@ -55,7 +55,7 @@ It would include multiple microservices, each serving a different purpose and hi
 
 The MicroProfile e-Commerce application compirses of multiple microservices, among the key ones are as below:
 
-- **Product Catalog**: This service acts as the central repository for all product-related information, including detailed descriptions, pricing, and inventory levels. It provides APIs for fetching product details efficiently for the other microservices, such as the Shopping Cart. This microservice is vital for updating product data, ensuring data consistency and accuracy across the e-Commerce platform.
+- **Product Catalog**: This service acts as the central repository for all product-related information, including detailed descriptions, and pricing, and inventory levels. It provides APIs for fetching product details efficiently for the other microservices, such as the Shopping Cart. This microservice is vital for updating product data, ensuring data consistency and accuracy across the e-Commerce platform.
 
 - **The Shopping Cart**: This service allows users to add or remove products from their shopping cart. It communicates with the Product Catalog Microservice to access up-to-date product information. It handles the storage and management of cart items for each user, including the calculation of cart totals with applicable discounts or promotions. This microservice plays interfaces with the Checkout microservice to initiate the order processing.
 
@@ -77,10 +77,10 @@ image::figureFM-1.png[MicroProfile e-Commerce Application]
 As you can see in the above figure, together these microservices form a robust and flexible e-Commerce application architecture, enabling scalable, efficient, and secure online shopping experiences.
 
 === Downloading the Code
-The code examples in this tutorial are available at this link:https://www.github.com/ttelang/microprofile-examples[repo] (TODO: to be changed).
+The code examples in this tutorial are available at this link:https://www.github.com/eclipse/microprofile-tutorial[repo].
 
 === Prerequisites
-MicroProfile use the Java Platform, and are usually written in the Java programming language. 
+MicroProfile uses the Java Platform, and are usually written in the Java programming language. 
 All the examples in this tutorial are written in Java. 
 If you're new to Java, spend some time getting up to speed on the language and platform;
 a good place to start is https://dev.java/learn/[dev.java/learn].

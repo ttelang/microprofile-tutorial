@@ -2,11 +2,12 @@
 
 === Using Your IDE
 
-Most modern IDEs have built-in support for creating Java and Maven projects. Depending on your chosen IDE, look for options like "New Project", or "New Maven Project" to get started. These options typically guide you through the setup process, including specifying the project's group Id, artifact Id, and dependencies.
+Most modern IDEs have built-in support for creating Java and Maven projects. Depending on your chosen IDE, look for options like "New Project", or "New Maven Project" to get started. These options typically guide you through the setup process, including specifying the project's `groupId`, `artifactId`, and dependencies.
 
 === Using Maven from Command Line (Terminal)
 
-For developers who prefer using the command line or for those setting up projects in environments without an IDE, Maven can generate the base structure of a Java project through its archetype mechanism. 
+For developers who prefer using the command line or for those setting up projects in environments without an IDE, Maven can generate the base structure of a Java project through its archetype mechanism.
+
 To create a project using Maven, open your terminal or command line and run the following command: 
 
 [source, bash]
@@ -35,7 +36,7 @@ Next, using your file explorer or command line, create the following folder stru
 ----
 .
 ├── pom.xml
-├── readme.md
+├── README.adoc
 └── src
     └── main
     │   └── java
@@ -46,8 +47,8 @@ Next, using your file explorer or command line, create the following folder stru
     │                      └── product
     │                      │    ├── entity
     │                      │    │   └── Product.java
-    │	                   │    └── service
-    │                      │       └── ProductService.java
+    │	                   │    └── resource
+    │                      │       └── ProductResource.java
     │                      └── ProductRestApplication.java
     └── test
 	└── java
@@ -79,22 +80,24 @@ The content for the _pom.xml_ file should look as below, ensure MicroProfile dep
 [source,xml]
 ----
 <?xml version="1.0" encoding="UTF-8"?>
+
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
   
   <groupId>io.microprofile.tutorial</groupId>
   <artifactId>mp-ecomm</artifactId>
-  <packaging>war</packaging>
   <version>1.0-SNAPSHOT</version>
+  <packaging>war</packaging>
 
   <!-- Setting the source and target of the Java Compiler !>
   <properties>
-     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-     <maven.compiler.source>17</maven.compiler.source>
-     <maven.compiler.target>17</maven.compiler.target>             
-  </properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    
+    <!-- Setting the source and target of the Java Compiler -->
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
 ...
 ...
    <!-- Add Lombok dependency -->
@@ -105,7 +108,6 @@ The content for the _pom.xml_ file should look as below, ensure MicroProfile dep
      <scope>provided</scope>
    </dependency>
 
-
    <!-- Adding Jakarta EE dependencies -->
    <dependency>
      <groupId>jakarta.platform</groupId>
@@ -113,7 +115,6 @@ The content for the _pom.xml_ file should look as below, ensure MicroProfile dep
      <version>10.0.0</version>
      <scope>provided</scope>
    </dependency>
-
 
    <!-- Adding MicroProfie dependency -->
    <dependency>
@@ -123,7 +124,6 @@ The content for the _pom.xml_ file should look as below, ensure MicroProfile dep
      <type>pom</type>
      <scope>provided</scope>
    </dependency>
-
 
    <!-- JUnit Jupiter API for writing tests -->
    <dependency>
