@@ -1,4 +1,4 @@
-= Chapter 5: MicroProfile Configuration
+= MicroProfile Configuration
 
 This chapter focuses on MicroProfile Configuration, a key feature that allows developers to externalize configuration properties from their code. You can adapt configuration parameters to different environments (development, testing, production) without altering the core code. It provides flexibility and adaptability for microservices in different environments. 
 

@@ -1,4 +1,4 @@
-= Chapter 9: MicroProfile Telemetry
+= MicroProfile Telemetry
 
 Microservices-based applications have better scalability, flexibility, and resilience, but they suffer from additional challenges regarding availability and performance monitoring. This makes observability critical to ensure these distributed systems operate reliably.
 

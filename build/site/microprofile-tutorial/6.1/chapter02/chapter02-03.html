@@ -6,7 +6,10 @@
 <title>Untitled :: MicroProfile Tutorial :: MicroProfile Tutorial</title>    <link rel="canonical" href="https://microprofile.io/microprofile-tutorial/6.1/chapter02/chapter02-03.html">
     <meta name="generator" content="Antora 3.1.10">
     <link rel="stylesheet" href="../../../_/css/site.css">
-    <link rel="stylesheet" type="text/css" href="//www.eclipse.org/eclipse.org-common/themes/solstice/public/stylesheets/vendor/cookieconsent/cookieconsent.min.css" />      <!-- Google Tag Manager -->
+    <link rel="stylesheet" type="text/css" href="//www.eclipse.org/eclipse.org-common/themes/solstice/public/stylesheets/vendor/cookieconsent/cookieconsent.min.css" /><link rel="icon" href="../../../_/img/favicon.svg" type="image/svg+xml">
+<link rel="alternate icon" href="../../../_/img/favicon.png" type="image/png">
+<link rel="shortcut icon" href="../../../_/img/favicon.png" type="image/png">
+      <!-- Google Tag Manager -->
     <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
     new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
     j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
@@ -131,7 +134,7 @@
   <a href="../index.html" class="home-link"></a>
 <nav class="breadcrumbs" aria-label="breadcrumbs">
 </nav>
-  <div class="edit-this-page"><a href="file:///workspaces/microprofile-tutorial/./modules/ROOT/pages/chapter02/chapter02-03.adoc">Edit this Page</a></div>
+  <div class="edit-this-page"><a href="https://github.com/ttelang/microprofile-tutorial/edit/patch-15/modules/ROOT/pages/chapter02/chapter02-03.adoc">Edit this Page</a></div>
 </div>
   <div class="content">
 <aside class="toc sidebar" data-title="Contents" data-levels="2">
@@ -231,11 +234,11 @@ import jakarta.ws.rs.core.MediaType;
 @Path("/products")
 @ApplicationScoped
 public class ProductResource {
-   private List&lt;Product&gt; products;
+
+   private List&lt;Product&gt; products = new ArrayList&lt;&gt;();
 
    public ProductResource() {
-       products = new ArrayList&lt;&gt;();
-
+       // Initialize the list with some sample products
        products.add(new Product(Long.valueOf(1L), "iPhone", "Apple iPhone 15", Double.valueOf(999.99)));
        products.add(new Product(Long.valueOf(2L), "MacBook", "Apple MacBook Air", Double.valueOf(1299.99)));
    }
@@ -243,7 +246,6 @@ public class ProductResource {
    @GET
    @Produces(MediaType.APPLICATION_JSON)
    public List&lt;Product&gt; getProducts() {
-       // Return a list of products
        return products;
    }
 }</code></pre>
@@ -275,7 +277,7 @@ application is running.</p>
 </div>
 </div>
 <div class="sect2">
-<h3 id="creating-a-resource-class-2"><a class="anchor" href="#creating-a-resource-class-2"></a>Creating a Resource class</h3>
+<h3 id="creating-an-applicaiton-class"><a class="anchor" href="#creating-an-applicaiton-class"></a>Creating an Applicaiton class</h3>
 <div class="paragraph">
 <p>Create a class named <code>ProductRestApplication</code> as per the code below:</p>
 </div>
@@ -415,10 +417,15 @@ The context root is part of the URL path that identifies the base path for the a
    &lt;liberty.var.default.http.port&gt;9080&lt;/liberty.var.default.http.port&gt;
    &lt;liberty.var.default.https.port&gt;9443&lt;/liberty.var.default.https.port&gt;
    &lt;liberty.var.app.context.root&gt;mp-ecomm-store&lt;/liberty.var.app.context.root&gt;
- &lt;/properties&gt;
-
-Add the Open Liberty build plugin in the pom.xml as below:
-&lt;build&gt;
+ &lt;/properties&gt;</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Add the Open Liberty build plugin in the pom.xml as below:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;build&gt;
     &lt;finalName&gt;${project.artifactId}&lt;/finalName&gt;
     &lt;plugins&gt;
         &lt;plugin&gt;
@@ -479,7 +486,7 @@ Finally, use the following command from the command line or terminal to run the 
 <div class="paragraph">
 <p>To call this RESTful web service, you can enter the URL in your browser. The response is an array of JSON objects.
 Each object has an id, name, description and price property. Please note only GET methods can be tested with browsers.
-The response should be</p>
+The response should be:</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -487,7 +494,7 @@ The response should be</p>
 </div>
 </div>
 <div class="paragraph">
-<p>This uses an in-memory list; In the next chapter, in a real application you should integrate a database (via Jakarta Persistence API). We will be learning about this in the next chapter.</p>
+<p>This uses an in-memory list; In a real application you should integrate a database (via Jakarta Persistence API). We will be learning about this in the next chapter.</p>
 </div>
 <div class="paragraph">
 <p><strong>Quarkus</strong></p>

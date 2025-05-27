@@ -1,4 +1,4 @@
-= Chapter 8: MicroProfile Fault Tolerance
+= MicroProfile Fault Tolerance
 
 In a Microservices architecture, an application consists of multiple smaller, autonomous services. This architecture enhances development flexibility, agility, and scalability but introduces new challenges, particularly in ensuring the application's reliability and managing failures. Unlike monolithic applications, where defects are localized, a single failure in one microservice can propagate across the entire application, potentially causing widespread outages. Therefore, fault tolerance is critical in a microservices architecture to ensure that failures are seamlessly isolated, managed, and recovered.
 

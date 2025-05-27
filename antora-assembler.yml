@@ -2,6 +2,8 @@ site:
   title: MicroProfile Tutorial
   url: https://microprofile.io
   start_page: microprofile-tutorial::index.adoc
+  keys:
+    show_edit_page_link: true
 
 content:
   sources:
@@ -13,6 +15,7 @@ ui:
   bundle:
     url: https://github.com/ttelang/microprofile-documentation-ui/releases/download/latest/ui-bundle.zip
     snapshot: true
+  supplemental_files: ./supplemental-ui
 
 asciidoc:
   attributes:
