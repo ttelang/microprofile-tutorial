@@ -60,6 +60,17 @@ python3 -m http.server 8080
 ```
 This will start a local server on port 8080. You can then open your web browser and navigate to `http://<hostname>:8080` to view the site.
 
+[TIP]
+====
+If port 8080 is already in use, you can free it by finding and stopping the process using it. For example, on Linux or macOS:
++
+----
+lsof -i :8080
+kill <PID>
+----
+Replace `<PID>` with the process ID shown in the output.
+====
+
 ## Development Workflow
 
 To streamline the development process, a development server script is included that can automatically rebuild the documentation when files change.
