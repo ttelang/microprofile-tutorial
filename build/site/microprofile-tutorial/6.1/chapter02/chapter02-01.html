@@ -6,7 +6,10 @@
 <title>Untitled :: MicroProfile Tutorial :: MicroProfile Tutorial</title>    <link rel="canonical" href="https://microprofile.io/microprofile-tutorial/6.1/chapter02/chapter02-01.html">
     <meta name="generator" content="Antora 3.1.10">
     <link rel="stylesheet" href="../../../_/css/site.css">
-    <link rel="stylesheet" type="text/css" href="//www.eclipse.org/eclipse.org-common/themes/solstice/public/stylesheets/vendor/cookieconsent/cookieconsent.min.css" />      <!-- Google Tag Manager -->
+    <link rel="stylesheet" type="text/css" href="//www.eclipse.org/eclipse.org-common/themes/solstice/public/stylesheets/vendor/cookieconsent/cookieconsent.min.css" /><link rel="icon" href="../../../_/img/favicon.svg" type="image/svg+xml">
+<link rel="alternate icon" href="../../../_/img/favicon.png" type="image/png">
+<link rel="shortcut icon" href="../../../_/img/favicon.png" type="image/png">
+      <!-- Google Tag Manager -->
     <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
     new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
     j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
@@ -131,7 +134,7 @@
   <a href="../index.html" class="home-link"></a>
 <nav class="breadcrumbs" aria-label="breadcrumbs">
 </nav>
-  <div class="edit-this-page"><a href="file:///workspaces/microprofile-tutorial/./modules/ROOT/pages/chapter02/chapter02-01.adoc">Edit this Page</a></div>
+  <div class="edit-this-page"><a href="https://github.com/ttelang/microprofile-tutorial/edit/patch-15/modules/ROOT/pages/chapter02/chapter02-01.adoc">Edit this Page</a></div>
 </div>
   <div class="content">
 <aside class="toc sidebar" data-title="Contents" data-levels="2">
@@ -144,14 +147,16 @@
 <div class="sect2">
 <h3 id="using-your-ide"><a class="anchor" href="#using-your-ide"></a>Using Your IDE</h3>
 <div class="paragraph">
-<p>Most modern IDEs have built-in support for creating Java and Maven projects. Depending on your chosen IDE, look for options like "New Project", or "New Maven Project" to get started. These options typically guide you through the setup process, including specifying the project&#8217;s group Id, artifact Id, and dependencies.</p>
+<p>Most modern IDEs have built-in support for creating Java and Maven projects. Depending on your chosen IDE, look for options like "New Project", or "New Maven Project" to get started. These options typically guide you through the setup process, including specifying the project&#8217;s <code>groupId</code>, <code>artifactId</code>, and dependencies.</p>
 </div>
 </div>
 <div class="sect2">
 <h3 id="using-maven-from-command-line-terminal"><a class="anchor" href="#using-maven-from-command-line-terminal"></a>Using Maven from Command Line (Terminal)</h3>
 <div class="paragraph">
-<p>For developers who prefer using the command line or for those setting up projects in environments without an IDE, Maven can generate the base structure of a Java project through its archetype mechanism.
-To create a project using Maven, open your terminal or command line and run the following command:</p>
+<p>For developers who prefer using the command line or for those setting up projects in environments without an IDE, Maven can generate the base structure of a Java project through its archetype mechanism.</p>
+</div>
+<div class="paragraph">
+<p>To create a project using Maven, open your terminal or command line and run the following command:</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -191,7 +196,7 @@ To create a project using Maven, open your terminal or command line and run the 
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-plain text hljs" data-lang="plain text">.
 ├── pom.xml
-├── readme.md
+├── README.adoc
 └── src
     └── main
     │   └── java
@@ -202,8 +207,8 @@ To create a project using Maven, open your terminal or command line and run the 
     │                      └── product
     │                      │    ├── entity
     │                      │    │   └── Product.java
-    │	                   │    └── service
-    │                      │       └── ProductService.java
+    │	                   │    └── resource
+    │                      │       └── ProductResource.java
     │                      └── ProductRestApplication.java
     └── test
 	└── java
@@ -243,22 +248,24 @@ To create a project using Maven, open your terminal or command line and run the 
 <div class="listingblock">
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-xml hljs" data-lang="xml">&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+
 &lt;project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"&gt;
   &lt;modelVersion&gt;4.0.0&lt;/modelVersion&gt;
 
   &lt;groupId&gt;io.microprofile.tutorial&lt;/groupId&gt;
   &lt;artifactId&gt;mp-ecomm&lt;/artifactId&gt;
-  &lt;packaging&gt;war&lt;/packaging&gt;
   &lt;version&gt;1.0-SNAPSHOT&lt;/version&gt;
+  &lt;packaging&gt;war&lt;/packaging&gt;
 
   &lt;!-- Setting the source and target of the Java Compiler !&gt;
   &lt;properties&gt;
-     &lt;project.build.sourceEncoding&gt;UTF-8&lt;/project.build.sourceEncoding&gt;
-     &lt;project.reporting.outputEncoding&gt;UTF-8&lt;/project.reporting.outputEncoding&gt;
-     &lt;maven.compiler.source&gt;17&lt;/maven.compiler.source&gt;
-     &lt;maven.compiler.target&gt;17&lt;/maven.compiler.target&gt;
-  &lt;/properties&gt;
+    &lt;project.build.sourceEncoding&gt;UTF-8&lt;/project.build.sourceEncoding&gt;
+    &lt;project.reporting.outputEncoding&gt;UTF-8&lt;/project.reporting.outputEncoding&gt;
+
+    &lt;!-- Setting the source and target of the Java Compiler --&gt;
+    &lt;maven.compiler.source&gt;17&lt;/maven.compiler.source&gt;
+    &lt;maven.compiler.target&gt;17&lt;/maven.compiler.target&gt;
 ...
 ...
    &lt;!-- Add Lombok dependency --&gt;
@@ -269,7 +276,6 @@ To create a project using Maven, open your terminal or command line and run the 
      &lt;scope&gt;provided&lt;/scope&gt;
    &lt;/dependency&gt;
 
-
    &lt;!-- Adding Jakarta EE dependencies --&gt;
    &lt;dependency&gt;
      &lt;groupId&gt;jakarta.platform&lt;/groupId&gt;
@@ -277,7 +283,6 @@ To create a project using Maven, open your terminal or command line and run the 
      &lt;version&gt;10.0.0&lt;/version&gt;
      &lt;scope&gt;provided&lt;/scope&gt;
    &lt;/dependency&gt;
-
 
    &lt;!-- Adding MicroProfie dependency --&gt;
    &lt;dependency&gt;
@@ -287,7 +292,6 @@ To create a project using Maven, open your terminal or command line and run the 
      &lt;type&gt;pom&lt;/type&gt;
      &lt;scope&gt;provided&lt;/scope&gt;
    &lt;/dependency&gt;
-
 
    &lt;!-- JUnit Jupiter API for writing tests --&gt;
    &lt;dependency&gt;

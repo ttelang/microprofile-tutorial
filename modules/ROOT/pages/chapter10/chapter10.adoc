@@ -1,4 +1,4 @@
-= Chapter 10: JWT Authentication
+= JWT Authentication
 :id: chapter10
 
 In modern microservices architectures, where services are distributed and stateless,

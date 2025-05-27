@@ -3,12 +3,15 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Chapter 3: Jakarta EE 10 Core Profile :: MicroProfile Tutorial :: MicroProfile Tutorial</title>    <link rel="canonical" href="https://microprofile.io/microprofile-tutorial/6.1/chapter03/chapter03.html">
+<title>Jakarta EE 10 Core Profile :: MicroProfile Tutorial :: MicroProfile Tutorial</title>    <link rel="canonical" href="https://microprofile.io/microprofile-tutorial/6.1/chapter03/chapter03.html">
     <link rel="prev" href="../chapter02/chapter02-00.html">
     <link rel="next" href="../chapter04/chapter04.html">
     <meta name="generator" content="Antora 3.1.10">
     <link rel="stylesheet" href="../../../_/css/site.css">
-    <link rel="stylesheet" type="text/css" href="//www.eclipse.org/eclipse.org-common/themes/solstice/public/stylesheets/vendor/cookieconsent/cookieconsent.min.css" />      <!-- Google Tag Manager -->
+    <link rel="stylesheet" type="text/css" href="//www.eclipse.org/eclipse.org-common/themes/solstice/public/stylesheets/vendor/cookieconsent/cookieconsent.min.css" /><link rel="icon" href="../../../_/img/favicon.svg" type="image/svg+xml">
+<link rel="alternate icon" href="../../../_/img/favicon.png" type="image/png">
+<link rel="shortcut icon" href="../../../_/img/favicon.png" type="image/png">
+      <!-- Google Tag Manager -->
     <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
     new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
     j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
@@ -137,14 +140,14 @@
     <li><a href="chapter03.html">Jakarta EE 10 Core Profile</a></li>
   </ul>
 </nav>
-  <div class="edit-this-page"><a href="file:///workspaces/microprofile-tutorial/./modules/ROOT/pages/chapter03/chapter03.adoc">Edit this Page</a></div>
+  <div class="edit-this-page"><a href="https://github.com/ttelang/microprofile-tutorial/edit/patch-15/modules/ROOT/pages/chapter03/chapter03.adoc">Edit this Page</a></div>
 </div>
   <div class="content">
 <aside class="toc sidebar" data-title="Contents" data-levels="2">
   <div class="toc-menu"></div>
 </aside>
 <article class="doc">
-<h1 class="page">Chapter 3: Jakarta EE 10 Core Profile</h1>
+<h1 class="page">Jakarta EE 10 Core Profile</h1>
 <div class="sect1">
 <h2 id="introduction"><a class="anchor" href="#introduction"></a>Introduction</h2>
 <div class="sectionbody">
@@ -433,12 +436,10 @@ For those looking to master developing RESTful Web Services, we strongly encoura
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-java hljs" data-lang="java">package io.microprofile.tutorial.store.product.entity;
 
-
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.GeneratedValue;
 import jakarta.validation.constraints.NotNull;
-
 
 @Entity
 @Table(name = "Product")
@@ -508,6 +509,14 @@ public class ProductRepository {
 
    @PersistenceContext(unitName = "product-unit")
    private EntityManager em;
+
+   private List&lt;Product&gt; products = new ArrayList&lt;&gt;();
+
+   public ProductRepository() {
+        // Initialize the list with some sample products
+        products.add(new Product(1L, "iPhone", "Apple iPhone 15", 999.99));
+        products.add(new Product(2L, "MacBook", "Apple MacBook Air", 1299.0));
+   }
 
    public void createProduct(Product product) {
        em.persist(product);
@@ -608,24 +617,23 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 
-
 @Path("/products")
 @ApplicationScoped
 public class ProductResource {
 
+    private static final Logger LOGGER = Logger.getLogger(ProductResource.class.getName());
+
+    // ...
 
     @Inject
     private ProductRepository productRepository;
 
-
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @Transactional
-    public List&lt;Product&gt; getProducts() {
-        // Return a list of products
-        return productRepository.findAllProducts();
+    public Response getAllProducts() {
+        LOGGER.info("Fetching all products");
+        return Response.ok(products).build();
     }
-
 
     // Additional endpoint methods
 }</code></pre>
