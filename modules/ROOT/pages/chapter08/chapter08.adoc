@@ -140,7 +140,7 @@ To store the necessary payment information, the following `PaymentDetails` class
 [source,java]
 ----
 
-class PaymentDetails {
+public class PaymentDetails {
     private double amount;
 
     public double getAmount() {
@@ -172,7 +172,7 @@ The `CriticalPaymentException` is considered a non-recoverable failure. If this 
 ----
 package io.microprofile.tutorial.store.payment.exception;
 
-class CriticalPaymentException extends Exception {
+public class CriticalPaymentException extends Exception {
     public CriticalPaymentException(String message) {
         super(message);
     }
@@ -295,7 +295,7 @@ public String getProduct(Long id) {
     if (Math.random() > 0.7) {
         throw new RuntimeException("Simulated service failure");
     }
-    return productRepository.findProductById(id);
+    return repository.findProductById(id);
 }
 ----
 
