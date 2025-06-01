@@ -76,7 +76,7 @@ If you're using Maven, add the following dependency to your pom.xml file located
 
 For Gradle, add the corresponding dependency to your build.gradle file located within the root folder of your project:
 
-[source]
+[source, gradle]
 ----
 dependencies {
     providedCompile 'org.eclipse.microprofile.metrics:microprofile-metrics-api:5.1.1'
@@ -144,7 +144,7 @@ Instrumenting microservices with MicroProfile Metrics enables developers to gain
 
 MicroProfile Metrics also allows you to track a method's response time as a timed metric. The code example below shows how to use the @Timed annotation to track the response time.
 
-[source]
+[source, java]
 ----
 import org.eclipse.microprofile.metrics.annotation.Timed;
 // …
@@ -157,7 +157,7 @@ public class ProductResource {
             tags = {"method=getProduct"},
             absolute = true, 
             description = "Time spent looking up products")
-    public Product getProduct(@PathParam("id") Long productId) {
+    public Response getProductById(@PathParam("id") Long id) {
         return productService.getProduct(productId);
     }
 
@@ -165,7 +165,7 @@ public class ProductResource {
 ----
   
 It will expose a metric called `productLookupTime`, which will track the amount of time spent in the `getProduct()` method in seconds.
-You can visit the following URL `++https://localhost:<port>/metrics?scope=application++` (Replace `<port>` with the actual port where the server is running) to see the response time of this method as below:
+You can visit the following URL `https://<hostname>:<port>/metrics?scope=application` (Replace `<hostname>` and `<port>` with the actual hostname and port where the server is running) to see the response time of this method as below:
 
 [source]
 ----
@@ -190,7 +190,7 @@ public class ProductResource {
     @Counted(name = "productAccessCount",
         absolute = true,
         description = "Number of times the list of products is requested")
-    public Response getProducts() {
+    public Response getAllProducts() {
        // Method implementation
        // ....
     }
@@ -198,7 +198,7 @@ public class ProductResource {
 ----
   
 In the example above, the `@Counted` annotation tells MicroProfile Metrics to track the number of invocations of the `getProducts()` method and expose this metric as a counter. The name, and description of the metric can also be specified. 
-You can visit the following URL `++https://localhost:<port>/metrics?scope=application++` (Replace `<port>` with the actual port where the server is running) to see the number of times this method is called as below:
+You can visit the following URL `https://localhost:<port>/metrics?scope=application` (Replace `<port>` with the actual port where the server is running) to see the number of times this method is called as below:
 
 [source]
 ----
@@ -240,6 +240,13 @@ The gauge metric `productCatalogSize` can be accessed through the following endp
 `/metrics?name=io_microprofile_tutorial_store_product_resource_ProductResource_productCatalogSize`
 
 This custom metric implementation provides a real-time insight into the size of your product catalog, which can be invaluable for monitoring the scale of your service's data and understanding its behavior over time.
+
+[source]
+----
+# HELP io_microprofile_tutorial_store_product_resource_ProductResource_productCatalogSize Current number of products in the catalog
+# TYPE io_microprofile_tutorial_store_product_resource_ProductResource_productCatalogSize gauge
+io_microprofile_tutorial_store_product_resource_ProductResource_productCatalogSize{mp_scope="application",} 8.0
+----
 
 Vendors may, by their own implementation, support `/metrics?name=<name>` to directly retrieve that metric from all scopes. However, the specification itself only illustrates `/metrics?scope=<scope>&name=<name>`.
 
