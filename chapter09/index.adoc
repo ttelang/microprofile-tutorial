@@ -2,9 +2,9 @@
 
 Microservices-based applications have better scalability, flexibility, and resilience, but they suffer from additional challenges regarding availability and performance monitoring. This makes observability critical to ensure these distributed systems operate reliably.
 
-MicroProfile Telemetry specification provides a set of vendor-neutral APIs for instrumenting, collecting, and exporting telemetry data such as traces, metrics, and logs. It is built on the foundation of https://opentelemetry.io/[OpenTelemetry] from the https://www.cncf.io/[Cloud Native Computing Foundation (CNCF)] project, an open-source observability framework. 
+MicroProfile Telemetry specification provides a set of vendor-neutral APIs for instrumenting, collecting, and exporting telemetry data such as distributed traces, metrics, and logs. It is built on the foundation of https://opentelemetry.io/[OpenTelemetry] from the https://www.cncf.io/[Cloud Native Computing Foundation (CNCF)] project, an open-source observability framework. 
 
-In this chapter, we will explore the fundamentals of MicroProfile Telemetry, covering topics such as tracing concepts, instrumenting Telemetry, setting up tracing providers, context propagation and correlation, analyzing traces, security considerations for tracing, and more. By the end of this chapter, you will learn how to effectively leverage distributed tracing for debugging, performance monitoring, and system optimization.
+In this chapter, we will explore the fundamentals of MicroProfile Telemetry, covering topics such as tracing concepts, instrumenting telemetry, setting up tracing providers, context propagation and correlation, analyzing traces, security considerations for tracing, and more. By the end of this chapter, you will learn how to effectively leverage distributed tracing for debugging, performance monitoring, and system optimization.
 
 == Topics to be covered
 
@@ -14,82 +14,177 @@ In this chapter, we will explore the fundamentals of MicroProfile Telemetry, cov
 ** Traces
 ** Context Propagation
 ** Correlation
-* Instrumenting OpenTelemetry
+* Automatic Instrumentation
 * Tools for Trace Analysis
-* Exporting the Traces
-* Types of Telemetry
-* Agent Instrumentation
+* Exporting Traces
+* Types of Telemetry Data
+* Integration Patterns
 * Analyzing Traces
+* Production Considerations
 * Security Considerations for Tracing
 
 == Introduction to MicroProfile Telemetry
 
 MicroProfile Telemetry addresses the operational challenges inherent in modern microservices architectures. Without proper observability, debugging, performance monitoring, and ensuring system reliability become complex and time-consuming.
 
+=== Key Challenges in Microservices Applications
+
 Some of the key challenges in microservices-based applications include:
 
 * *Complexity due to Distributed Architecture*: Microservices are often deployed across multiple nodes, containers, or cloud environments, making it challenging to track requests as they move through the system. This lack of visibility increases debugging complexity, making it harder to identify bottlenecks and analyze system behavior.
 * *Polyglot Architecture*: Microservices are developed using multiple programming languages (e.g., Java, Python, and Go) and frameworks, resulting in inconsistent telemetry data and a lack of standardization in observability. This fragmentation makes correlating logs, traces, and metrics across services difficult.
-* *Latency*: Communication between Microservices involves latency, and all of this adds up as requests traverse several services. This makes it difficult to identify the root causes of issues.
-Ensuring High Availability: Failures in one microservice can affect the entire system, impacting multiple dependent microservices. This can lead to downtime or degraded performance, resulting in lost revenue and diminished user trust.
+* *Network Latency and Service Dependencies*: Communication between Microservices involves latency, and all of this adds up as requests traverse several services. This accumulated latency makes it difficult to identify the root causes of performance issues and optimize system response times.
+* *Ensuring High Availability*: Failures in one microservice can affect the entire system, impacting multiple dependent microservices. This can lead to downtime or degraded performance, resulting in lost revenue and diminished user trust.
+* *Context Loss Across Service Boundaries*: Without proper context propagation, it becomes impossible to correlate related operations across different services, making end-to-end request tracking and debugging extremely challenging.
 
-To address these challenges, MicroProfile Telemetry specification provides a standardized set of APIs for capturing telemetry data, including trace information and context propagation, to improve observability in distributed systems. By enabling seamless tracing, developers can analyze system behavior, troubleshoot service interactions, and ensure application reliability. 
+=== How MicroProfile Telemetry Addresses These Challenges
 
-MicroProfile Telemetry is vendor-neutral. It allows developers to switch between different OpenTelemetry implementations without modifying their application code. This flexibility ensures that MicroProfile applications can easily integrate with various observability platforms, making it easier to adopt, scale, and maintain Telemetry in modern cloud-native environments.
+To address these challenges, MicroProfile Telemetry specification provides a standardized set of APIs for capturing telemetry data, including distributed trace information and automatic context propagation, to improve observability in distributed systems. By enabling seamless tracing, developers can:
 
-== Tracing Concepts
+* **Analyze System Behavior**: Gain comprehensive insights into request flows across service boundaries
+* **Troubleshoot Service Interactions**: Quickly identify failed or slow service calls and their impact
+* **Ensure Application Reliability**: Monitor system health and performance proactively
+* **Optimize Performance**: Identify bottlenecks and latency sources in distributed request paths
+
+=== Vendor Neutrality and Flexibility
+
+MicroProfile Telemetry is vendor-neutral and built on OpenTelemetry standards. It allows developers to switch between different OpenTelemetry implementations and observability platforms without modifying their application code. This flexibility ensures that MicroProfile applications can easily integrate with various observability tools (like Jaeger, Zipkin, or commercial APM solutions), making it easier to adopt, scale, and maintain telemetry in modern cloud-native environments.
+
+== Telemetry Concepts
 
 Tracing is critical for observability. It allows developers to inspect the flow of requests as they traverse through distributed systems. Tracing provides visibility into the interactions and dependencies within a system by breaking down a request into multiple spans, and connecting them into traces with context propagated across services.
 
 === Spans
 
-A *span* is the basic unit of work in tracing. It represents a single operation or task a service performs, such as an HTTP request, a database query, or a computation. Each span contains metadata, including:
+A **span** is the fundamental building block of distributed tracing. It represents a single unit of work within your application, such as:
 
-* *Operation Name*: Describes the activity (e.g., HTTP GET /products).
-* *Start Time and Duration*: Captures when the operation started and how long it took.
-* *Attributes*: Key-value pairs providing context (e.g., user IDs, resource names, HTTP status codes).
-* *Parent Span ID*: Indicates the parent span, forming a relationship within a trace.
+* Processing an HTTP request
+* Executing a database query
+* Making a call to an external service
+* Running a specific method or function
 
-Spans may also include additional data like logs and events, which help provide a detailed view of the operation's lifecycle. Spans are connected to form a trace, which helps identify bottlenecks and performance issues.
+Each span contains several key pieces of information:
+
+* **Operation Name**: A human-readable description of the operation
+* **Start and End Timestamps**: When the operation began and completed
+* **Span Context**: Unique identifiers that link spans together
+* **Attributes**: Key-value pairs providing additional metadata
+* **Events**: Time-stamped log entries within the span
+* **Status**: Whether the operation succeeded, failed, or encountered an error
+
+Here's an example of what a span might look like for a payment processing operation:
+
+```
+Span: process_payment
+├── Start Time: 2024-01-15T10:30:00.123Z
+├── End Time: 2024-01-15T10:30:00.456Z
+├── Duration: 333ms
+├── Attributes:
+│   ├── payment.amount: 99.99
+│   ├── payment.currency: USD
+│   ├── customer.id: 12345
+│   └── http.method: POST
+├── Events:
+│   ├── [10:30:00.200Z] Validating payment details
+│   ├── [10:30:00.300Z] Calling payment gateway
+│   └── [10:30:00.420Z] Payment authorized
+└── Status: OK
+```
 
 === Traces
 
-A *trace* is a collection of related spans representing the end-to-end execution of a request or transaction. It provides a holistic view of how a single request flows through the system, including service interactions. Traces often form a tree structure, where the root span represents the entry point (e.g., a user request), and child spans represent subsequent operations.
+A **trace** represents the complete journey of a request as it flows through your distributed system. It's composed of multiple spans that are linked together to show the full path of execution.
 
-For example:
+Think of a trace as a tree structure:
+* The **root span** represents the initial request (e.g., a user making a purchase)
+* **Child spans** represent subsequent operations triggered by the request
+* **Sibling spans** represent parallel operations at the same level
+
+For example, when a user makes a purchase in an e-commerce system, the trace might look like this:
+
 ```
-API Gateway (Root Span) +
-│ 
-├── Order Service (Child Span) +
-│   │ 
-│   ├── Database Query (Another Child Span) +
-│   │   ├── Fetch Order Details +
-│   │   ├── Process Order Data +
-│   │   └── Return Data to Order Service +
-│   │ 
-│   └── Return Response to API Gateway +
-│ 
-└── API Gateway Sends Final Response to User
+Trace: User Purchase Request
+└── [Root] HTTP POST /purchase
+    ├── [Child] Validate user session
+    ├── [Child] Check inventory
+    │   ├── [Child] Query inventory database
+    │   └── [Child] Update stock levels
+    ├── [Child] Process payment
+    │   ├── [Child] Validate payment details
+    │   ├── [Child] Call payment gateway API
+    │   └── [Child] Store payment record
+    └── [Child] Send confirmation email
+        ├── [Child] Generate email content
+        └── [Child] Call email service API
 ```
+
+Each trace has a unique **trace ID** that identifies it across all services and systems it touches. This allows you to follow a single request from start to finish, even as it crosses multiple service boundaries.
 
 === Context Propagation
 
-*Context propagation* refers to the mechanism of carrying trace-related metadata, such as *trace IDs* and *span IDs*, across service and thread boundaries. This ensures that all spans created during a request can be linked together to form a complete trace.
+**Context propagation** is the mechanism that ensures tracing information flows correctly through your distributed system. Without proper context propagation, you'd end up with disconnected spans instead of a cohesive trace.
 
-=== Correlation
+The trace context includes:
+* **Trace ID**: Unique identifier for the entire trace
+* **Span ID**: Unique identifier for the current span
+* **Parent Span ID**: Links the current span to its parent
+* **Trace Flags**: Additional metadata about trace processing
 
-Context propagation is vital for connecting distributed spans and understanding their relationship ensuring trace metadata remains correlated as it travels with requests across service boundaries.
-*Correlation* is the process of associating related spans and traces across multiple services and threads to form a cohesive view of a transaction. Correlation enables developers to:
+Context propagation works in several ways:
 
-* Identify the source of bottlenecks or errors in distributed systems.
-* Understand the dependencies and interactions between services.
+**1. HTTP Header Propagation**
+When services communicate over HTTP, trace context is carried in headers:
+```
+HTTP Headers:
+traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
+tracestate: rojo=00f067aa0ba902b7,congo=t61rcWkgMzE
+```
 
-When viewing logs, the +traceId+ and +spanId+ allow you to link specific log entries to the corresponding spans in your tracing system.
+**2. In-Process Propagation**
+Within a single service, context is maintained across:
+* Method calls within the same thread
+* Asynchronous operations using CompletableFuture or similar
+* CDI bean interactions
+* Database operations
 
-* *Trace ID*: A unique identifier shared across all spans in a single trace.
-* *Span ID*: A unique identifier for a single span. It is linked to a parent span, forming a hierarchy.
+**3. Cross-Service Propagation**
+When calling external services, MicroProfile Telemetry automatically:
+* Adds trace headers to outbound HTTP requests
+* Extracts trace context from incoming requests
+* Maintains parent-child relationships between spans
 
-Together, these concepts form the foundation of distributed tracing, enabling developers to monitor, analyze, and optimize the performance of their microservices effectively.
+=== Correlation and Causality
+
+One of the most powerful aspects of distributed tracing is its ability to show **correlation** and **causality** between operations across your system.
+
+**Correlation** helps you understand which operations are related:
+* All spans with the same trace ID are part of the same user request
+* Parent-child relationships show which operations triggered others
+* Timing information reveals dependencies and bottlenecks
+
+**Causality** shows the cause-and-effect relationships:
+* If span A starts before span B and they share a trace, A may have caused B
+* Parent spans represent operations that trigger child operations
+* Sibling spans may be parallel operations or sequential steps
+
+This correlation enables powerful debugging and analysis capabilities:
+
+**Example: Debugging a Slow Request**
+```
+Trace Analysis for Slow Purchase Request (2.3s total):
+├── HTTP POST /purchase (2.3s) - Root cause investigation needed
+    ├── Validate user session (50ms) - Normal
+    ├── Check inventory (100ms) - Normal
+    │   ├── Query inventory database (80ms) - Normal
+    │   └── Update stock levels (20ms) - Normal
+    ├── Process payment (2.1s) - BOTTLENECK IDENTIFIED
+    │   ├── Validate payment details (30ms) - Normal
+    │   ├── Call payment gateway API (2.0s) - SLOW EXTERNAL SERVICE
+    │   └── Store payment record (70ms) - Normal
+    └── Send confirmation email (50ms) - Normal
+```
+
+From this trace, you can immediately see that the payment gateway API call is the bottleneck, accounting for most of the request's duration.
 
 == Instrumenting Telemetry
 
