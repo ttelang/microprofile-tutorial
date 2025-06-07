@@ -7,9 +7,9 @@ toc::[]
 
 == Overview
 
-This project is a MicroProfile-based e-commerce application that demonstrates RESTful API development using Jakarta EE 10 and MicroProfile 6.1 running on Open Liberty.
+This project is a MicroProfile-based e-commerce application that demonstrates RESTful API development using Jakarta EE 10 and MicroProfile 6.1 running on Open Liberty server.
 
-The application follows a layered architecture with separate resource (controller) and service layers, implementing standard CRUD operations for product management.
+The application follows a layered architecture with separate resource (controller) and service layers, implementing standard CRUD operations for products.
 
 == Technology Stack
 
@@ -322,7 +322,7 @@ The project includes several key dependencies:
     <scope>test</scope>
 </dependency>
 
-<!-- JAX-RS implementation for testing -->
+<!-- Jakarta Restful Web Service implementation for testing -->
 <dependency>
     <groupId>org.glassfish.jersey.core</groupId>
     <artifactId>jersey-common</artifactId>

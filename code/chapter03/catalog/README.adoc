@@ -15,7 +15,6 @@ The MicroProfile Catalog Service is a Jakarta EE 10 and MicroProfile 6.1 applica
 * Persistence with Jakarta Persistence API and Derby embedded database
 * CDI (Contexts and Dependency Injection) for component management
 * Bean Validation for input validation
-* Running on Open Liberty for lightweight deployment
 
 == Project Structure
 
@@ -48,11 +47,11 @@ This application follows a layered architecture:
 1. *REST Resources* (`/resource`) - Provides HTTP endpoints for clients
 2. *Services* (`/service`) - Implements business logic and transaction management
 3. *Repositories* (`/repository`) - Data access objects for database operations
-4. *Entities* (`/entity`) - Domain models with JPA annotations
+4. *Entities* (`/entity`) - Domain models with Jakarta Persistence annotations
 
 == Database Configuration
 
-The application uses an embedded Derby database that is automatically provisioned by Open Liberty. The database configuration is defined in the `server.xml` file:
+The application uses an embedded Derby database that is automatically provisioned by Open Liberty server. The database configuration is defined in the `server.xml` file:
 
 [source,xml]
 ----

@@ -6,7 +6,7 @@
 
 == Overview
 
-This project demonstrates a MicroProfile-based e-commerce microservice running on Open Liberty. It provides REST endpoints for product management and showcases Jakarta EE 10 and MicroProfile 6.1 features in a practical application.
+This project demonstrates a MicroProfile-based e-commerce microservice. It provides REST endpoints for product management and showcases Jakarta EE 10 and MicroProfile 6.1 features in a practical application.
 
 == Prerequisites
 
@@ -79,12 +79,12 @@ mp-ecomm-store/
 * Jakarta EE 10
 * MicroProfile 6.1
 * Open Liberty
-* Lombok for boilerplate reduction
-* JUnit 5 for testing
+* Lombok
+* JUnit 5
 
 == Model Class
 
-The Product model demonstrates the use of Lombok annotations:
+The Product model demonstrates the use of Lombok annotations for boilerplate code reduction:
 
 [source,java]
 ----
@@ -115,13 +115,15 @@ mvn clean package
 mvn liberty:dev
 ----
 
-This starts Liberty in development mode with hot reloading enabled, allowing for rapid development cycles.
+This starts Open Liberty server in development mode with hot reloading enabled, allowing for rapid development cycles.
 
 === Accessing the Application
 
 Once the server is running, you can access:
 
-* Products Endpoint: http://localhost:5050/mp-ecomm-store/api/products
+* Products Endpoint: http://<hostname>:5050/mp-ecomm-store/api/products
+
+Replace <hostname> with _localhost_ or the hostname of the system, where you are running this code.
 
 == Features and Future Enhancements
 
@@ -130,7 +132,3 @@ Current features:
 * Basic product listing functionality
 
 * JSON-B serialization
-
-== License
-
-This project is licensed under the MIT License.
