@@ -28,12 +28,12 @@ The MicroProfile Rest Client simplifies consuming RESTful services in Java micro
 . *Integration with CDI (Context and Dependency Injection)* - This specification allows developers to seamlessly inject MicroProfile Rest Client interfaces using `@Inject` and `@RestClient` into CDI-managed beans, promoting better dependency management and integration with other components. By leveraging CDI lifecycle management, the MicroProfile Rest Client can benefit from scope management (e.g., `@ApplicationScoped`), proxying, and automatic initialization.
 . *Runtime Configurable with MicroProfile Config* -  The behavior of MicroProfile Rest Client can be dynamically configured using MicroProfile Config. This allows properties like the base URL and other client settings to be adjusted without recompilation. The configuration can be provided through _microprofile-config.properties_ or environment variables, making the client highly adaptable to different environments.
 . *Support for Asynchronous Execution* - For asynchronous execution, MicroProfile Rest Client can return `CompletionStage<T>`, allowing non-blocking requests. This significantly  improves performance & scalability in high-concurrency environments.
-. *Automatic Handling of Redirect Responses* -  MicroProfile Rest Client can automatically follow HTTP redirects, simplifying client implementation when working with services that return `3xx` responses.
+. *Automatic Handling of Redirect Responses* -  MicroProfile Rest Client delegates to underlying HTTP client implementations, which may support features like automatic redirect handling. The specific behavior depends on the HTTP client library used by your MicroProfile implementation (e.g., Apache HTTP Client, OkHttp).
 . *Secure Socket Layer (SSL) and Security Configuration* - Supports SSL/TLS configuration, including certificates and trust stores, ensuring secure communication between microservices.
 . *Propagation of Headers and Cookies* - Enables automatic propagation of HTTP headers, cookies and context (e.g., authentication tokens), facilitating session management across service calls.
 . *Exception Handling and Custom Providers* - Allows custom exception mapping and response handling, giving developers control over error response based on specific conditions, improving fault tolerance and user experience.
 . *Integration with MicroProfile Fault Tolerance* - This specification Supports resilience patterns like retries (`@Retry`), circuit breakers (`@CircuitBreaker`), and Bulkheads (`@Bulkhead`), ensuring stability in service-to-service communications.
-. *Integration with MicroProfile Long Running Actions (LRA)* -  MicroProfile Rest Client can coordinate distributed transactions using LRA annotations (e.g., `@LRA`), enabling compensation logic for long-running processes. This ensures consistency across services in complex workflows.
+. *Integration with MicroProfile Long Running Actions (LRA)* -  MicroProfile Rest Client can participate in distributed transaction patterns. When combined with MicroProfile LRA, services can coordinate long-running processes, though LRA annotations are applied to service endpoints rather than the client interfaces themselves.
 . *Portability and Standards Compliance*: This specification enables MicroProfile Rest Client to work across different MicroProfile-compatible runtimes,  leveraging Jakarta EE standards (CDI, Jakarta RESTful Web Services, JSON Binding, JSON Processing). 
 
 == Setting up Dependency for MicroProfile Rest Client 
@@ -49,20 +49,32 @@ For Maven-based projects, add the following dependency to your pom.xml file:
     <groupId>org.eclipse.microprofile.rest.client</groupId>
     <artifactId>microprofile-rest-client-api</artifactId>
     <version>3.1</version>
+    <scope>provided</scope>
 </dependency>
 ---- 
 
-=== Gradle Configuration
+> Note: This dependency provides the MicroProfile REST Client API. The actual implementation is provided by your MicroProfile runtime (Quarkus, Open Liberty, Payara, etc.). In most cases, use `provided` scope for Maven or `compileOnly` for Gradle since the runtime includes the implementation.
 
+=== Gradle Configuration
 For Gradle-based projects, add the following dependency to your build.gradle file:
 
-[source, xml]
+[source, gradle]
 ----
 dependencies {
-    Implementation 'org.eclipse.microprofile.rest.client:microprofile-rest-client-api:3.1'
+    compileOnly 'org.eclipse.microprofile.rest.client:microprofile-rest-client-api:3.1'
+}
+----
+
+Alternatively, you can use the umbrella MicroProfile dependency which includes all MicroProfile specifications:
+
+[source, gradle]
+----
+dependencies {
     compileOnly 'org.eclipse.microprofile:microprofile:6.1'
 }
 ----
+
+> Note: Use `compileOnly` scope since MicroProfile runtimes provide the implementation at runtime.
 
 > Tip: The MicroProfile Rest Client is an Eclipse Foundation project. For more details and updates on the project, visit the official repository: MicroProfile Rest Client on GitHub.
 
@@ -123,7 +135,7 @@ To configure the URI using MicroProfile Config, you need to add a config file na
 
 [source]
 ----
-product-service/mp-rest/url=http://localhost:8080/api/products
+product-service/mp-rest/url=http://localhost:5050/api/products
 product-service/mp-rest/followRedirects=true 
 ----
 
