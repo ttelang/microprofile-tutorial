@@ -13,7 +13,7 @@ content:
 
 ui:
   bundle:
-    url: https://github.com/ttelang/microprofile-documentation-ui/releases/download/latest/ui-bundle.zip
+    url: https://github.com/microprofile/microprofile-tutorial-ui/releases/download/latest/ui-bundle.zip
     snapshot: true
   supplemental_files: ./supplemental-ui
 
