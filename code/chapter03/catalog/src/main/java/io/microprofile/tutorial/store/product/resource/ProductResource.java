@@ -61,6 +61,7 @@ public class ProductResource {
         if (updated != null) {
             return Response.ok(updated).build();
         }
+        return Response.status(Response.Status.NOT_FOUND).build();
     }
 
     @DELETE
