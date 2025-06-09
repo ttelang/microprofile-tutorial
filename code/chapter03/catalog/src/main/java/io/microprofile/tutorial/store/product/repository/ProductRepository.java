@@ -11,7 +11,6 @@ import jakarta.persistence.PersistenceContext;
 public class ProductRepository {
 
     @PersistenceContext(unitName = "product-unit")
-
     private EntityManager em;
 
     public void createProduct(Product product) {
