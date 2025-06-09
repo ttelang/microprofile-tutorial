@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MicroProfile Catalog Service</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            padding-top: 2rem;
+            background-color: #f8f9fa;
+        }
+        .jumbotron {
+            background-color: #e9ecef;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border-radius: 0.3rem;
+        }
+        .api-card {
+            margin-bottom: 1.5rem;
+            transition: transform 0.3s;
+        }
+        .api-card:hover {
+            transform: translateY(-5px);
+        }
+        .footer {
+            margin-top: 3rem;
+            padding: 1.5rem 0;
+            background-color: #e9ecef;
+        }
+        .microprofile-logo {
+            max-width: 200px;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="jumbotron text-center">
+            <img src="https://microprofile.io/wp-content/uploads/2022/09/microprofile-horizontal-white_bg-tagline-1.svg" alt="MicroProfile Logo" class="microprofile-logo">
+            <h1 class="display-4">MicroProfile Catalog Service</h1>
+            <p class="lead">Part of the Official MicroProfile 6.1 API Tutorial</p>
+            <hr class="my-4">
+            <p>This service provides product catalog capabilities for the e-commerce platform through a RESTful API.</p>
+            <p>
+                <a href="/catalog/api/products" class="btn btn-primary">View All Products</a>
+            </p>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card api-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">API Endpoints</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item"><code>GET /catalog/api/products</code> - List all products</li>
+                            <li class="list-group-item"><code>GET /catalog/api/products/{id}</code> - Get product by ID</li>
+                            <li class="list-group-item"><code>POST /catalog/api/products</code> - Create a product</li>
+                            <li class="list-group-item"><code>PUT /catalog/api/products/{id}</code> - Update a product</li>
+                            <li class="list-group-item"><code>DELETE /catalog/api/products/{id}</code> - Delete a product</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card api-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">MicroProfile Features</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item"><strong>Jakarta Persistence</strong> - Data persistence</li>
+                            <li class="list-group-item"><strong>CDI</strong> - Contexts and Dependency Injection</li>
+                            <li class="list-group-item"><strong>Jakarta RESTful Web Services</strong> - REST API implementation (jakarta.ws.rs)</li>
+                            <li class="list-group-item"><strong>Bean Validation</strong> - Data validation</li>
+                            <li class="list-group-item"><strong>JSON-B</strong> - JSON Binding</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Sample Product JSON</h5>
+                    </div>
+                    <div class="card-body">
+                        <pre class="bg-light p-3 border rounded"><code>{
+  "id": 1,
+  "name": "Laptop",
+  "description": "High-performance laptop",
+  "price": 999.99
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer mt-auto py-3">
+        <div class="container text-center">
+            <p>&copy; 2025 MicroProfile Tutorial. Part of the official MicroProfile 6.1 API Tutorial.</p>
+            <p>
+                <a href="https://microprofile.io/" target="_blank" class="text-decoration-none">MicroProfile.io</a> |
+                <a href="https://jakarta.ee/" target="_blank" class="text-decoration-none">Jakarta EE</a>
+            </p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

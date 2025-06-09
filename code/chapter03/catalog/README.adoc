@@ -15,6 +15,7 @@ The MicroProfile Catalog Service is a Jakarta EE 10 and MicroProfile 6.1 applica
 * Persistence with Jakarta Persistence API and Derby embedded database
 * CDI (Contexts and Dependency Injection) for component management
 * Bean Validation for input validation
+* Running on Open Liberty for lightweight deployment
 
 == Project Structure
 
@@ -47,11 +48,11 @@ This application follows a layered architecture:
 1. *REST Resources* (`/resource`) - Provides HTTP endpoints for clients
 2. *Services* (`/service`) - Implements business logic and transaction management
 3. *Repositories* (`/repository`) - Data access objects for database operations
-4. *Entities* (`/entity`) - Domain models with Jakarta Persistence annotations
+4. *Entities* (`/entity`) - Domain models with JPA annotations
 
 == Database Configuration
 
-The application uses an embedded Derby database that is automatically provisioned by Open Liberty server. The database configuration is defined in the `server.xml` file:
+The application uses an embedded Derby database that is automatically provisioned by Open Liberty. The database configuration is defined in the `server.xml` file:
 
 [source,xml]
 ----
@@ -101,6 +102,7 @@ The Open Liberty server is configured in `src/main/liberty/config/server.xml`:
 
 * JDK 17 or higher
 * Maven 3.8.x or higher
+* Docker (optional, for containerization)
 
 === Development Mode
 
@@ -140,6 +142,22 @@ The application can be deployed to any Jakarta EE 10 compliant server. With Libe
 [source,bash]
 ----
 mvn liberty:run
+----
+
+=== Docker Deployment
+
+You can also deploy the application using Docker:
+
+[source,bash]
+----
+# Build the application
+mvn clean package
+
+# Build the Docker image
+docker build -t catalog-service:1.0 .
+
+# Run the Docker container
+docker run -p 5050:5050 catalog-service:1.0
 ----
 
 == API Endpoints
@@ -224,6 +242,69 @@ Content-Type: application/json
 }
 ----
 
+== Testing Approaches
+
+=== Mockito-Based Unit Testing
+
+For true unit testing of the resource layer, we use Mockito to isolate the component being tested:
+
+[source,java]
+----
+@ExtendWith(MockitoExtension.class)
+public class MockitoProductResourceTest {
+    @Mock
+    private ProductService productService;
+    
+    @InjectMocks
+    private ProductResource productResource;
+    
+    @Test
+    void testGetAllProducts() {
+        // Setup mock behavior
+        List<Product> mockProducts = Arrays.asList(
+            new Product(1L, "iPhone", "Apple iPhone 15", 999.99),
+            new Product(2L, "MacBook", "Apple MacBook Air", 1299.0)
+        );
+        when(productService.getAllProducts()).thenReturn(mockProducts);
+        
+        // Call the method to test
+        Response response = productResource.getAllProducts();
+        
+        // Verify the response
+        assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+        List<Product> returnedProducts = (List<Product>) response.getEntity();
+        assertEquals(2, returnedProducts.size());
+        
+        // Verify the service method was called
+        verify(productService).getAllProducts();
+    }
+}
+----
+
+=== Benefits of Mockito Testing
+
+Using Mockito for resource layer testing provides several advantages:
+
+* **True Unit Testing**: Tests only the resource class, not its dependencies
+* **Controlled Environment**: Mock services return precisely what you configure
+* **Faster Execution**: No need to initialize the entire service layer
+* **Independence**: Tests don't fail because of problems in the service layer
+* **Verify Interactions**: Ensure methods on dependencies are called correctly
+* **Test Edge Cases**: Easily simulate error conditions or unusual responses
+
+=== Testing Dependencies
+
+[source,xml]
+----
+<!-- Mockito for mocking in tests -->
+<dependency>
+    <groupId>org.mockito</groupId>
+    <artifactId>mockito-core</artifactId>
+    <version>5.3.1</version>
+    <scope>test</scope>
+</dependency>
+----
+
 == Troubleshooting
 
 === Common Issues
@@ -231,6 +312,26 @@ Content-Type: application/json
 * *404 Not Found*: Ensure you're using the correct context root (`/catalog`) and API base path (`/api`).
 * *500 Internal Server Error*: Check server logs for exceptions.
 * *Database issues*: Check if Derby is properly configured and the `productjpadatasource` is available.
+* *EntityManager is null*: This can happen due to constructor-related issues with CDI. Make sure your repositories are properly injected and not manually instantiated.
+* *SQL errors*: Ensure SQL statements in `import.sql` end with semicolons. Each INSERT statement must end with a semicolon (;) to be properly executed.
+
+=== SQL Script Format
+
+When writing SQL scripts for initialization, ensure each statement ends with a semicolon:
+
+[source,sql]
+----
+-- Correct format with semicolons
+INSERT INTO Product (id, name, description, price) VALUES (1, 'iPhone', 'Apple iPhone 15', 999.99);
+INSERT INTO Product (id, name, description, price) VALUES (2, 'MacBook', 'Apple MacBook Air', 1299.0);
+----
+
+=== JPA and CDI Pitfalls
+
+* *Manual instantiation*: Never use `new ProductRepository()` - always let CDI handle injection
+* *Scope mismatch*: Ensure your beans have appropriate scopes (@ApplicationScoped for repositories)
+* *Missing constructor*: Provide a no-args constructor for CDI beans with injected fields
+* *Transaction boundaries*: Use @Transactional on methods that interact with the database
 
 === Logs
 
@@ -240,4 +341,110 @@ Server logs are available at:
 ----
 target/liberty/wlp/usr/servers/mpServer/logs/
 ----
+
+== Derby Database Details
+
+The application uses an embedded Derby database, which is initialized on startup. Here are some important details:
+
+=== Database Schema
+
+The database schema is automatically generated based on JPA entity annotations using the following configuration in persistence.xml:
+
+[source,xml]
+----
+<property name="jakarta.persistence.schema-generation.database.action" value="drop-and-create"/>
+<property name="jakarta.persistence.sql-load-script-source" value="META-INF/sql/import.sql"/>
+----
+
+=== Initial Data Loading
+
+Initial product data is loaded from `META-INF/sql/import.sql`. This script is executed after the schema is created.
+
+[source,sql]
+----
+-- Initial product data
+INSERT INTO Product (id, name, description, price) VALUES (1, 'iPhone', 'Apple iPhone 15', 999.99);
+INSERT INTO Product (id, name, description, price) VALUES (2, 'MacBook', 'Apple MacBook Air', 1299.0);
+INSERT INTO Product (id, name, description, price) VALUES (3, 'iPad', 'Apple iPad Pro', 799.99);
+INSERT INTO Product (id, name, description, price) VALUES (4, 'AirPods', 'Apple AirPods Pro', 249.99);
+INSERT INTO Product (id, name, description, price) VALUES (5, 'Apple Watch', 'Apple Watch Series 8', 399.99);
+----
+
+=== Database Location
+
+The Derby database is created in the Liberty server working directory. The location depends on the server configuration, but it's typically under:
+
+[source]
+----
+target/liberty/wlp/usr/servers/mpServer/
+----
+
+=== Connecting to Derby Database
+
+For debugging purposes, you can use the Derby ij tool to connect to the database:
+
+[source,bash]
+----
+java -cp target/liberty/wlp/usr/shared/resources/derby.jar:target/liberty/wlp/usr/shared/resources/derbytools.jar org.apache.derby.tools.ij
+----
+
+Once connected, you can execute SQL commands:
+
+[source,sql]
+----
+CONNECT 'jdbc:derby:ProductDB';
+SELECT * FROM Product;
+----
+
+== Performance Considerations
+
+=== Connection Pooling
+
+Liberty automatically provides connection pooling for JDBC datasources. You can configure the pool size in server.xml:
+
+[source,xml]
+----
+<dataSource id="productjpadatasource" jndiName="jdbc/productjpadatasource" connectionPoolTimeout="600s">
+    <jdbcDriver libraryRef="derbyJDBCLib" />
+    <properties.derby.embedded databaseName="ProductDB" createDatabase="create" />
+    <connectionManager maxPoolSize="10" minPoolSize="1" />
+</dataSource>
+----
+
+=== JPA Optimization
+
+To optimize JPA performance:
+
+* Use fetch type LAZY for collections and relationships
+* Enable second-level caching when appropriate
+* Use named queries for frequently used operations
+* Consider pagination for large result sets
+
+== Development Workflow
+
+=== Hot Reload with Liberty Dev Mode
+
+Liberty dev mode provides hot reloading capabilities. When you make changes to your code, they are automatically detected and applied without restarting the server.
+
+[source,bash]
+----
+mvn liberty:dev
+----
+
+While in dev mode, you can:
+
+* Press Enter to see available commands
+* Type `r` to manually trigger a reload
+* Type `h` to see a list of available commands
+
+=== Debugging
+
+To enable debugging with Liberty:
+
+[source,bash]
+----
+mvn liberty:dev -DdebugPort=7777
+----
+
+You can then attach a debugger to port 7777.
 
