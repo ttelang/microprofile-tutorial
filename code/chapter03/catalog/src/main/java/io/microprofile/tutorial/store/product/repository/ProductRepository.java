@@ -36,7 +36,7 @@ public class ProductRepository {
     }
 
     public List<Product> findProduct(String name, String description, Double price) {
-        return em.createNamedQuery("Event.findProduct", Product.class)
+        return em.createNamedQuery("Product.findProductById", Product.class)
             .setParameter("name", name)
             .setParameter("description", description)
             .setParameter("price", price).getResultList();

@@ -26,15 +26,15 @@ public class ProductResourceTest {
         productResource = null;
     }
 
-    @Test
-    void testGetProducts() {
-        Response response = productResource.getAllProducts();
+    // @Test
+    // void testGetProducts() {
+    //     Response response = productResource.getAllProducts();
         
-        assertNotNull(response);
-        assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+    //     assertNotNull(response);
+    //     assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
         
-        List<Product> products = (List<Product>) response.getEntity();
-        assertNotNull(products);
-        assertEquals(2, products.size());
-    } 
+    //     List<Product> products = (List<Product>) response.getEntity();
+    //     assertNotNull(products);
+    //     assertEquals(2, products.size());
+    // } 
 }

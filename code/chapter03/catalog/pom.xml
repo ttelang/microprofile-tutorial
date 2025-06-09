@@ -51,6 +51,13 @@
       <scope>provided</scope>
     </dependency>
     
+    <!-- Derby Database -->
+    <dependency>
+      <groupId>org.apache.derby</groupId>
+      <artifactId>derby</artifactId>
+      <version>10.16.1.1</version>
+    </dependency>
+    
     <!-- JUnit Dependencies -->
     <dependency>
       <groupId>org.junit.jupiter</groupId>

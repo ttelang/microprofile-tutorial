@@ -19,9 +19,9 @@ public class ProductResource {
 
     private static final Logger LOGGER = Logger.getLogger(ProductResource.class.getName());
     
+    @Inject
     private ProductService productService;
 
-    @Inject
     public ProductResource(ProductService productService) {
         this.productService = productService;
     }

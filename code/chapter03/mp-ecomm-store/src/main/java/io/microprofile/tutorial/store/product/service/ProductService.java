@@ -53,7 +53,7 @@ public class ProductService {
 
     public boolean deleteProduct(Long id) {
         LOGGER.info("Deleting product with id: " + id);
-        Optional<Product> product = products.stream().filter(p -> p.getId().equals(id)).findFirst();
+        Optional<Product> product = getProductById(id);
         if (product.isPresent()) {
             products.remove(product.get());
             return true;
