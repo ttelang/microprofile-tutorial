@@ -31,7 +31,7 @@ import jakarta.ws.rs.core.Response;
 
 @ApplicationScoped
 @Path("/products")
-@Tag(name = "Product Resource", description = "CRUD operations for products")
+@Tag(name = "Product Service", description = "CRUD operations for products")
 public class ProductResource {
 
     private static final Logger LOGGER = Logger.getLogger(ProductResource.class.getName());

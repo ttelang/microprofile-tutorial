@@ -1,12 +1,9 @@
 package io.microprofile.tutorial.store.product.resource;
 
-import io.microprofile.tutorial.store.product.entity.Product;
-import io.microprofile.tutorial.store.product.service.ProductService;
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
-import jakarta.ws.rs.*;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
@@ -14,8 +11,21 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
-import java.util.List;
-import java.util.logging.Logger;
+import io.microprofile.tutorial.store.product.entity.Product;
+import io.microprofile.tutorial.store.product.service.ProductService;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 @ApplicationScoped
 @Path("/products")
@@ -23,7 +33,7 @@ import java.util.logging.Logger;
 public class ProductResource {
 
     private static final Logger LOGGER = Logger.getLogger(ProductResource.class.getName());
-    
+
     @Inject
     private ProductService productService;
 
@@ -40,12 +50,27 @@ public class ProductResource {
             responseCode = "400",
             description = "Unsuccessful, no products found",
             content = @Content(mediaType = "application/json")
+        ),
+        @APIResponse(
+            responseCode = "503",
+            description = "Service is under maintenance",
+            content = @Content(mediaType = "application/json")
         )
     })
     public Response getAllProducts() {
-        LOGGER.info("REST: Fetching all products");
+        LOGGER.log(Level.INFO, "REST: Fetching all products");
         List<Product> products = productService.findAllProducts();
-        return Response.ok(products).build();
+
+        if (products != null && !products.isEmpty()) {
+            return Response
+                    .status(Response.Status.OK)
+                    .entity(products).build();
+        } else {
+            return Response
+                    .status(Response.Status.NOT_FOUND)
+                    .entity("No products found")
+                    .build();
+        }
     }
 
     @GET
@@ -54,10 +79,12 @@ public class ProductResource {
     @Operation(summary = "Get product by ID", description = "Returns a product by its ID")
     @APIResponses({
         @APIResponse(responseCode = "200", description = "Product found", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Product.class))),
-        @APIResponse(responseCode = "404", description = "Product not found")
+        @APIResponse(responseCode = "404", description = "Product not found"),
+        @APIResponse(responseCode = "503", description = "Service is under maintenance")
     })
     public Response getProductById(@PathParam("id") Long id) {
-        LOGGER.info("REST: Fetching product with id: " + id);
+        LOGGER.log(Level.INFO, "REST: Fetching product with id: {0}", id);
+
         Product product = productService.findProductById(id);
         if (product != null) {
             return Response.ok(product).build();
@@ -98,7 +125,7 @@ public class ProductResource {
         }
     }
 
-    @DELETE
+@DELETE
     @Path("/{id}")
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(summary = "Delete a product", description = "Deletes a product by its ID")

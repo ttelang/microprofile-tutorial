@@ -9,15 +9,17 @@ toc::[]
 
 == Overview
 
-The MicroProfile Catalog Service is a modern Jakarta EE 10 application built with MicroProfile 6.1 specifications and running on Open Liberty. This service provides a RESTful API for product catalog management with enhanced MicroProfile features.
+The MicroProfile Catalog Service is a modern Jakarta EE 10 application built with MicroProfile 6.1 specifications. This service provides a RESTful API for product catalog management with enhanced MicroProfile features and flexible persistence options.
 
-This project demonstrates the key capabilities of MicroProfile OpenAPI and in-memory persistence architecture.
+This project demonstrates the key capabilities of MicroProfile OpenAPI, CDI qualifiers, and dual persistence architecture with both JPA/Derby database and in-memory implementations.
 
 == Features
 
 * *RESTful API* using Jakarta RESTful Web Services
 * *OpenAPI Documentation* with Swagger UI
-* *In-Memory Persistence* using ConcurrentHashMap for thread-safe data storage
+* *Dual Persistence Implementation* with configurable JPA/Derby database and in-memory storage options
+* *CDI Qualifiers* for dependency injection and implementation switching
+* *Derby Database Support* with automatic JAR deployment via Liberty Maven plugin
 
 == MicroProfile Features Implemented
 
@@ -42,18 +44,238 @@ public Response getAllProducts() {
 
 The OpenAPI documentation is available at: `/openapi` (in various formats) and `/openapi/ui` (Swagger UI)
 
-=== MicroProfile Config
+=== Dual Persistence Architecture
 
-The application uses MicroProfile Config to externalize configuration:
+The application implements a flexible persistence layer with two implementations that can be switched via CDI qualifiers:
 
-[source,properties]
+1. *JPA/Derby Database Implementation* (Default) - For production use with persistent data storage
+2. *In-Memory Implementation* - For development, testing, and scenarios where persistence across restarts is not required
+
+==== CDI Qualifiers for Implementation Switching
+
+The application uses CDI qualifiers to select between different persistence implementations:
+
+[source,java]
 ----
-mp.openapi.scan=true
+// JPA Qualifier
+@Qualifier
+@Retention(RUNTIME)
+@Target({METHOD, FIELD, PARAMETER, TYPE})
+public @interface JPA {
+}
+
+// In-Memory Qualifier  
+@Qualifier
+@Retention(RUNTIME)
+@Target({METHOD, FIELD, PARAMETER, TYPE})
+public @interface InMemory {
+}
 ----
 
-=== In-Memory Persistence Architecture
+==== Service Layer with CDI Injection
 
-The application implements a thread-safe in-memory persistence layer using `ConcurrentHashMap`:
+The service layer uses CDI qualifiers to inject the appropriate repository implementation:
+
+[source,java]
+----
+@ApplicationScoped
+public class ProductService {
+    
+    @Inject
+    @JPA  // Uses Derby database implementation by default
+    private ProductRepositoryInterface repository;
+    
+    public List<Product> findAllProducts() {
+        return repository.findAllProducts();
+    }
+    // ... other service methods
+}
+----
+
+==== JPA/Derby Database Implementation
+
+The JPA implementation provides persistent data storage using Apache Derby database:
+
+[source,java]
+----
+@ApplicationScoped
+@JPA
+@Transactional
+public class ProductJpaRepository implements ProductRepositoryInterface {
+    
+    @PersistenceContext(unitName = "catalogPU")
+    private EntityManager entityManager;
+    
+    @Override
+    public List<Product> findAllProducts() {
+        TypedQuery<Product> query = entityManager.createNamedQuery("Product.findAll", Product.class);
+        return query.getResultList();
+    }
+    
+    @Override
+    public Product createProduct(Product product) {
+        entityManager.persist(product);
+        return product;
+    }
+    // ... other JPA operations
+}
+----
+
+*Key Features of JPA Implementation:*
+* Persistent data storage across application restarts
+* ACID transactions with @Transactional annotation
+* Named queries for efficient database operations
+* Automatic schema generation and data loading
+* Derby embedded database for simplified deployment
+
+==== In-Memory Implementation
+
+The in-memory implementation uses thread-safe collections for fast data access:
+
+[source,java]
+----
+@ApplicationScoped
+@InMemory
+public class ProductInMemoryRepository implements ProductRepositoryInterface {
+    
+    // Thread-safe storage using ConcurrentHashMap
+    private final Map<Long, Product> productsMap = new ConcurrentHashMap<>();
+    private final AtomicLong idGenerator = new AtomicLong(1);
+    
+    @Override
+    public List<Product> findAllProducts() {
+        return new ArrayList<>(productsMap.values());
+    }
+    
+    @Override
+    public Product createProduct(Product product) {
+        if (product.getId() == null) {
+            product.setId(idGenerator.getAndIncrement());
+        }
+        productsMap.put(product.getId(), product);
+        return product;
+    }
+    // ... other in-memory operations
+}
+----
+
+*Key Features of In-Memory Implementation:*
+* Fast in-memory access without database I/O
+* Thread-safe operations using ConcurrentHashMap and AtomicLong
+* No external dependencies or database configuration
+* Suitable for development, testing, and stateless deployments
+* Data is lost on application restart (not persistent)
+
+=== Database Configuration and Setup
+
+==== Derby Database Configuration
+
+The Derby database is automatically configured through the Liberty Maven plugin and server.xml:
+
+*Maven Dependencies and Plugin Configuration:*
+[source,xml]
+----
+<dependencies>
+    <!-- Apache Derby Database Driver -->
+    <dependency>
+        <groupId>org.apache.derby</groupId>
+        <artifactId>derby</artifactId>
+        <version>10.16.1.1</version>
+    </dependency>
+    <!-- Derby Shared Components -->
+    <dependency>
+        <groupId>org.apache.derby</groupId>
+        <artifactId>derbyshared</artifactId>
+        <version>10.16.1.1</version>
+    </dependency>
+    <!-- Derby Tools (optional) -->
+    <dependency>
+        <groupId>org.apache.derby</groupId>
+        <artifactId>derbytools</artifactId>
+        <version>10.16.1.1</version>
+    </dependency>
+</dependencies>
+
+<plugin>
+    <groupId>io.openliberty.tools</groupId>
+    <artifactId>liberty-maven-plugin</artifactId>
+    <configuration>
+        <serverName>mpServer</serverName>
+        <copyDependencies>
+            <location>${project.build.directory}/liberty/wlp/usr/servers/mpServer/derby</location>
+            <dependency>
+                <groupId>org.apache.derby</groupId>
+                <artifactId>derby</artifactId>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.derby</groupId>
+                <artifactId>derbyshared</artifactId>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.derby</groupId>
+                <artifactId>derbytools</artifactId>
+            </dependency>
+        </copyDependencies>
+    </configuration>
+</plugin>
+----
+
+*Server.xml Configuration:*
+[source,xml]
+----
+<!-- Derby DataSource Configuration -->
+<dataSource id="DefaultDataSource" jndiName="jdbc/catalogDB" type="javax.sql.DataSource">
+    <jdbcDriver>
+        <library>
+            <fileset dir="${server.config.dir}/derby"/>
+        </library>
+    </jdbcDriver>
+    <properties databaseName="catalogDB" createDatabase="create" 
+               connectionAttributes="upgrade=true"/>
+</dataSource>
+
+<!-- Derby Embedded Driver -->
+<library id="derbyLib">
+    <fileset dir="${server.config.dir}/derby" includes="*.jar"/>
+</library>
+----
+
+*JPA Configuration (persistence.xml):*
+[source,xml]
+----
+<persistence-unit name="catalogPU">
+    <jta-data-source>jdbc/catalogDB</jta-data-source>
+    <class>io.microprofile.tutorial.store.product.entity.Product</class>
+    <properties>
+        <!-- Derby-specific properties -->
+        <property name="jakarta.persistence.jdbc.driver" value="org.apache.derby.jdbc.EmbeddedDriver"/>
+        <property name="jakarta.persistence.jdbc.url" value="jdbc:derby:catalogDB;create=true"/>
+        
+        <!-- JPA Schema generation -->
+        <property name="jakarta.persistence.schema-generation.database.action" value="drop-and-create"/>
+        
+        <!-- Data loading -->
+        <property name="jakarta.persistence.sql-load-script-source" value="META-INF/load-data.sql"/>
+    </properties>
+</persistence-unit>
+----
+
+==== Implementation Comparison
+
+[cols="1,1,1", options="header"]
+|===
+| Feature | JPA/Derby Implementation | In-Memory Implementation
+| Data Persistence | Survives application restarts | Lost on restart
+| Performance | Database I/O overhead | Fastest access (memory)
+| Configuration | Requires datasource setup | No configuration needed
+| Dependencies | Derby JARs, JPA provider | None (Java built-ins)
+| Threading | JPA managed transactions | ConcurrentHashMap + AtomicLong
+| Development Setup | Database initialization | Immediate startup
+| Production Use | Recommended for production | Development/testing only
+| Scalability | Database connection limits | Memory limitations
+| Data Integrity | ACID transactions | Thread-safe operations
+| Error Handling | Database exceptions | Simple validation
+|===
 
 [source,java]
 ----
@@ -166,69 +388,6 @@ The application follows a layered architecture pattern:
 * *Repository Layer* (`ProductRepository`) - Manages data access with in-memory storage
 * *Model Layer* (`Product`) - Represents the business entities
 
-=== Persistence Evolution
-
-This application originally used Jakarta Persistence with Derby for persistence, but has been refactored to use an in-memory implementation:
-
-[cols="1,1", options="header"]
-|===
-| Original Jakarta Persistence with Derby database | Current In-Memory Implementation
-| Required database configuration | No database configuration needed
-| Persistence across restarts | Data reset on restart
-| Used `EntityManager` and transactions | Uses `ConcurrentHashMap` and `AtomicLong``
-| Required datasource in _server.xml_ | No datasource configuration required
-| Complex error handling | Simplified error handling
-|===
-
-Key architectural benefits of this change:
-
-* *Simplified Deployment*: No external database required
-* *Faster Startup*: No database initialization delay
-* *Reduced Dependencies*: Fewer libraries and configurations
-* *Easier Testing*: No test database setup needed
-* *Consistent Development Environment*: Same behavior across all development machines
-
-=== Containerization with Docker
-
-The application can be packaged into a Docker container:
-
-[source,bash]
-----
-# Build the application
-mvn clean package
-
-# Build the Docker image
-docker build -t catalog-service .
-
-# Run the container
-docker run -d -p 5050:5050 --name catalog-service catalog-service
-----
-
-==== AtomicLong in Containerized Environments
-
-When running the application in Docker or Kubernetes, some important considerations about `AtomicLong` behavior:
-
-1. *Per-Container State*: Each container has its own `AtomicLong` instance and state
-2. *ID Collisions in Scaling*: When running multiple replicas, IDs are only unique within each container
-3. *Persistence and Restarts*: `AtomicLong` resets on container restart, potentially causing ID reuse
-
-To handle these issues in production multi-container environments:
-
-* *External ID Generation*: Consider using a distributed ID generator service
-* *Database Sequences*: For database implementations, use database sequences
-* *Universally Unique IDs*: Consider UUIDs instead of sequential numeric IDs
-* *Centralized Counter Service*: Use Redis or other distributed counter
-
-Example of adapting the code for distributed environments:
-
-[source,java]
-----
-// Using UUIDs for distributed environments
-private String generateId() {
-    return UUID.randomUUID().toString();
-}
-----
-
 == Development Workflow
 
 === Running Locally
@@ -266,6 +425,9 @@ catalog/
 │   │   │   └── META-INF/
 │   │   │       └── microprofile-config.properties
 │   │   └── webapp/                     # Web resources
+│   │       ├── index.html              # Landing page with API documentation
+│   │       └── WEB-INF/
+│   │           └── web.xml             # Web application configuration
 │   └── test/                           # Test classes
 └── pom.xml                             # Maven build file
 ----
@@ -300,10 +462,10 @@ mvn liberty:run
 
 [source,bash]
 ----
-
 # OpenAPI documentation
 curl -X GET http://localhost:5050/openapi
 ----
+
 
 To view the Swagger UI, open the following URL in your browser:
 http://localhost:5050/openapi/ui
@@ -451,7 +613,11 @@ This enables scanning of OpenAPI annotations in the application.
 
 === Common Issues
 
-* *OpenAPI documentation not available*: Make sure `mp.openapi.scan=true` is set in the _microprofile-configuration.properties_ file
+* *OpenAPI documentation not available*: Make sure `mp.openapi.scan=true` is set in the properties file
+* *Concurrent modification exceptions*: Ensure proper use of thread-safe collections and operations
+* *Service always in maintenance mode*: Check the `product.maintenanceMode` property in `microprofile-config.properties`
+* *API returning 503 responses*: The service is likely in maintenance mode; set `product.maintenanceMode=false` in configuration
+* *OpenAPI documentation not available*: Make sure `mp.openapi.scan=true` is set in the properties file
 * *Concurrent modification exceptions*: Ensure proper use of thread-safe collections and operations
 
 === Thread Safety Troubleshooting
@@ -507,9 +673,9 @@ public long getAndIncrement() {
 
 ==== Memory Ordering and Visibility
 
-`AtomicLong` ensures that memory visibility follows the Java Memory Model:
+AtomicLong ensures that memory visibility follows the Java Memory Model:
 
-* All writes to the `AtomicLong` by one thread are visible to reads from other threads
+* All writes to the AtomicLong by one thread are visible to reads from other threads
 * Memory barriers are established when performing atomic operations
 * Volatile semantics are guaranteed without using the volatile keyword
 
@@ -531,5 +697,3 @@ target/liberty/wlp/usr/servers/defaultServer/logs/
 == Resources
 
 * https://microprofile.io/[MicroProfile]
-
-
