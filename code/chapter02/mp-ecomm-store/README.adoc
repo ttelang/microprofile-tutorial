@@ -8,11 +8,6 @@
 
 This project demonstrates a MicroProfile-based e-commerce microservice. It provides REST endpoints for product management and showcases Jakarta EE 10 and MicroProfile 6.1 features in a practical application.
 
-== Prerequisites
-
-* JDK 17
-* Maven 3.8+
-
 == Development Environment
 
 This project includes a GitHub Codespace configuration with:
@@ -21,9 +16,19 @@ This project includes a GitHub Codespace configuration with:
 * Maven build tools
 * VS Code extensions for Java and MicroProfile development
 
+=== Installing SDKMAN
+
+If SDKMAN is not already installed, follow the official instructions at https://sdkman.io/install/ or run:
+
+[source,bash]
+----
+curl -s "https://get.sdkman.io" | bash
+source "$HOME/.sdkman/bin/sdkman-init.sh"
+----
+
 === Switching Java Versions
 
-The development container comes with SDKMAN installed, which allows easy switching between Java versions:
+SDKMAN allows easy switching between Java versions:
 
 [source,bash]
 ----
@@ -125,10 +130,20 @@ Once the server is running, you can access:
 
 Replace <hostname> with _localhost_ or the hostname of the system, where you are running this code.
 
-== Features and Future Enhancements
+=== Running Unit Tests
+
+To run the `ProductResourceTest.java` unit test, use the following Maven command from the project root:
+
+[source,bash]
+----
+mvn test -Dtest=io.microprofile.tutorial.store.product.resource.ProductResourceTest
+----
+
+This will execute the test and display the results in the terminal.
+
+== Key Features
 
 Current features:
 
 * Basic product listing functionality
-
 * JSON-B serialization
