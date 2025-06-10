@@ -7,22 +7,23 @@
         <feature>jsonb</feature>
         <feature>cdi</feature>
         <feature>persistence</feature>
-        <feature>jdbc-4.3</feature>
+        <feature>jdbc</feature>
     </featureManager>
 
-    <application location="catalog.war" contextRoot="catalog"/>
-
     <httpEndpoint httpPort="${default.http.port}" httpsPort="${default.https.port}"
-        id="defaultHttpEndpoint" host="*" />
+                  id="defaultHttpEndpoint" host="*" />
 
-    <!-- Derby Embedded Configuration -->
-    <dataSource id="productjpadatasource" jndiName="jdbc/productjpadatasource">
-        <jdbcDriver>
-            <library>
-                <fileset dir="${server.config.dir}/lib" includes="derby*.jar"/>
-            </library>
-        </jdbcDriver>
-        <properties.derby.embedded databaseName="ProductDB" createDatabase="create" />
+    <!-- Derby Library Configuration -->
+    <library id="derbyJDBCLib">
+        <fileset dir="${shared.resource.dir}" includes="derby*.jar"/>
+    </library>
+
+    <!-- Derby DataSource Configuration -->
+    <dataSource id="DefaultDataSource" jndiName="jdbc/catalogDB">
+        <jdbcDriver libraryRef="derbyJDBCLib"/>
+        <properties.derby.embedded databaseName="catalogDB" createDatabase="create"/>
     </dataSource>
+
+    <webApplication location="catalog.war" contextRoot="${app.context.root}"/>
 
 </server>
