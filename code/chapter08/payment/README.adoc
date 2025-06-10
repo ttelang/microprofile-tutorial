@@ -62,8 +62,7 @@ Payment capture operations use circuit breaker pattern:
 @CircuitBreaker(
     failureRatio = 0.5,
     requestVolumeThreshold = 4,
-    delay = 5000,
-    delayUnit = ChronoUnit.MILLIS
+    delay = 5000
 )
 ----
 
@@ -123,33 +122,6 @@ All critical operations have fallback methods that provide graceful degradation:
 * Request body: `{"cardNumber":"4111111111111111", "cardHolderName":"Test User", "expiryDate":"12/25", "securityCode":"123", "amount":100.00}`
 * Response: `{"status":"success", "message":"Payment authorized successfully", "transactionId":"TXN1234567890", "amount":100.00}`
 * Fallback Response: `{"status":"failed", "message":"Payment gateway unavailable. Please try again later.", "fallback":true}`
-
-=== POST /payment/api/verify
-* Verifies a payment transaction with aggressive retry policy
-* **Retry Configuration**: 5 attempts, 500ms delay, 200ms jitter
-* **Fallback**: Verification unavailable response
-* Example: `POST http://localhost:9080/payment/api/verify?transactionId=TXN1234567890`
-* Response: `{"transactionId":"TXN1234567890", "status":"verified", "timestamp":1234567890}`
-* Fallback Response: `{"status":"verification_unavailable", "message":"Verification service temporarily unavailable", "fallback":true}`
-
-=== POST /payment/api/capture
-* Captures an authorized payment with circuit breaker protection
-* **Retry Configuration**: 2 attempts, 2s delay
-* **Circuit Breaker**: 50% failure ratio, 4 request threshold
-* **Timeout**: 3 seconds
-* **Fallback**: Deferred capture response
-* Example: `POST http://localhost:9080/payment/api/capture?transactionId=TXN1234567890`
-* Response: `{"transactionId":"TXN1234567890", "status":"captured", "capturedAmount":"100.00", "timestamp":1234567890}`
-* Fallback Response: `{"status":"capture_deferred", "message":"Payment capture queued for retry", "fallback":true}`
-
-=== POST /payment/api/refund
-* Processes a payment refund with conservative retry policy
-* **Retry Configuration**: 1 attempt, 3s delay
-* **Abort On**: IllegalArgumentException (invalid amount)
-* **Fallback**: Manual processing queue
-* Example: `POST http://localhost:9080/payment/api/refund?transactionId=TXN1234567890&amount=50.00`
-* Response: `{"transactionId":"TXN1234567890", "status":"refunded", "refundAmount":"50.00", "refundId":"REF1234567890"}`
-* Fallback Response: `{"status":"refund_pending", "message":"Refund request queued for manual processing", "fallback":true}`
 
 === POST /payment/api/payment-config/process-example
 * Example endpoint demonstrating payment processing with configuration
@@ -394,23 +366,22 @@ For CWWKZ0004E deployment errors, check the server logs at:
 
 The Payment Service includes several test scripts to demonstrate and validate fault tolerance features:
 
-==== test-payment-fault-tolerance-suite.sh
-This is a comprehensive test suite that exercises all fault tolerance features:
+==== test-payment-basic.sh
 
-* Authorization retry policy
-* Verification aggressive retry
-* Capture with circuit breaker and timeout
-* Refund with conservative retry
-* Bulkhead pattern for concurrent request limiting
+Basic functionality test to verify core payment operations:
+
+* Configuration retrieval
+* Simple payment processing
+* Error handling
 
 [source,bash]
 ----
-# Run the complete fault tolerance test suite
-chmod +x test-payment-fault-tolerance-suite.sh
-./test-payment-fault-tolerance-suite.sh
+# Test basic payment operations
+chmod +x test-payment-basic.sh
+./test-payment-basic.sh
 ----
 
-==== test-payment-retry-scenarios.sh
+==== test-payment-retry.sh
 Tests various retry scenarios with different triggers:
 
 * Normal payment processing (successful)
@@ -421,40 +392,8 @@ Tests various retry scenarios with different triggers:
 [source,bash]
 ----
 # Test retry scenarios
-chmod +x test-payment-retry-scenarios.sh
-./test-payment-retry-scenarios.sh
-----
-
-==== test-payment-retry-details.sh
-
-Demonstrates detailed retry behavior:
-
-* Retry count verification
-* Delay between retries
-* Jitter observation
-* Max duration limits
-
-[source,bash]
-----
-# Test retry details
-chmod +x test-payment-retry-details.sh
-./test-payment-retry-details.sh
-----
-
-==== test-payment-retry-comprehensive.sh
-
-Combines multiple retry scenarios in a single test run:
-
-* Success cases
-* Transient failure cases
-* Permanent failure cases
-* Abort conditions
-
-[source,bash]
-----
-# Test comprehensive retry scenarios
-chmod +x test-payment-retry-comprehensive.sh
-./test-payment-retry-comprehensive.sh
+chmod +x test-payment-retry.sh
+./test-payment-retry.sh
 ----
 
 ==== test-payment-concurrent-load.sh
@@ -472,7 +411,7 @@ chmod +x test-payment-concurrent-load.sh
 ./test-payment-concurrent-load.sh
 ----
 
-==== test-payment-async-analysis.sh
+==== test-payment-async.sh
 
 Analyzes asynchronous processing behavior:
 
@@ -483,8 +422,8 @@ Analyzes asynchronous processing behavior:
 [source,bash]
 ----
 # Analyze asynchronous processing
-chmod +x test-payment-async-analysis.sh
-./test-payment-async-analysis.sh
+chmod +x test-payment-async.sh
+./test-payment-async.sh
 ----
 
 ==== test-payment-bulkhead.sh
@@ -500,21 +439,6 @@ Demonstrates the bulkhead pattern by sending concurrent requests:
 # Test bulkhead functionality with concurrent requests
 chmod +x test-payment-bulkhead.sh
 ./test-payment-bulkhead.sh
-----
-
-==== test-payment-basic.sh
-
-Basic functionality test to verify core payment operations:
-
-* Configuration retrieval
-* Simple payment processing
-* Error handling
-
-[source,bash]
-----
-# Test basic payment operations
-chmod +x test-payment-basic.sh
-./test-payment-basic.sh
 ----
 
 === Running the Tests
