@@ -7,7 +7,7 @@
 
 == Overview
 
-This project demonstrates a microservices-based e-commerce application built with Jakarta EE and MicroProfile, running on Open Liberty runtime. The application is composed of multiple independent services that work together to provide a complete e-commerce solution.
+This project demonstrates a microservices-based e-commerce application built with Jakarta EE and MicroProfile. The application is composed of multiple independent services that work together to provide a complete e-commerce solution.
 
 [.lead]
 A practical demonstration of MicroProfile capabilities for building cloud-native Java microservices.
@@ -17,7 +17,6 @@ A practical demonstration of MicroProfile capabilities for building cloud-native
 This project is part of the official MicroProfile 6.1 API Tutorial.
 ====
 
-See link:service-interactions.adoc[Service Interactions] for details on how the services work together.
 
 == Services
 

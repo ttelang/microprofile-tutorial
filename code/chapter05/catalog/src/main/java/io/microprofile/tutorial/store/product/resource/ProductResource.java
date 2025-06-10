@@ -14,7 +14,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import io.microprofile.tutorial.store.product.entity.Product;
 import io.microprofile.tutorial.store.product.service.ProductService;
-import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.context.RequestScoped;
 import jakarta.inject.Inject;
 
 import jakarta.ws.rs.Consumes;
@@ -29,7 +29,7 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
-@ApplicationScoped
+@RequestScoped
 @Path("/products")
 @Tag(name = "Product Resource", description = "CRUD operations for products")
 public class ProductResource {
@@ -37,7 +37,7 @@ public class ProductResource {
     private static final Logger LOGGER = Logger.getLogger(ProductResource.class.getName());
 
     @Inject
-    @ConfigProperty(name="product.maintenanceMode", defaultValue="false")
+    @ConfigProperty(name="product.maintenanceMode")
     private boolean maintenanceMode;
 
     @Inject
