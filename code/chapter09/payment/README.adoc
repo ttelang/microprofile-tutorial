@@ -873,52 +873,152 @@ For testing purposes, the following scenarios are simulated:
 * Verification has a 50% random failure rate to demonstrate retry capabilities
 * Empty amount values in refund requests trigger abort conditions
 
-== Integration with Other Services
+== MicroProfile Telemetry Implementation
 
-The Payment Service integrates with several other microservices in the application:
+The Payment Service implements distributed tracing using MicroProfile Telemetry 1.1, which is based on OpenTelemetry standards. This enables end-to-end visibility of payment transactions across microservices and external dependencies.
 
-=== Order Service Integration
+=== Telemetry Configuration
 
-* **Direction**: Bi-directional
-* **Endpoints Used**:
-  - `GET /order/api/orders/{orderId}` - Get order details before payment
-  - `PATCH /order/api/orders/{orderId}/status` - Update order status after payment
-* **Integration Flow**:
-  1. Payment Service receives payment request with orderId
-  2. Payment Service validates order exists and status is valid for payment
-  3. After payment processing, Payment Service updates Order status
-  4. Payment status `COMPLETED` → Order status `PAID`
-  5. Payment status `FAILED` → Order status `PAYMENT_FAILED`
+The service is configured to send telemetry data to Jaeger, enabling comprehensive transaction monitoring:
 
-=== User Service Integration
+==== Application Configuration (microprofile-config.properties)
 
-* **Direction**: Outbound only
-* **Endpoints Used**:
-  - `GET /user/api/users/{userId}` - Validate user exists
-  - `GET /user/api/users/{userId}/payment-methods` - Get saved payment methods
-* **Integration Flow**:
-  1. Payment Service validates user exists before processing payment
-  2. Payment Service can retrieve saved payment methods for user
-  3. User payment history is updated after successful payment
+[source,properties]
+----
+# MicroProfile Telemetry Configuration
+otel.service.name=payment-service
+otel.sdk.disabled=false
+otel.metrics.exporter=none
+otel.logs.exporter=none
+----
 
-=== Inventory Service Integration
+=== Automatic Instrumentation
 
-* **Direction**: Indirect via Order Service
-* **Purpose**: Ensure inventory is reserved during payment processing
-* **Flow**:
-  1. Order Service has already reserved inventory
-  2. Successful payment confirms inventory allocation
-  3. Failed payment may release inventory (via Order Service)
+MicroProfile Telemetry provides automatic instrumentation for:
 
-=== Authentication Integration
+* Jakarta Restful Web Services endpoints (inbound and outbound HTTP requests)
+* CDI method invocations 
+* MicroProfile Rest Client calls
 
-* **Security**: Secured endpoints require valid JWT token
-* **Claims Required**:
-  - `sub` - Subject identifier (user ID)
-  - `roles` - User roles for authorization
-* **Authorization Rules**:
-  - View payment history: Authenticated user or admin
-  - Process payments: Authenticated user
-  - Refund payments: Admin role only
-  - View all payments: Admin role only
+This enables tracing without modifying application code, capturing:
+
+* HTTP request information (method, URL, status code)
+* Transaction timing and duration
+* Service dependencies and call hierarchy
+
+=== Manual Instrumentation
+
+For enhanced visibility, the Payment Service also implements manual instrumentation:
+
+[source,java]
+----
+private Tracer tracer;   // Injected tracer for OpenTelemetry
+
+@PostConstruct
+public void init() {
+    // Programmatic tracer access - the correct approach
+    this.tracer = GlobalOpenTelemetry.getTracer("payment-service", "1.0.0");
+    logger.info("Tracer initialized successfully");
+}
+
+// Create explicit span with business context
+Span span = tracer.spanBuilder("payment.process")
+    .setAttribute("payment.amount", paymentDetails.getAmount().toString())
+    .setAttribute("payment.method", "credit_card")
+    .setAttribute("payment.service", "payment-service")
+    .startSpan();
+
+try (io.opentelemetry.context.Scope scope = span.makeCurrent()) {
+    // Business logic here
+    span.addEvent("Starting payment processing");
+    
+    // Add result information
+    span.setStatus(StatusCode.OK);
+} catch (Exception e) {
+    // Record error details
+    span.recordException(e);
+    span.setStatus(StatusCode.ERROR, e.getMessage());
+    throw e;
+} finally {
+    span.end();  // Always end the span
+}
+----
+
+=== Key Telemetry Points
+
+The service captures telemetry at critical transaction points:
+
+1. **Payment Authorization**: Complete trace of payment authorization flow
+2. **Payment Verification**: Detailed verification steps with fraud check results
+3. **External Service Calls**: Timing of gateway communications
+4. **Retry Operations**: Visibility into retry attempts and fallbacks
+5. **Error Handling**: Detailed error context and fault tolerance behavior
+
+=== Business Context Enrichment
+
+Traces are enriched with business context to enable business-oriented analysis:
+
+* **Payment Amounts**: Track transaction values for business insights
+* **Payment Methods**: Categorize by payment method for pattern analysis
+* **Transaction IDs**: Correlate with order management systems
+* **Processing Time**: Measure critical business SLAs
+* **Error Categories**: Classify errors for targeted improvements
+
+=== Viewing Telemetry Data
+
+Telemetry data can be viewed in Jaeger UI:
+
+[source,bash]
+----
+# Start Jaeger container (if not already running)
+docker run -d --name jaeger \
+  -e COLLECTOR_OTLP_ENABLED=true \
+  -p 16686:16686 \
+  -p 4317:4317 \
+  -p 4318:4318 \
+  jaegertracing/all-in-one:latest
+
+# Access Jaeger UI
+open http://localhost:16686
+----
+
+In the Jaeger UI:
+1. Select "payment-service" from the Service dropdown
+2. Choose an operation or search by transaction attributes
+3. Explore the full transaction trace across services
+
+=== Troubleshooting Telemetry
+
+If telemetry data is not appearing in Jaeger:
+
+1. **Verify Jaeger is running** with OTLP ports exposed (4317, 4318)
+2. **Check Liberty server configuration** in server.xml
+3. **Validate application configuration** in microprofile-config.properties
+4. **Ensure trace application is enabled** with `<trace enabled="true" type="ALL" />`
+5. **Check network connectivity** between the service and Jaeger
+6. **Inspect Liberty server logs** for telemetry-related messages
+
+=== Testing Telemetry
+
+To generate and verify telemetry data:
+
+[source,bash]
+----
+# Generate sample telemetry with payment request
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"cardNumber":"4111-1111-1111-1111", "cardHolderName":"Test User", "expiryDate":"12/25", "securityCode":"123", "amount":75.50}' \
+  http://localhost:9080/payment/api/payments
+
+# Check for payment service in Jaeger UI services dropdown
+curl -s http://localhost:16686/api/services
+----
+
+=== Benefits of Telemetry Implementation
+
+1. **End-to-End Transaction Visibility**: Follow payment flows across services
+2. **Performance Monitoring**: Identify bottlenecks and optimization opportunities
+3. **Error Detection**: Quickly locate and diagnose failures
+4. **Dependency Analysis**: Understand service dependencies and impacts
+5. **Business Insights**: Correlate technical metrics with business outcomes
+6. **Operational Excellence**: Improve MTTR and system reliability
 

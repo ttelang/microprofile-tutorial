@@ -1,12 +1,33 @@
 = User Service - MicroProfile E-Commerce Store
 :toc: left
-:toclevels: 3
-:sectnums:
+:icons: font
 :source-highlighter: highlightjs
+:sectnums:
+:imagesdir: images
+
+This document provides information about the User Management Service, part of the MicroProfile tutorial store application.
 
 == Overview
+The User Management Service is responsible for user operations including:
 
-The User Service is a core microservice in the MicroProfile E-Commerce Store application. It provides secure user management operations with JWT-based authentication and authorization.
+* User registration and management
+* User profile information
+* Basic authentication
+
+This service demonstrates MicroProfile and Jakarta EE technologies in a microservice architecture.
+
+== Technology Stack
+
+The User Management Service uses the following technologies:
+
+* Jakarta EE 10
+** RESTful Web Services 3.1
+** Context and Dependency Injection 4.0
+** Bean Validation 3.0
+** JSON Binding 3.0
+* MicroProfile 6.1
+** OpenAPI 3.1
+* Maven
 
 == Features
 
@@ -17,13 +38,55 @@ The User Service is a core microservice in the MicroProfile E-Commerce Store app
 
 == Technology Stack
 
-* **Runtime**: Open Liberty
 * **Framework**: MicroProfile, Jakarta EE
 * **Security**: MicroProfile JWT
 * **API**: Jakarta Restful Web Services, MicroProfile OpenAPI
 * **Build**: Maven
 
+== Project Structure
+
+[source]
+----
+user/
+├── src/
+│   ├── main/
+│   │   ├── java/
+│   │   │   └── io/microprofile/tutorial/store/user/
+│   │   │       ├── entity/       # Domain objects
+│   │   │       ├── exception/    # Custom exceptions
+│   │   │       ├── repository/   # Data access layer
+│   │   │       ├── resource/     # REST endpoints
+│   │   │       ├── service/      # Business logic
+│   │   │       └── UserApplication.java
+│   │   ├── liberty/
+│   │   │   └── config/
+│   │   │       └── server.xml    # Liberty server configuration
+│   │   ├── resources/
+│   │   │   └── META-INF/
+│   │   │       └── microprofile-config.properties
+│   │   └── webapp/
+│   │       └── index.html        # Welcome page
+│   └── test/                     # Unit and integration tests
+└── pom.xml                       # Maven configuration
+----
+
 == API Endpoints
+
+The service exposes the following RESTful endpoints:
+
+[cols="2,1,4", options="header"]
+|===
+| Endpoint | Method | Description
+
+| `/api/users` | GET | Retrieve all users
+| `/api/users/{id}` | GET | Retrieve a specific user by ID
+| `/api/users` | POST | Create a new user
+| `/api/users/{id}` | PUT | Update an existing user
+| `/api/users/{id}` | DELETE | Delete a user
+| `/api/users/profile` | GET | Get authenticated user's profile (generic auth)
+| `/api/users/user-profile` | GET | Simple JWT demo endpoint
+| `/api/users/jwt` | GET | Get demo JWT token
+|===
 
 === Secured Endpoints
 
@@ -125,13 +188,41 @@ The service requires:
 
 == Development Setup
 
-=== Prerequisites
+==== Prerequisites
 
-* Java 17 or higher
-* Maven 3.6+
-* Open Liberty runtime
+* JDK 17 or later
+* Maven 3.8+
+* Docker (optional, for containerized deployment)
 
 === Building the Service
+
+==== Local Development
+
+1. Download the source code:
++
+[source,bash]
+----
+# Download the code branch as ZIP and extract
+curl -L https://github.com/ttelang/microprofile-tutorial/archive/refs/heads/code.zip -o microprofile-tutorial.zip
+unzip microprofile-tutorial.zip
+cd microprofile-tutorial/code/user
+----
+
+2. Build the project:
++
+[source,bash]
+----
+mvn clean package
+----
+
+3. Run the service:
++
+[source,bash]
+----
+mvn liberty:run
+----
+
+or for, development mode
 
 [source,bash]
 ----
@@ -140,6 +231,26 @@ mvn clean package
 
 # Run with Liberty dev mode
 mvn liberty:dev
+----
+
+4. The service will be available at:
++
+[source]
+----
+http://localhost:6050/user/api/users
+----
+
+=== Docker Deployment
+
+To build and run using Docker:
+
+[source,bash]
+----
+# Build the Docker image
+docker build -t microprofile-tutorial/user-service .
+
+# Run the container
+docker run -p 6050:6050 microprofile-tutorial/user-service
 ----
 
 === Testing with JWT Tokens
@@ -243,7 +354,7 @@ After running jwtenizr, this file contains the signed JWT token ready for use.
 [source,bash]
 ----
 # Generate token and test endpoint in one command
-java -Dverbose -jar jwtenizr.jar http://localhost:6050/user/users/user-profile
+java -Dverbose -jar jwtenizr.jar http://localhost:6050/user/api/users/user-profile
 ----
 
 ====== Manual Testing with curl
