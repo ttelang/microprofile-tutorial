@@ -1,8 +1,9 @@
 package io.microprofile.tutorial.store.product.service;
 
 import io.microprofile.tutorial.store.product.entity.Product;
-import io.microprofile.tutorial.store.product.repository.ProductRepository;
-import jakarta.enterprise.context.RequestScoped;
+import io.microprofile.tutorial.store.product.repository.JPA;
+import io.microprofile.tutorial.store.product.repository.ProductRepositoryInterface;
+import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.List;
 import java.util.logging.Logger;
@@ -11,13 +12,14 @@ import java.util.logging.Logger;
  * Service class for Product operations.
  * Contains business logic for product management.
  */
-@RequestScoped
+@ApplicationScoped
 public class ProductService {
     
     private static final Logger LOGGER = Logger.getLogger(ProductService.class.getName());
 
     @Inject
-    private ProductRepository repository;
+    @JPA
+    private ProductRepositoryInterface repository;
 
     /**
      * Retrieves all products.

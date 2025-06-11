@@ -15,7 +15,7 @@ public class PaymentServiceConfigSource implements ConfigSource {
     private static final Map<String, String> properties = new HashMap<>();
 
     private static final String NAME = "PaymentServiceConfigSource";
-    private static final int ORDINAL = 600; // Higher ordinal means higher priority
+    private static final int ORDINAL = 50; // Higher ordinal means higher priority
     
     public PaymentServiceConfigSource() {
        // Load payment service configurations dynamically

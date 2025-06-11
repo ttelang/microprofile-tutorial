@@ -1,14 +1,4 @@
-# Payment Service
 
-This microservice is part of the Jakarta EE and MicroProfile-based e-commerce application. It handles payment processing and transaction management.
-
-## Features
-
-- Payment transaction processing
-- Multiple payment methods support
-- Transaction status tracking
-- Order payment integration
-- User payment history
 
 ## Endpoints
 

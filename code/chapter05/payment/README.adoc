@@ -187,6 +187,16 @@ mvn liberty:run
 # Windows CMD
 set PAYMENT_GATEWAY_ENDPOINT=https://env-api.paymentgateway.com
 mvn liberty:run
+
+# To clear the environment variable:
+# Linux/macOS
+unset PAYMENT_GATEWAY_ENDPOINT
+
+# Windows PowerShell
+Remove-Item Env:PAYMENT_GATEWAY_ENDPOINT
+
+# Windows CMD
+set PAYMENT_GATEWAY_ENDPOINT=
 ----
 
 ===== 4. Using microprofile-config.properties File (build time)
