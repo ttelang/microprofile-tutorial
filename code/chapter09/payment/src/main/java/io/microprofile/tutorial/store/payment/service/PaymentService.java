@@ -1,6 +1,9 @@
 package io.microprofile.tutorial.store.payment.service;
 
 import io.microprofile.tutorial.store.payment.exception.PaymentProcessingException;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.api.trace.Span;
 import io.microprofile.tutorial.store.payment.entity.PaymentDetails;
 import io.microprofile.tutorial.store.payment.exception.CriticalPaymentException;
 
@@ -11,7 +14,8 @@ import org.eclipse.microprofile.faulttolerance.Retry;
 import org.eclipse.microprofile.faulttolerance.Timeout;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
+import jakarta.annotation.PostConstruct;
+
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -22,8 +26,14 @@ public class PaymentService {
 
     private static final Logger logger = Logger.getLogger(PaymentService.class.getName());
 
-    @ConfigProperty(name = "payment.gateway.endpoint", defaultValue = "https://defaultapi.paymentgateway.com")
-    private String endpoint;
+    private Tracer tracer;   // Injected tracer for OpenTelemetry
+
+    @PostConstruct
+    public void init() {
+        // Programmatic tracer access - the correct approach
+        this.tracer = GlobalOpenTelemetry.getTracer("payment-service", "1.0.0");
+        logger.info("Tracer initialized successfully");
+    }
 
     /**
      * Process the payment request with automatic tracing via MicroProfile Telemetry.
@@ -39,23 +49,39 @@ public class PaymentService {
     @Fallback(fallbackMethod = "fallbackProcessPayment")
     @Bulkhead(value=5)
     public CompletionStage<String> processPayment(PaymentDetails paymentDetails) throws PaymentProcessingException {
-        // MicroProfile Telemetry automatically traces this method
-        String maskedCardNumber = maskCardNumber(paymentDetails.getCardNumber());
+        // Create explicit span for payment processing to help with debugging
+        Span span = tracer.spanBuilder("payment.process")
+            .setAttribute("payment.amount", paymentDetails.getAmount().toString())
+            .setAttribute("payment.method", "credit_card")
+            .setAttribute("payment.service", "payment-service") 
+            .startSpan();
         
-        logger.info(() -> String.format("Processing payment - Amount: %s, Gateway: %s, Card: %s", 
-                paymentDetails.getAmount(), endpoint, maskedCardNumber));
-        
-        simulateDelay();
+        try (io.opentelemetry.context.Scope scope = span.makeCurrent()) {
+            // MicroProfile Telemetry automatically traces this method
+            String maskedCardNumber = maskCardNumber(paymentDetails.getCardNumber());
+            
+            logger.info(String.format("Processing payment - Amount: %s, Card: %s", 
+                    paymentDetails.getAmount(), maskedCardNumber));
+            
+            span.addEvent("Starting payment processing");
+            simulateDelay();
 
-        // Simulating a transient failure
-        if (Math.random() > 0.7) {
-            logger.warning("Payment processing failed due to transient error");
-            throw new PaymentProcessingException("Temporary payment processing failure");
+            // Simulating a transient failure
+            if (Math.random() > 0.7) {
+                span.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, "Payment processing failed");
+                span.addEvent("Payment processing failed due to transient error");
+                logger.warning("Payment processing failed due to transient error");
+                throw new PaymentProcessingException("Temporary payment processing failure");
+            }
+
+            // Simulating successful processing
+            span.setStatus(io.opentelemetry.api.trace.StatusCode.OK);
+            span.addEvent("Payment processed successfully");
+            logger.info("Payment processed successfully");
+            return CompletableFuture.completedFuture("{\"status\":\"success\", \"message\":\"Payment processed successfully.\"}");
+        } finally {
+            span.end();
         }
-
-        // Simulating successful processing
-        logger.info("Payment processed successfully");
-        return CompletableFuture.completedFuture("{\"status\":\"success\", \"message\":\"Payment processed successfully.\"}");
     }
 
     /**
@@ -83,7 +109,6 @@ public class PaymentService {
         if (cardNumber == null || cardNumber.length() < 4) {
             return "INVALID_CARD";
         }
-        
         int visibleDigits = 4;
         int length = cardNumber.length();
         

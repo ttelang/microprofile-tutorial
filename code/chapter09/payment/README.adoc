@@ -792,87 +792,6 @@ For detailed information about MicroProfile Fault Tolerance, refer to:
 * https://microprofile.io/
 * https://www.ibm.com/docs/en/was-liberty/base?topic=liberty-microprofile-fault-tolerance
 
-== Payment Flow
-
-The Payment Service implements a complete payment processing flow:
-
-[plantuml,payment-flow,png]
-----
-@startuml
-skinparam backgroundColor transparent
-skinparam handwritten true
-
-state "PENDING" as pending
-state "PROCESSING" as processing
-state "COMPLETED" as completed
-state "FAILED" as failed
-state "REFUNDED" as refunded
-state "CANCELLED" as cancelled
-
-[*] --> pending : Create payment
-pending --> processing : Process payment
-processing --> completed : Success
-processing --> failed : Error
-completed --> refunded : Refund request
-pending --> cancelled : Cancel
-failed --> [*]
-refunded --> [*]
-cancelled --> [*]
-completed --> [*]
-@enduml
-----
-
-1. **Create a payment** with status `PENDING` (POST /api/payments)
-2. **Process the payment** to change status to `PROCESSING` (POST /api/payments/{id}/process)
-3. Payment will automatically be updated to either:
-   * `COMPLETED` - Successful payment processing
-   * `FAILED` - Payment rejected or processing error
-4. If needed, payments can be:
-   * `REFUNDED` - For returning funds to the customer
-   * `CANCELLED` - For stopping a pending payment
-
-=== Payment Status Rules
-
-[cols="1,2,2", options="header"]
-|===
-|Status
-|Description
-|Available Actions
-
-|PENDING
-|Payment created but not yet processed
-|Process, Cancel
-
-|PROCESSING
-|Payment being processed by payment gateway
-|None (transitional state)
-
-|COMPLETED
-|Payment successfully processed
-|Refund
-
-|FAILED
-|Payment processing unsuccessful
-|Create new payment
-
-|REFUNDED
-|Payment returned to customer
-|None (terminal state)
-
-|CANCELLED
-|Payment cancelled before processing
-|Create new payment
-|===
-
-=== Test Scenarios
-
-For testing purposes, the following scenarios are simulated:
-
-* Payments with amounts ending in `.00` will fail
-* Payments with card numbers ending in `0000` trigger retry mechanisms
-* Verification has a 50% random failure rate to demonstrate retry capabilities
-* Empty amount values in refund requests trigger abort conditions
-
 == MicroProfile Telemetry Implementation
 
 The Payment Service implements distributed tracing using MicroProfile Telemetry 1.1, which is based on OpenTelemetry standards. This enables end-to-end visibility of payment transactions across microservices and external dependencies.
@@ -971,12 +890,13 @@ Telemetry data can be viewed in Jaeger UI:
 [source,bash]
 ----
 # Start Jaeger container (if not already running)
-docker run -d --name jaeger \
-  -e COLLECTOR_OTLP_ENABLED=true \
+docker run --rm --name jaeger \
   -p 16686:16686 \
   -p 4317:4317 \
   -p 4318:4318 \
-  jaegertracing/all-in-one:latest
+  -p 5778:5778 \
+  -p 9411:9411 \
+  jaegertracing/jaeger:2.7.0
 
 # Access Jaeger UI
 open http://localhost:16686
@@ -1021,4 +941,3 @@ curl -s http://localhost:16686/api/services
 4. **Dependency Analysis**: Understand service dependencies and impacts
 5. **Business Insights**: Correlate technical metrics with business outcomes
 6. **Operational Excellence**: Improve MTTR and system reliability
-
