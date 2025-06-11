@@ -70,8 +70,8 @@ The application is split into the following microservices:
 +
 [source,bash]
 ----
-git clone https://github.com/your-username/liberty-rest-app.git
-cd liberty-rest-app
+git clone https://github.com/microprofile/microprofile-tutorial.git
+cd microprofile-tutorial/code
 ----
 
 2. Start each microservice individually:
@@ -293,7 +293,7 @@ curl -X GET "http://localhost:9050/catalog/api/products/search?keyword=laptop"
 
 [source]
 ----
-liberty-rest-app/
+code/
 ├── user/               # User management service
 ├── inventory/          # Inventory management service
 ├── order/              # Order management service
@@ -332,15 +332,3 @@ service/
 3. Update the `pom.xml` file with appropriate details
 4. Implement your service-specific functionality
 5. Configure the Liberty server in `src/main/liberty/config/`
-
-== Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b my-new-feature`
-3. Commit your changes: `git commit -am 'Add some feature'`
-4. Push to the branch: `git push origin my-new-feature`
-5. Submit a pull request
-
-== License
-
-This project is licensed under the Apache License 2.0 - see the LICENSE file for details.

@@ -36,14 +36,14 @@ if check_service "http://localhost:16686" "Jaeger UI"; then
     echo
     
     # Check if Liberty server is running
-    if check_service "http://localhost:9080/payment/health" "Payment Service"; then
+    if check_service "http://localhost:9080/health" "Payment Service"; then
         echo
         echo "🧪 Testing Payment Service with Telemetry..."
         echo
         
         # Test 1: Basic payment processing
         echo "📝 Test 1: Processing a successful payment..."
-        curl -X POST http://localhost:9080/payment/payments \
+        curl -X POST http://localhost:9080/payment/api/verify \
              -H "Content-Type: application/json" \
              -d '{
                  "cardNumber": "4111111111111111",
@@ -59,7 +59,7 @@ if check_service "http://localhost:16686" "Jaeger UI"; then
         
         # Test 2: Payment with fraud check failure
         echo "📝 Test 2: Processing payment that will trigger fraud check..."
-        curl -X POST http://localhost:9080/payment/payments \
+        curl -X POST http://localhost:9080/payment/api/verify \
              -H "Content-Type: application/json" \
              -d '{
                  "cardNumber": "4111111111110000",
@@ -75,7 +75,7 @@ if check_service "http://localhost:16686" "Jaeger UI"; then
         
         # Test 3: Payment with insufficient funds
         echo "📝 Test 3: Processing payment with insufficient funds..."
-        curl -X POST http://localhost:9080/payment/payments \
+        curl -X POST http://localhost:9080/payment/api/verify \
              -H "Content-Type: application/json" \
              -d '{
                  "cardNumber": "4111111111111111",
@@ -92,7 +92,7 @@ if check_service "http://localhost:16686" "Jaeger UI"; then
         # Test 4: Multiple concurrent payments to demonstrate distributed tracing
         echo "📝 Test 4: Generating multiple concurrent payments..."
         for i in {1..5}; do
-            curl -X POST http://localhost:9080/payment/payments \
+            curl -X POST http://localhost:9080/payment/api/verify \
                  -H "Content-Type: application/json" \
                  -d "{
                      \"cardNumber\": \"41111111111111$i$i\",

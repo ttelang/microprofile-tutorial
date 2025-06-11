@@ -22,7 +22,6 @@ This project demonstrates the key capabilities of MicroProfile OpenAPI, MicroPro
 * *Dual Persistence Implementation* with configurable JPA/Derby database and in-memory storage options
 * *CDI Qualifiers* for dependency injection and implementation switching
 * *Derby Database Support* with automatic JAR deployment via Liberty Maven plugin
-* *HTML Landing Page* with API documentation and service status
 * *Maintenance Mode* support with configuration-based toggles
 
 == MicroProfile Features Implemented

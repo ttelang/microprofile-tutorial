@@ -9,6 +9,7 @@ import org.eclipse.microprofile.faulttolerance.Bulkhead;
 import org.eclipse.microprofile.faulttolerance.Fallback;
 import org.eclipse.microprofile.faulttolerance.Retry;
 import org.eclipse.microprofile.faulttolerance.Timeout;
+import org.eclipse.microprofile.faulttolerance.CircuitBreaker;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -31,10 +32,23 @@ public class PaymentService {
      */
     @Asynchronous
     @Timeout(3000)
-    @Retry(maxRetries = 3, delay = 2000, jitter = 500, retryOn = PaymentProcessingException.class, abortOn = CriticalPaymentException.class)
+    @Retry(maxRetries = 3, 
+        delay = 2000, 
+        jitter = 500, 
+        retryOn = PaymentProcessingException.class, 
+        abortOn = CriticalPaymentException.class)
     @Fallback(fallbackMethod = "fallbackProcessPayment")
     @Bulkhead(value=5)
+    @CircuitBreaker(
+        failureRatio = 0.5,
+        requestVolumeThreshold = 4,
+        delay = 3000
+    )
     public CompletionStage<String> processPayment(PaymentDetails paymentDetails) throws PaymentProcessingException {
+        
+        // Example logic to call the payment gateway API
+        System.out.println("Calling payment gateway API at: " + endpoint);
+
         simulateDelay();
 
         System.out.println("Processing payment for amount: " + paymentDetails.getAmount());

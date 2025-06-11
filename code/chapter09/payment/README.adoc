@@ -1,4 +1,11 @@
 = Payment Service
+:toc: macro
+:toclevels: 3
+:icons: font
+:source-highlighter: highlight.js
+:experimental:
+
+toc::[]
 
 This microservice is part of the Jakarta EE 10 and MicroProfile 6.1-based e-commerce application. It handles payment processing and transaction management.
 
@@ -23,7 +30,7 @@ The Payment Service implements comprehensive fault tolerance patterns using Micr
 
 The service implements different retry strategies based on operation criticality:
 
-==== Authorization Retry (@Retry)
+==== Payment Authorization Retry (@Retry)
 * **Max Retries**: 3 attempts
 * **Delay**: 1000ms with 500ms jitter
 * **Max Duration**: 10 seconds
@@ -41,18 +48,6 @@ The service implements different retry strategies based on operation criticality
 )
 ----
 
-==== Verification Retry (Aggressive)
-* **Max Retries**: 5 attempts
-* **Delay**: 500ms with 200ms jitter
-* **Max Duration**: 15 seconds
-* **Use Case**: Critical verification operations that must succeed
-
-==== Refund Retry (Conservative)
-* **Max Retries**: 1 attempt only
-* **Delay**: 3000ms
-* **Abort On**: IllegalArgumentException
-* **Use Case**: Financial operations requiring careful handling
-
 === Circuit Breaker Protection
 
 Payment capture operations use circuit breaker pattern:
@@ -62,8 +57,7 @@ Payment capture operations use circuit breaker pattern:
 @CircuitBreaker(
     failureRatio = 0.5,
     requestVolumeThreshold = 4,
-    delay = 5000,
-    delayUnit = ChronoUnit.MILLIS
+    delay = 5000
 )
 ----
 
@@ -77,7 +71,7 @@ Operations with potential long delays are protected with timeouts:
 
 [source,java]
 ----
-@Timeout(value = 3000, unit = ChronoUnit.MILLIS)
+@Timeout(value = 3000)
 ----
 
 === Bulkhead Pattern
@@ -98,9 +92,6 @@ The bulkhead pattern limits concurrent requests to prevent system overload:
 All critical operations have fallback methods that provide graceful degradation:
 
 * **Payment Authorization Fallback**: Returns service unavailable with retry instructions
-* **Verification Fallback**: Queues verification for later processing
-* **Capture Fallback**: Defers capture operation
-* **Refund Fallback**: Queues refund for manual processing
 
 == Endpoints
 
@@ -285,7 +276,7 @@ set PAYMENT_GATEWAY_ENDPOINT=https://env-api.paymentgateway.com
 mvn liberty:run
 ----
 
-===== 4. Using microprofile-config.properties File (build time)
+===== 4. Using microprofile-config.properties File
 
 Edit the file at `src/main/resources/META-INF/microprofile-config.properties`:
 
@@ -367,23 +358,22 @@ For CWWKZ0004E deployment errors, check the server logs at:
 
 The Payment Service includes several test scripts to demonstrate and validate fault tolerance features:
 
-==== test-payment-fault-tolerance-suite.sh
-This is a comprehensive test suite that exercises all fault tolerance features:
+==== test-payment-basic.sh
 
-* Authorization retry policy
-* Verification aggressive retry
-* Capture with circuit breaker and timeout
-* Refund with conservative retry
-* Bulkhead pattern for concurrent request limiting
+Basic functionality test to verify core payment operations:
+
+* Configuration retrieval
+* Simple payment processing
+* Error handling
 
 [source,bash]
 ----
-# Run the complete fault tolerance test suite
-chmod +x test-payment-fault-tolerance-suite.sh
-./test-payment-fault-tolerance-suite.sh
+# Test basic payment operations
+chmod +x test-payment-basic.sh
+./test-payment-basic.sh
 ----
 
-==== test-payment-retry-scenarios.sh
+==== test-payment-retry.sh
 Tests various retry scenarios with different triggers:
 
 * Normal payment processing (successful)
@@ -394,40 +384,8 @@ Tests various retry scenarios with different triggers:
 [source,bash]
 ----
 # Test retry scenarios
-chmod +x test-payment-retry-scenarios.sh
-./test-payment-retry-scenarios.sh
-----
-
-==== test-payment-retry-details.sh
-
-Demonstrates detailed retry behavior:
-
-* Retry count verification
-* Delay between retries
-* Jitter observation
-* Max duration limits
-
-[source,bash]
-----
-# Test retry details
-chmod +x test-payment-retry-details.sh
-./test-payment-retry-details.sh
-----
-
-==== test-payment-retry-comprehensive.sh
-
-Combines multiple retry scenarios in a single test run:
-
-* Success cases
-* Transient failure cases
-* Permanent failure cases
-* Abort conditions
-
-[source,bash]
-----
-# Test comprehensive retry scenarios
-chmod +x test-payment-retry-comprehensive.sh
-./test-payment-retry-comprehensive.sh
+chmod +x test-payment-retry.sh
+./test-payment-retry.sh
 ----
 
 ==== test-payment-concurrent-load.sh
@@ -445,7 +403,7 @@ chmod +x test-payment-concurrent-load.sh
 ./test-payment-concurrent-load.sh
 ----
 
-==== test-payment-async-analysis.sh
+==== test-payment-async.sh
 
 Analyzes asynchronous processing behavior:
 
@@ -456,8 +414,8 @@ Analyzes asynchronous processing behavior:
 [source,bash]
 ----
 # Analyze asynchronous processing
-chmod +x test-payment-async-analysis.sh
-./test-payment-async-analysis.sh
+chmod +x test-payment-async.sh
+./test-payment-async.sh
 ----
 
 ==== test-payment-bulkhead.sh
@@ -475,19 +433,19 @@ chmod +x test-payment-bulkhead.sh
 ./test-payment-bulkhead.sh
 ----
 
-==== test-payment-basic.sh
+==== test-payment-async-analysis.sh
 
-Basic functionality test to verify core payment operations:
+Analyzes asynchronous processing behavior:
 
-* Configuration retrieval
-* Simple payment processing
-* Error handling
+* Response time measurement
+* Thread utilization
+* Future completion patterns
 
 [source,bash]
 ----
-# Test basic payment operations
-chmod +x test-payment-basic.sh
-./test-payment-basic.sh
+# Analyze asynchronous processing
+chmod +x test-payment-async-analysis.sh
+./test-payment-async-analysis.sh
 ----
 
 === Running the Tests
@@ -558,25 +516,6 @@ The following properties can be configured via MicroProfile Config:
 |5
 |===
 
-=== Monitoring and Metrics
-
-When running with MicroProfile Metrics enabled, you can monitor fault tolerance metrics:
-
-[source,bash]
-----
-# View fault tolerance metrics
-curl http://localhost:9080/payment/metrics/application
-
-# Specific retry metrics
-curl http://localhost:9080/payment/metrics/application?name=ft.retry.calls.total
-
-# Circuit breaker metrics
-curl http://localhost:9080/payment/metrics/application?name=ft.circuitbreaker.calls.total
-
-# Bulkhead metrics
-curl http://localhost:9080/payment/metrics/application?name=ft.bulkhead.calls.total
-----
-
 == Fault Tolerance Implementation Details
 
 === Server Configuration
@@ -624,80 +563,6 @@ public PaymentResponse fallbackPaymentAuthorization(PaymentRequest request) {
 }
 ----
 
-==== Verification Method
-
-[source,java]
-----
-@Retry(
-    maxRetries = 5,
-    delay = 500,
-    jitter = 200,
-    maxDuration = 15000,
-    retryOn = {RuntimeException.class}
-)
-@Fallback(fallbackMethod = "fallbackPaymentVerification")
-public VerificationResponse verifyPayment(String transactionId) {
-    // Verification logic
-}
-
-public VerificationResponse fallbackPaymentVerification(String transactionId) {
-    // Fallback logic for payment verification
-    return new VerificationResponse("verification_unavailable", 
-                                   "Verification service temporarily unavailable", true);
-}
-----
-
-==== Capture Method
-
-[source,java]
-----
-@Retry(
-    maxRetries = 2,
-    delay = 2000,
-    delayUnit = ChronoUnit.MILLIS,
-    retryOn = {RuntimeException.class}
-)
-@CircuitBreaker(
-    failureRatio = 0.5,
-    requestVolumeThreshold = 4,
-    delay = 5000,
-    delayUnit = ChronoUnit.MILLIS
-)
-@Timeout(value = 3000, unit = ChronoUnit.MILLIS)
-@Fallback(fallbackMethod = "fallbackPaymentCapture")
-@Bulkhead(value = 5)
-public CaptureResponse capturePayment(String transactionId) {
-    // Capture logic
-}
-
-public CaptureResponse fallbackPaymentCapture(String transactionId) {
-    // Fallback logic for payment capture
-    return new CaptureResponse("capture_deferred", "Payment capture queued for retry", true);
-}
-----
-
-==== Refund Method
-
-[source,java]
-----
-@Retry(
-    maxRetries = 1,
-    delay = 3000,
-    delayUnit = ChronoUnit.MILLIS,
-    retryOn = {RuntimeException.class},
-    abortOn = {IllegalArgumentException.class}
-)
-@Fallback(fallbackMethod = "fallbackPaymentRefund")
-public RefundResponse refundPayment(String transactionId, String amount) {
-    // Refund logic
-}
-
-public RefundResponse fallbackPaymentRefund(String transactionId, String amount) {
-    // Fallback logic for payment refund
-    return new RefundResponse("refund_pending", "Refund request queued for manual processing", true);
-}
-----
-
 === Key Implementation Benefits
 
 ==== 1. Resilience
@@ -719,41 +584,6 @@ public RefundResponse fallbackPaymentRefund(String transactionId, String amount)
 - Production-ready fault tolerance patterns
 - Compliance with microservices best practices
 - Integration with MicroProfile ecosystem
-
-=== Fault Tolerance Testing Triggers
-
-To facilitate testing of fault tolerance features, the service includes several failure triggers:
-
-[cols="1,2,2", options="header"]
-|===
-|Feature
-|Trigger
-|Expected Behavior
-
-|Retry
-|Card numbers ending in "0000"
-|Retries 3 times before fallback
-
-|Aggressive Retry
-|Random 50% failure rate in verification
-|Retries up to 5 times before fallback
-
-|Circuit Breaker
-|Multiple failures in capture endpoint
-|Opens circuit after 50% failures over 4 requests
-
-|Timeout
-|Random delays in capture endpoint
-|Times out after 3 seconds
-
-|Bulkhead
-|More than 5 concurrent requests
-|Accepts only 5, rejects others
-
-|Abort Condition
-|Empty amount in refund request
-|Immediately aborts without retry
-|===
 
 == MicroProfile Fault Tolerance Patterns
 
@@ -1092,12 +922,3 @@ The Payment Service integrates with several other microservices in the applicati
   - Refund payments: Admin role only
   - View all payments: Admin role only
 
-=== Integration Testing
-
-Integration tests are available that validate the complete payment flow across services:
-
-[source,bash]
-----
-# Test complete order-to-payment flow
-./test-payment-integration.sh
-----
