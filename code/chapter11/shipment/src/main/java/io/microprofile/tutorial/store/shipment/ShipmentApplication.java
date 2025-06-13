@@ -11,7 +11,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 /**
  * JAX-RS Application class for the shipment service.
  */
-@ApplicationPath("/")
+@ApplicationPath("/api")
 @OpenAPIDefinition(
         info = @Info(
                 title = "Shipment Service API",
