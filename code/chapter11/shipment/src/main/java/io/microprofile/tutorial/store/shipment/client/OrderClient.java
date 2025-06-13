@@ -36,7 +36,7 @@ public class OrderClient {
      * @param newStatus The new status for the order
      * @return true if the update was successful, false otherwise
      */
-    @Retry(maxRetries = 3, delay = 1000, jitter = 200, unit = ChronoUnit.MILLIS)
+    @Retry(maxRetries = 3, delay = 1000, jitter = 200)
     @Timeout(value = 5, unit = ChronoUnit.SECONDS)
     @CircuitBreaker(requestVolumeThreshold = 4, failureRatio = 0.5, delay = 10000, successThreshold = 2)
     @Fallback(fallbackMethod = "updateOrderStatusFallback")
@@ -73,7 +73,7 @@ public class OrderClient {
      * @param orderId The ID of the order to verify
      * @return true if the order exists and is in a valid state, false otherwise
      */
-    @Retry(maxRetries = 3, delay = 1000, jitter = 200, unit = ChronoUnit.MILLIS)
+    @Retry(maxRetries = 3, delay = 1000, jitter = 200)
     @Timeout(value = 5, unit = ChronoUnit.SECONDS)
     @CircuitBreaker(requestVolumeThreshold = 4, failureRatio = 0.5, delay = 10000, successThreshold = 2)
     @Fallback(fallbackMethod = "verifyOrderFallback")
@@ -116,7 +116,7 @@ public class OrderClient {
      * @param orderId The ID of the order
      * @return The shipping address, or null if not found
      */
-    @Retry(maxRetries = 3, delay = 1000, jitter = 200, unit = ChronoUnit.MILLIS)
+    @Retry(maxRetries = 3, delay = 1000, jitter = 200)
     @Timeout(value = 5, unit = ChronoUnit.SECONDS)
     @CircuitBreaker(requestVolumeThreshold = 4, failureRatio = 0.5, delay = 10000, successThreshold = 2)
     @Fallback(fallbackMethod = "getShippingAddressFallback")

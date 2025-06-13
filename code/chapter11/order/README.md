@@ -55,21 +55,6 @@ This will start the Open Liberty server on port 8050 (HTTP) and 8051 (HTTPS).
 
 ## Testing with cURL
 
-### Get all orders
-```
-curl -X GET http://localhost:8050/order/api/orders
-```
-
-### Get order by ID
-```
-curl -X GET http://localhost:8050/order/api/orders/1
-```
-
-### Get orders by user ID
-```
-curl -X GET http://localhost:8050/order/api/orders/user/1
-```
-
 ### Create new order
 ```
 curl -X POST http://localhost:8050/order/api/orders \
@@ -93,6 +78,21 @@ curl -X POST http://localhost:8050/order/api/orders \
   }'
 ```
 
+### Get all orders
+```
+curl -X GET http://localhost:8050/order/api/orders
+```
+
+### Get order by ID
+```
+curl -X GET http://localhost:8050/order/api/orders/1
+```
+
+### Get orders by user ID
+```
+curl -X GET http://localhost:8050/order/api/orders/user/1
+```
+
 ### Update order
 ```
 curl -X PUT http://localhost:8050/order/api/orders/1 \
@@ -103,17 +103,6 @@ curl -X PUT http://localhost:8050/order/api/orders/1 \
     "status": "PAID"
   }'
 ```
-
-### Update order status
-```
-curl -X PATCH http://localhost:8050/order/api/orders/1/status/SHIPPED
-```
-
-### Delete order
-```
-curl -X DELETE http://localhost:8050/order/api/orders/1
-```
-
 ### Get items for an order
 ```
 curl -X GET http://localhost:8050/order/api/orders/1/items
@@ -142,7 +131,17 @@ curl -X PUT http://localhost:8050/order/api/orders/items/1 \
   }'
 ```
 
+### Update order status
+```
+curl -X PATCH http://localhost:8050/order/api/orders/1/status/SHIPPED
+```
+
 ### Delete order item
 ```
 curl -X DELETE http://localhost:8050/order/api/orders/items/1
+```
+
+### Delete order
+```
+curl -X DELETE http://localhost:8050/order/api/orders/1
 ```
