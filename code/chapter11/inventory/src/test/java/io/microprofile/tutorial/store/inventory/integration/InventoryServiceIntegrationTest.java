@@ -45,12 +45,10 @@ class InventoryServiceIntegrationTest {
         
         // Create mock inventory with proper productId set using reflection
         mockInventory = new Inventory();
-        setPrivateField(mockInventory, "id", 1L);
+        setPrivateField(mockInventory, "inventoryId", 1L);
         setPrivateField(mockInventory, "productId", 1L);
         setPrivateField(mockInventory, "quantity", 10);
-        setPrivateField(mockInventory, "availableQuantity", 8);
         setPrivateField(mockInventory, "reservedQuantity", 2);
-        setPrivateField(mockInventory, "location", "Warehouse A");
     }
 
     private void setPrivateField(Object obj, String fieldName, Object value) throws Exception {
@@ -85,7 +83,7 @@ class InventoryServiceIntegrationTest {
         Inventory newInventory = new Inventory();
         setPrivateField(newInventory, "productId", 1L);
         setPrivateField(newInventory, "quantity", 5);
-        setPrivateField(newInventory, "location", "Test Location");
+        setPrivateField(newInventory, "reservedQuantity", 0);
         
         lenient().when(productServiceClient.getProductById(anyLong())).thenReturn(mockProduct);
         lenient().when(inventoryRepository.findByProductId(anyLong())).thenReturn(Optional.empty());
@@ -150,8 +148,7 @@ class InventoryServiceIntegrationTest {
             inventoryService.createInventory(newInventory);
         });
         
-        assertTrue(exception.getMessage().contains("Product with ID 999 not found"));
+        assertTrue(exception.getMessage().contains("Product not found in catalog with ID: 999"));
         verify(productServiceClient).getProductById(999L);
     }
-}
 }

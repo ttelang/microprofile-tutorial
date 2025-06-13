@@ -98,6 +98,9 @@ public class InventoryService {
             }
             LOGGER.fine("Product validated successfully: " + product.getName());
             return product;
+        } catch (InventoryNotFoundException e) {
+            // Re-throw InventoryNotFoundException without wrapping
+            throw e;
         } catch (WebApplicationException e) {
             LOGGER.warning("Product validation failed for ID " + productId + ": " + e.getMessage());
             if (e.getResponse().getStatus() == 404) {

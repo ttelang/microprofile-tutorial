@@ -19,6 +19,12 @@
     <microprofile.version>6.1</microprofile.version>
     <liberty.version>23.0.0.3</liberty.version>
     <lombok.version>1.18.24</lombok.version>
+
+    <!-- Liberty configuration -->
+    <liberty.var.default.http.port>6050</liberty.var.default.http.port>
+    <liberty.var.default.https.port>6051</liberty.var.default.https.port>
+    
+    <liberty.var.app.context.root>inventory</liberty.var.app.context.root>
   </properties>
 
   <dependencies>
@@ -70,6 +76,14 @@
       <version>4.11.0</version>
       <scope>test</scope>
     </dependency>
+    
+    <!-- Jersey for JAX-RS runtime in tests -->
+    <dependency>
+      <groupId>org.glassfish.jersey.core</groupId>
+      <artifactId>jersey-common</artifactId>
+      <version>3.1.1</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -79,7 +93,7 @@
       <plugin>
         <groupId>io.openliberty.tools</groupId>
         <artifactId>liberty-maven-plugin</artifactId>
-        <version>3.8.2</version>
+        <version>3.11.2</version>
         <configuration>
           <serverName>inventoryServer</serverName>
           <include>runnable</include>

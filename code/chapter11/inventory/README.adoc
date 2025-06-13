@@ -244,14 +244,12 @@ curl -X POST http://localhost:7050/inventory/api/inventories/bulk \
 ==== Get inventory with pagination and filtering
 [source,bash]
 ----
-# Get page 1 with 5 items
-curl -X GET "http://localhost:7050/inventory/api/inventories?page=1&size=5"
 
 # Filter by location
-curl -X GET "http://localhost:7050/inventory/api/inventories?location=Warehouse%20A"
+curl -X GET "http://localhost:6050/inventory/api/inventories?location=Warehouse%20A"
 
 # Filter by minimum quantity
-curl -X GET "http://localhost:7050/inventory/api/inventories?minQuantity=10"
+curl -X GET "http://localhost:6050/inventory/api/inventories?minQuantity=10"
 ----
 
 == Test Scripts
