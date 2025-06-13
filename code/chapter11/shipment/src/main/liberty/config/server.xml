@@ -7,6 +7,7 @@
         <feature>jsonb-3.0</feature>
         <feature>cdi-4.0</feature>
         <feature>servlet-6.0</feature>
+        <feature>pages-3.1</feature>
         <feature>microProfile-6.1</feature>
     </featureManager>
 
