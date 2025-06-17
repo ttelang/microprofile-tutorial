@@ -13,7 +13,7 @@ NC='\033[0m' # No Color
 SITE_DIR="/workspaces/microprofile-tutorial/build/site"
 
 # GitHub repository information
-REPO_URL="https://github.com/ttelang/microprofile-tutorial"
+REPO_URL="https://github.com/microprofile/microprofile-tutorial"
 BRANCH="patch-15"
 PATH_PREFIX="modules/ROOT/pages/"
 
