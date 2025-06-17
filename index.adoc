@@ -76,7 +76,7 @@ image::images/figureFM-1.png[MicroProfile e-Commerce Application]
 As you can see in the above figure, together these microservices form a robust and flexible e-Commerce application architecture, enabling scalable, efficient, and secure online shopping experiences.
 
 === Downloading the Code
-The code examples in this tutorial are available at this link:https://www.github.com/ttelang/microprofile-examples[repo] (TODO: to be changed).
+The code examples in this tutorial are available at this link:https://github.com/microprofile/microprofile-tutorial/tree/main/code[folder].
 
 === Prerequisites
 MicroProfile use the Java Platform, and are usually written in the Java programming language. 
