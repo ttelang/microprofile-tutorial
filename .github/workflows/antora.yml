@@ -20,8 +20,11 @@ jobs:
       - name: Install Antora
         run: npm install -g @antora/cli @antora/site-generator-default
       
+      - name: Verify Antora Installation
+        run: npm list -g @antora/cli @antora/site-generator-default || echo "Antora packages are not installed."
+      
       - name: Generate Site with Antora
-        run: antora --fetch playbook.yml
+        run: antora --fetch --stacktrace playbook.yml
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
