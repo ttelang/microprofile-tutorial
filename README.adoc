@@ -163,7 +163,7 @@ content:
 ----
 ui:
   bundle:
-    url: https://github.com/ttelang/microprofile-documentation-ui/releases/download/latest/ui-bundle.zip
+    url: https://github.com/microprofile/microprofile-tutorial-ui/releases/download/latest/ui-bundle.zip
     snapshot: true
   supplemental_files: ./supplemental-ui
 ----
@@ -177,7 +177,7 @@ The `antora.yml` file defines the documentation component:
 name: microprofile-tutorial
 title: MicroProfile Tutorial
 version: 6.1
-edit_url: https://github.com/ttelang/microprofile-tutorial/edit/patch-15/modules/ROOT/pages/{path}
+edit_url: https://github.com/microprofile/microprofile-tutorial/tree/main/modules/ROOT/pages/{path}
 asciidoc:
   attributes:
     source-language: asciidoc@
@@ -291,7 +291,7 @@ The `fix-edit-links.sh` script is a necessary post-processing step in the build 
 
 The script performs a simple text replacement in the generated HTML files, replacing local file paths with proper GitHub repository URLs. This ensures that the "Edit this Page" links work correctly for users viewing the documentation.
 
-If you update the repository URL or branch name, make sure to update the replacement URL in the `fix-edit-links.sh` script accordingly. The current implementation assumes the GitHub repository URL is `https://github.com/ttelang/microprofile-tutorial` and the branch is `patch-15`.
+If you update the repository URL or branch name, make sure to update the replacement URL in the `fix-edit-links.sh` script accordingly. The current implementation assumes the GitHub repository URL is `https://github.com/microprofile/microprofile-tutorial` and the branch is `main`.
 
 ## Automating Repository URL Configuration
 
@@ -569,7 +569,7 @@ The MicroProfile Tutorial uses a customized UI bundle from the `microprofile-doc
 ----
 ui:
   bundle:
-    url: https://github.com/ttelang/microprofile-documentation-ui/releases/download/latest/ui-bundle.zip
+    url: https://github.com/microprofile/microprofile-tutorial-ui/releases/tag/latest/ui-bundle.zip
     snapshot: true
   supplemental_files: ./supplemental-ui
 ----
@@ -620,7 +620,7 @@ To update to a newer version of the UI bundle:
 ----
 ui:
   bundle:
-    url: https://github.com/ttelang/microprofile-documentation-ui/releases/download/latest/ui-bundle.zip
+    url: https://github.com/microprofile/microprofile-tutorial-ui/releases/tag/latest/ui-bundle.zip
     snapshot: true
 ----
 
@@ -628,7 +628,7 @@ ui:
 
 If you need extensive customization beyond what supplemental files allow:
 
-1. Fork the https://github.com/ttelang/microprofile-documentation-ui repository
+1. Fork the https://github.com/microprofile/microprofile-tutorial-ui repository
 2. Make your customizations following the project's README
 3. Build the UI bundle using `gulp bundle`
 4. Host the resulting ZIP file (e.g., on GitHub Releases)
@@ -648,7 +648,7 @@ You can control how Antora handles UI bundle caching:
 ----
 ui:
   bundle:
-    url: https://github.com/ttelang/microprofile-documentation-ui/releases/download/latest/ui-bundle.zip
+    url: https://github.com/microprofile/microprofile-tutorial-ui/releases/download/latest/ui-bundle.zip
     snapshot: true  # Always fetch the latest version
     # snapshot: false  # Use cached version when available
 ----
@@ -665,7 +665,7 @@ Modern UI bundles for Antora can include advanced features:
 ----
 ui:
   bundle:
-    url: https://example.com/ui-bundle.zip
+    url: https://github.com/microprofile/microprofile-tutorial-ui/releases/download/latest/ui-bundle.zip
   supplemental_files: ./supplemental-ui
 search:
   engine: lunr  # Or another search engine
@@ -678,7 +678,7 @@ search:
 ----
 ui:
   bundle:
-    url: https://example.com/ui-bundle.zip
+    url: https://github.com/microprofile/microprofile-tutorial-ui/releases/download/latest/ui-bundle.zip
 output:
   dir: ./build/site
   formats:
@@ -709,6 +709,8 @@ ui:
     url: ./path/to/local/ui-bundle.zip
     snapshot: true
 ----
+
+Replease _./path/to/local/ui-bundle.zip_ with actual path to your local UI bundle under development.
 
 This approach is useful when developing your own UI bundle or testing modifications.
 
@@ -743,3 +745,4 @@ When troubleshooting UI problems:
 2. Check the browser console for JavaScript errors
 3. Verify that all required resources are loading correctly
 4. Test with different browsers to identify browser-specific issues
+
