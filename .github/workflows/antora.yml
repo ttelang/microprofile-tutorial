@@ -11,6 +11,7 @@ jobs:
     permissions:
       id-token: write  # Required for authentication
       contents: read   # Required to read repository contents
+      pages: write     # Required to deploy to GitHub Pages
     steps: 
       - name: Checkout Repository
         uses: actions/checkout@v3
