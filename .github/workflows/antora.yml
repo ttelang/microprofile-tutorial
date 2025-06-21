@@ -8,6 +8,9 @@ on:
 jobs: 
   build-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # Required for authentication
+      contents: read   # Required to read repository contents
     steps: 
       - name: Checkout Repository
         uses: actions/checkout@v3
