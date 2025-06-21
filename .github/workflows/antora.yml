@@ -33,3 +33,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./build/site  # The output directory for Antora
+          
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
