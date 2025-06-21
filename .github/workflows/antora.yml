@@ -17,14 +17,14 @@ jobs:
         with:
           node-version: '16'  # Use a compatible Node.js version
 
-      - name: Install Antora
-        run: npm install -g @antora/cli @antora/site-generator-default
+      - name: Install Antora Locally
+        run: npm install @antora/cli @antora/site-generator-default
       
       - name: Verify Antora Installation
-        run: npm list -g @antora/cli @antora/site-generator-default || echo "Antora packages are not installed."
+        run: npm list @antora/cli @antora/site-generator-default || echo "Antora packages are not installed."
       
       - name: Generate Site with Antora
-        run: antora --fetch --stacktrace playbook.yml
+        run: npx antora --fetch --stacktrace playbook.yml
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
