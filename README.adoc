@@ -709,7 +709,9 @@ ui:
     url: ./path/to/local/ui-bundle.zip
     snapshot: true
 ----
+
 Replease _./path/to/local/ui-bundle.zip_ with actual path to your local UI bundle under development.
+
 This approach is useful when developing your own UI bundle or testing modifications.
 
 ### UI Bundle Development
@@ -743,3 +745,4 @@ When troubleshooting UI problems:
 2. Check the browser console for JavaScript errors
 3. Verify that all required resources are loading correctly
 4. Test with different browsers to identify browser-specific issues
+
