@@ -2,7 +2,7 @@
 
 == Introduction 
 
-This introductory chapter provides a comprehensive overview of the MicroProfile platform, setting the stage for subsequent chapters in this tutorial. It aims to familiarize you with the fundamentals of the MicroProfile platform, its need, and benefits. Finally, we will discuss its place in the broader context of enterprise Java development.
+This introductory chapter provides a comprehensive overview of the MicroProfile specifications, setting the stage for subsequent chapters in this tutorial. It aims to familiarize you with the fundamentals of the MicroProfile platform, its need, and benefits. Finally, we will discuss its place in the broader context of enterprise Java development.
 
 == Topics to be covered:
 - What is MicroProfile
