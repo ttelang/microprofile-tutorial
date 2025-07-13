@@ -194,13 +194,20 @@ jobs:
             
             # Create .htaccess for GitHub Pages to force PDF downloads
             cat > ./build/site/.htaccess << 'EOF'
-          # Force PDF files to download instead of opening in browser
+          # Set proper MIME type for PDF files
           <Files "*.pdf">
-              Header set Content-Disposition "attachment"
+              AddType application/pdf .pdf
+              Header set Content-Type "application/pdf"
+              Header set Content-Disposition "attachment; filename=\"microprofile-tutorial.pdf\""
               Header set Cache-Control "no-cache, no-store, must-revalidate"
               Header set Pragma "no-cache"
               Header set Expires "0"
           </Files>
+          
+          # Ensure PDF files are served correctly
+          RewriteEngine On
+          RewriteCond %{REQUEST_FILENAME} \.pdf$
+          RewriteRule ^(.*)$ $1 [L,T=application/pdf]
           EOF
             
             echo "✅ Download headers configured for PDFs"
