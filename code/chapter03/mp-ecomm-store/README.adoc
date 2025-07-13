@@ -171,7 +171,7 @@ curl http://localhost:5050/mp-ecomm-store/api/products/1
 ==== Update a product
 [source,bash]
 ----
-curl -X PUT http://localhost:5050/mp-ecomm-store/api/products/1 \
+curl -X PUT http://localhost:5050/catalog/api/products/1 \
   -H "Content-Type: application/json" \
   -d '{"id": 1, "name": "iPhone Pro", "description": "Apple iPhone 15 Pro", "price": 1199.99}'
 ----
@@ -179,7 +179,7 @@ curl -X PUT http://localhost:5050/mp-ecomm-store/api/products/1 \
 ==== Delete a product
 [source,bash]
 ----
-curl -X DELETE http://localhost:5050/mp-ecomm-store/api/products/1
+curl -X DELETE http://localhost:5050/catalog/api/products/1
 ----
 
 === API Test Script

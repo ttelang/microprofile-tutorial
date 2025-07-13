@@ -3,3 +3,116 @@ image:https://badges.gitter.im/eclipse/microprofile-samples.svg[link="https://ap
 # MicroProfile API Tutorial Content
 
 This repo contains the source files that are used to build the _MicroProfile Tutorial_. The source files are authored in link:https://asciidoc.org/[AsciiDoc]. AsciiDoc is similar to markdown but is particularly suited for user documentation. The source files are processed and integrated into the MicroProfile Tutorial site using link:https://antora.org/[Antora], which is a tool for building documentation sites.
+
+## Tutorial Overview
+
+This comprehensive tutorial guides you through building modern, cloud-native microservices using MicroProfile and Jakarta EE. Each chapter builds upon the previous one, starting from fundamentals and progressing to advanced enterprise patterns.
+
+## Chapter Contents
+
+### link:chapter01/chapter01.adoc[Chapter 1: Introduction to MicroProfile]
+**Foundation & Concepts** +
+Learn the fundamentals of MicroProfile, its architecture philosophy, and relationship with Jakarta EE. Understand why MicroProfile was created and its benefits for microservices development.
+
+*Key Topics:* MicroProfile specifications, implementations, architecture philosophy, benefits, Jakarta EE relationship
+
+### link:chapter02/chapter02-00.adoc[Chapter 2: Getting Started with MicroProfile] 
+**Development Environment & First Service** +
+Set up your development environment and create your first MicroProfile microservice. Learn about build tools, project initialization, and deployment basics.
+
+*Key Topics:* JDK setup, Maven configuration, project structure, RESTful services, testing +
+*Code Examples:* link:code/chapter02/mp-ecomm-store/[Basic E-commerce Store Service]
+
+### link:chapter03/chapter03.adoc[Chapter 3: Jakarta EE 10 Core Profile]
+**Enterprise Foundation** +
+Dive deep into Jakarta EE 10 Core Profile as the foundation for MicroProfile. Master CDI, Jakarta REST, JSON processing, and component lifecycle management.
+
+*Key Topics:* CDI, Jakarta REST, JSON Binding/Processing, dependency injection, HTTP resources +
+*Code Examples:* link:code/chapter03/catalog/[Catalog Service], link:code/chapter03/mp-ecomm-store/[Enhanced E-commerce Store]
+
+### link:chapter04/chapter04.adoc[Chapter 4: MicroProfile OpenAPI]
+**API Documentation & Contracts** +
+Generate comprehensive API documentation using MicroProfile OpenAPI. Learn to create clear API contracts with annotations and explore APIs through Swagger UI.
+
+*Key Topics:* OpenAPI specification, API documentation, Swagger UI, authentication documentation +
+*Code Examples:* link:code/chapter04/catalog/[Documented Catalog Service]
+
+### link:chapter05/chapter05.adoc[Chapter 5: MicroProfile Configuration]
+**External Configuration Management** +
+Master configuration externalization across different environments. Implement custom configuration sources and handle dynamic configuration updates.
+
+*Key Topics:* Configuration injection, multiple environments, custom config sources, dynamic updates +
+*Code Examples:* link:code/chapter05/catalog/[Configurable Catalog], link:code/chapter05/payment/[Payment Service with Config]
+
+### link:chapter06/chapter06.adoc[Chapter 6: MicroProfile Health]
+**Service Health & Monitoring** +
+Implement comprehensive health checks for microservices reliability. Learn liveness, readiness, and startup probes for cloud and Kubernetes deployments.
+
+*Key Topics:* Health check types, liveness/readiness probes, CDI integration +
+*Code Examples:* link:code/chapter06/catalog/[Health-enabled Catalog Service]
+
+### link:chapter07/chapter07.adoc[Chapter 7: MicroProfile Metrics]
+**Performance Monitoring & Observability** +
+Add detailed performance monitoring to your microservices. Create custom metrics and integrate with monitoring solutions for production observability.
+
+*Key Topics:* Metric types, performance monitoring, custom metrics, monitoring integration +
+*Code Examples:* link:code/chapter07/catalog/[Metrics-enabled Catalog Service]
+
+### Chapter 8: MicroProfile Fault Tolerance _(Code Only)_
+**Resilience Patterns** +
+Implement resilience patterns including retry policies, circuit breakers, timeouts, and bulkheads to handle failures gracefully in distributed systems.
+
+*Key Features:* Retry mechanisms, circuit breaker protection, timeout handling, concurrent request limiting +
+*Code Examples:* link:code/chapter08/payment/[Fault-tolerant Payment Service]
+
+### Chapter 9: MicroProfile OpenTelemetry _(Code Only)_
+**Distributed Tracing & Observability** +
+Learn distributed tracing and observability using MicroProfile OpenTelemetry. Implement comprehensive monitoring across microservices to track requests through complex service interactions.
+
+*Key Features:* Distributed tracing, span creation, trace correlation, observability integration +
+*Code Examples:* link:code/chapter09/payment/[Payment Service with OpenTelemetry Tracing]
+
+### Chapter 10: MicroProfile JWT _(Code Only)_
+**Security & Authentication** +
+Implement JWT-based authentication and authorization. Learn role-based access control and secure microservice communication.
+
+*Key Features:* JWT authentication, role-based authorization, secure endpoints +
+*Code Examples:* link:code/chapter10/order/[Secure Order Service], link:code/chapter10/user/[User Service with JWT]
+
+### Chapter 11: Complete E-Commerce Application _(Code Only)_
+**Production-Ready Microservices** +
+Explore a complete, production-ready e-commerce application showcasing all MicroProfile specifications working together in a real-world scenario. Features comprehensive REST Client implementations for service-to-service communication.
+
+*Services:* 
+- link:code/chapter11/catalog/[Catalog Service] - Product management
+- link:code/chapter11/inventory/[Inventory Service] - Stock management with REST Client integration
+- link:code/chapter11/order/[Order Service] - Order processing
+- link:code/chapter11/payment/[Payment Service] - Payment processing with external service calls
+- link:code/chapter11/shipment/[Shipment Service] - Shipping management with order integration
+- link:code/chapter11/shoppingcart/[Shopping Cart Service] - Cart management
+- link:code/chapter11/user/[User Service] - User management
+
+*Features:* Complete microservices architecture, MicroProfile REST Client service communication, comprehensive security, full observability stack
+
+## Learning Path
+
+1. **Foundations** (Chapters 1-3): Core concepts and Jakarta EE fundamentals
+2. **Essential APIs** (Chapters 4-7): Key MicroProfile specifications with hands-on examples
+3. **Advanced Patterns** (Chapters 8-10): Resilience, communication, and security
+4. **Real-World Application** (Chapter 11): Complete production-ready system
+
+## Prerequisites
+
+- Java 17 or later
+- Maven 3.6+
+- Basic understanding of REST APIs and JSON
+- Familiarity with enterprise Java development
+
+## Getting Started
+
+1. Clone this repository
+2. Follow Chapter 2 for environment setup
+3. Work through chapters sequentially
+4. Experiment with the code examples in each chapter
+
+Each chapter builds practical knowledge while the code examples provide hands-on experience with real microservices development scenarios.
