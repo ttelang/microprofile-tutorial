@@ -24,6 +24,7 @@ asciidoc:
     idseparator: '-'
     page-pagination: true
     allow-uri-read: ''
+    page-pdf-download-name: microprofile-tutorial.pdf
     source-language: asciidoc@
     table-caption: false
     xrefstyle: full
@@ -32,15 +33,14 @@ asciidoc:
     - asciidoctor-kroki
     - '@asciidoctor/tabs'
 
-# Note: Antora extensions require additional npm packages in workflow
 antora:
   extensions:
     - require: '@antora/lunr-extension'
       index_latest_only: true
     - require: '@antora/pdf-extension'
-      generate_index: true
-      index_filename: microprofile-tutorial
-      output_format: pdf
+      output_file: microprofile-tutorial.pdf
+      theme: default
+      output_dir: ./build/assembler/microprofile-tutorial/6.1/
 
 output:
   dir: ./build/site
