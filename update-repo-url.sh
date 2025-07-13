@@ -15,8 +15,8 @@ echo -e "${BLUE}Detecting Git repository information...${NC}"
 REPO_URL=$(git remote get-url origin 2>/dev/null)
 if [ -z "$REPO_URL" ]; then
     echo -e "${YELLOW}Warning: Could not determine remote repository URL.${NC}"
-    echo -e "${YELLOW}Using default URL: https://github.com/ttelang/microprofile-tutorial${NC}"
-    REPO_URL="https://github.com/ttelang/microprofile-tutorial"
+    echo -e "${YELLOW}Using default URL: https://github.com/microprofile/microprofile-tutorial${NC}"
+    REPO_URL="https://github.com/microprofile/microprofile-tutorial"
 else
     # Convert SSH URL to HTTPS URL if needed
     if [[ $REPO_URL == git@github.com:* ]]; then
