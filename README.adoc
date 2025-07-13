@@ -4,7 +4,7 @@
 :toclevels: 3
 :doctype: book
 
-The MicroProfile Tutorial is a comprehensive guide for learning about MicroProfile. This repository contains the documentation built with Antora.
+The MicroProfile Tutorial is a comprehensive guide for learning about https://microprofile.io[MicroProfile]. This repository contains the documentation built with https://antora.org/[Antora].
 
 toc::[]
 
@@ -15,7 +15,7 @@ This repository contains the documentation for the MicroProfile Tutorial, built 
 ## Prerequisites
 
 ### Install Antora 
-You need to install Antora using npm. If you don't have npm installed, you can install it by following the instructions at https://docs.npmjs.com/getting-started/installing-node.
+You need to https://docs.antora.org/antora/latest/install-and-run-quickstart/#install-antora[install Antora] using npm. If you don't have Node.js installed, you can https://docs.antora.org/antora/latest/install-and-run-quickstart/#install-nodejs[install Node.js] by following this instructions.
 
 ```
 npm install -g @antora/cli @antora/site-generator-default 
@@ -38,15 +38,15 @@ antora antora-assembler.yml
 ./fix-edit-links.sh
 ```
 
-The first command ensures that the repository URLs are up-to-date. The second command will generate the site in the `build/site` directory. The third command fixes the "Edit this Page" links to properly point to GitHub instead of local file paths.
+- The first command ensures that the repository URLs are up-to-date. 
+- The second command will generate the site in the `build/site` directory. 
+- The third command fixes the "Edit this Page" links to properly point to GitHub instead of local file paths.
 
 Alternatively, you can use the following one-liner:
 
 ```
 ./update-repo-url.sh && antora antora-assembler.yml && ./fix-edit-links.sh
 ```
-
-After building, you can open the `build/site/index.html` file in your web browser to view the site.
 
 ## Running the Site Locally
 
