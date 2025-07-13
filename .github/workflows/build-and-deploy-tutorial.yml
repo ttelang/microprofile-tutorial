@@ -175,7 +175,7 @@ jobs:
             find . -name "*.pdf" -type f
           fi
 
-      # Copy assembler directory to site and add download headers
+      # Copy assembler directory to site for PDF access
       - name: Copy assembler directory and configure PDF downloads
         run: |
           if [ -d "./build/assembler" ]; then
