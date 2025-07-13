@@ -48,9 +48,19 @@ jobs:
           node-version: '20'  # LTS version compatible with Antora
           cache: 'npm'        # Cache npm dependencies for faster builds
 
-      # Install Antora CLI and site generator packages
-      - name: Install Antora Locally
-        run: npm install @antora/cli @antora/site-generator-default
+      # Set up Ruby for AsciiDoc extensions
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: false
+
+      # Install Antora CLI, site generator, and advanced extensions
+      - name: Install Antora and Extensions
+        run: |
+          npm install @antora/cli @antora/site-generator-default
+          npm install @antora/lunr-extension @antora/pdf-extension @asciidoctor/tabs
+          gem install asciidoctor-pdf asciidoctor-kroki asciidoctor-plantuml
       
       # Generate the documentation site to validate it builds correctly
       - name: Validate Site Generation
@@ -97,6 +107,13 @@ jobs:
         with:
           node-version: '20'  # LTS version compatible with Antora
           cache: 'npm'        # Cache npm dependencies for faster builds
+
+      # Set up Ruby for AsciiDoc extensions
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: false
 
       # Install Antora CLI, site generator, and advanced extensions
       - name: Install Antora and Extensions
