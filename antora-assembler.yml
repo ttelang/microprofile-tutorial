@@ -25,6 +25,7 @@ asciidoc:
     page-pagination: true
     allow-uri-read: ''
     page-pdf-download-name: microprofile-tutorial.pdf
+    page-pdf-download-timestamp: '{localdate} {localtime}'
     source-language: asciidoc@
     table-caption: false
     xrefstyle: full
