@@ -529,6 +529,153 @@ If you're hosting the documentation on a custom domain:
 2. Configure your domain's DNS settings to point to your hosting provider
 3. If using GitHub Pages, add a CNAME file to the `build/site` directory
 
+## GitHub Actions Workflow for Automated Deployment
+
+The MicroProfile Tutorial documentation is automatically built and deployed using a GitHub Actions workflow. This section explains the workflow configuration and how it ensures continuous deployment of the documentation.
+
+### Workflow Overview
+
+The repository includes a comprehensive GitHub Actions workflow (`antora.yml`) that:
+
+- **Validates builds on pull requests** without deploying
+- **Automatically deploys** to GitHub Pages when changes are pushed to the main branch  
+- **Handles concurrent deployments** to prevent conflicts
+- **Ensures GitHub Pages is enabled** automatically
+
+### Workflow Configuration
+
+The workflow is defined in `.github/workflows/build-and-deploy-tutorials.yml` and includes two main jobs:
+
+#### 1. Pull Request Validation (`validate-build`)
+
+This job runs on pull requests and validates that the documentation builds correctly:
+
+- **Triggers**: Pull requests to the main branch
+- **Purpose**: Validates documentation builds without deploying
+- **Steps**:
+  * Checkout repository code
+  * Set up Node.js environment with npm caching
+  * Install Antora CLI and site generator
+  * Generate the site to validate build success
+  * Verify build output exists
+
+#### 2. Build and Deploy (`build-and-deploy`)
+
+This job runs on pushes to the main branch and deploys the documentation:
+
+- **Triggers**: Pushes to main branch, manual workflow dispatch
+- **Purpose**: Build and deploy documentation to GitHub Pages
+- **Environment**: Uses `github-pages` environment for deployment tracking
+- **Steps**:
+  * Checkout repository code
+  * Set up Node.js environment with npm caching
+  * Install Antora CLI and site generator
+  * Verify Antora installation
+  * Generate site using Antora with `--fetch` and `--stacktrace` options
+  * Configure GitHub Pages settings
+  * Upload generated site as artifact
+  * Deploy to GitHub Pages
+
+### Key Features
+
+#### Concurrency Control
+```yaml
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+```
+Prevents multiple deployments from running simultaneously while allowing in-progress deployments to complete.
+
+#### Automatic Pages Enablement
+The workflow automatically enables GitHub Pages if it's not already configured, ensuring the repository is properly set up for deployment.
+
+#### Environment Protection
+Uses the `github-pages` environment for deployment tracking and provides the deployment URL after successful completion.
+
+#### Performance Optimizations
+- **npm caching**: Speeds up Node.js setup
+- **Conditional deployment**: Only deploys from main branch pushes
+- **Comprehensive error handling**: Includes verification steps and detailed logging
+
+### Required Permissions
+
+The workflow requires specific GitHub token permissions:
+
+```yaml
+permissions:
+  id-token: write  # Required for OIDC authentication to GitHub Pages
+  contents: read   # Required to read repository contents and checkout code
+  pages: write     # Required to deploy artifacts to GitHub Pages
+```
+
+### Deployment Process
+
+When code is pushed to the main branch:
+
+1. **Build Validation**: The workflow validates that Antora can successfully build the site
+2. **Site Generation**: Antora processes the `antora-assembler.yml` configuration and generates the static site
+3. **Pages Configuration**: GitHub Pages is automatically configured if needed
+4. **Artifact Upload**: The generated site (`./build/site`) is uploaded as a deployment artifact
+5. **Deployment**: The artifact is deployed to GitHub Pages
+
+### Accessing the Deployed Site
+
+After successful deployment, the documentation is available at:
+```
+https://<username>.github.io/<repository-name>/
+```
+
+For the MicroProfile Tutorial, this would be:
+```
+https://microprofile.github.io/microprofile-tutorial/
+```
+
+### Monitoring Deployments
+
+You can monitor deployment status through:
+
+- **GitHub Actions tab**: View workflow runs and their status
+- **Environment tab**: Track deployments to the `github-pages` environment  
+- **Settings > Pages**: Verify GitHub Pages configuration
+- **Repository insights**: View deployment frequency and success rates
+
+### Troubleshooting Workflow Issues
+
+Common issues and solutions:
+
+1. **Build Failures**:
+   - Check the workflow logs for Antora errors
+   - Verify `antora-assembler.yml` configuration
+   - Ensure all referenced content sources are accessible
+
+2. **Deployment Failures**:
+   - Verify GitHub Pages is enabled in repository settings
+   - Check that the workflow has necessary permissions
+   - Ensure the repository has GitHub Pages configured
+
+3. **Content Not Updating**:
+   - Check if the workflow completed successfully
+   - Verify the build generated the expected output
+   - Clear browser cache to see latest changes
+
+### Workflow Customization
+
+To customize the workflow for your needs:
+
+1. **Change trigger conditions**: Modify the `on:` section to change when the workflow runs
+2. **Update Node.js version**: Change the Node.js version in the setup step
+3. **Add build steps**: Include additional processing steps before or after Antora
+4. **Configure notifications**: Add steps to notify team members of deployment status
+
+### Migration from Static Deployment
+
+Previously, the repository included a `static.yml` workflow that deployed raw repository content. This has been removed in favor of the Antora-based workflow because:
+
+- **Proper documentation processing**: Antora generates a structured documentation site
+- **Better navigation**: Antora provides proper navigation and cross-references
+- **Improved maintenance**: Single workflow eliminates deployment conflicts
+- **Enhanced features**: Support for themes, search, and multi-version documentation
+
 ## Future Improvements
 
 Consider these potential improvements to the documentation site:
