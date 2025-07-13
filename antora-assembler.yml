@@ -25,7 +25,6 @@ asciidoc:
     page-pagination: true
     allow-uri-read: ''
     page-pdf-download-name: microprofile-tutorial.pdf
-    page-pdf-download-timestamp: '{localdate} {localtime}'
     source-language: asciidoc@
     table-caption: false
     xrefstyle: full
@@ -39,9 +38,9 @@ antora:
     - require: '@antora/lunr-extension'    # Search functionality
       index_latest_only: true
     - require: '@antora/pdf-extension'     # PDF generation
-      output_file: microprofile-tutorial.pdf
-      theme: default
-      output_dir: ./build/assembler/microprofile-tutorial/6.1/
+      generate_index: true
+      index_filename: microprofile-tutorial
+      output_format: pdf
 
 output:
   dir: ./build/site
