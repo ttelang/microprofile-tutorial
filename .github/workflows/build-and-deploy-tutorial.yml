@@ -72,6 +72,14 @@ jobs:
           if [ -d "./build/site" ]; then
             echo "✅ Site generated successfully"
             ls -la ./build/site
+            # Check if PDF was generated and would be available for UI bundle
+            if [ -f "./build/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf" ]; then
+              echo "✅ PDF generated successfully for UI bundle"
+              ls -la ./build/assembler/microprofile-tutorial/6.1/
+            else
+              echo "⚠️ PDF not generated in expected location"
+              find . -name "*.pdf" -type f
+            fi
           else
             echo "❌ Site generation failed - output directory not found"
             exit 1
@@ -131,6 +139,28 @@ jobs:
       # --stacktrace: Shows detailed error information for troubleshooting
       - name: Generate Site with Antora
         run: npx antora --fetch --stacktrace antora-assembler.yml
+
+      # Verify PDF generation in the location expected by UI bundle
+      - name: Verify PDF generation for UI bundle
+        run: |
+          if [ -f "./build/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf" ]; then
+            echo "✅ PDF generated in location expected by UI bundle"
+            ls -la ./build/assembler/microprofile-tutorial/6.1/*.pdf
+          else
+            echo "⚠️ PDF not found in expected location for UI bundle"
+            find . -name "*.pdf" -type f
+          fi
+
+      # Copy assembler directory to site for PDF access via UI bundle
+      - name: Copy assembler directory to site for PDF access
+        run: |
+          if [ -d "./build/assembler" ]; then
+            cp -r ./build/assembler ./build/site/
+            echo "✅ Assembler directory copied to site for web access"
+            ls -la ./build/site/assembler/microprofile-tutorial/6.1/
+          else
+            echo "⚠️ Assembler directory not found"
+          fi
 
       # Ensure GitHub Pages is enabled and configure deployment settings
       # This will enable Pages if it's not already enabled and set the source to GitHub Actions
