@@ -13,8 +13,9 @@ content:
 
 ui:
   bundle:
-    url: "https://gitlab.com/antora/antora-ui-default/-/archive/master/antora-ui-default-master.zip"
+    url: https://github.com/microprofile/microprofile-tutorial-ui/releases/download/latest/ui-bundle.zip
     snapshot: true
+  supplemental_files: ./supplemental-ui
 
 asciidoc:
   attributes:

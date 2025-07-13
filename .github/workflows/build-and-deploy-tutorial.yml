@@ -48,11 +48,19 @@ jobs:
           node-version: '20'  # LTS version compatible with Antora
           cache: 'npm'        # Cache npm dependencies for faster builds
 
+      # Set up Ruby for AsciiDoc extensions
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: false
+
       # Install Antora CLI, site generator, and advanced extensions
       - name: Install Antora and Extensions
         run: |
           npm install @antora/cli @antora/site-generator-default
           npm install @antora/lunr-extension @antora/pdf-extension @asciidoctor/tabs
+          gem install asciidoctor-pdf asciidoctor-kroki asciidoctor-plantuml
       
       # Generate the documentation site to validate it builds correctly
       - name: Validate Site Generation
@@ -108,11 +116,19 @@ jobs:
           node-version: '20'  # LTS version compatible with Antora
           cache: 'npm'        # Cache npm dependencies for faster builds
 
+      # Set up Ruby for AsciiDoc extensions  
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: false
+
       # Install Antora CLI, site generator, and advanced extensions
       - name: Install Antora and Extensions
         run: |
           npm install @antora/cli @antora/site-generator-default
           npm install @antora/lunr-extension @antora/pdf-extension @asciidoctor/tabs
+          gem install asciidoctor-pdf asciidoctor-kroki asciidoctor-plantuml
       
       # Verify that Antora was installed correctly (useful for debugging)
       - name: Verify Antora Installation
@@ -156,6 +172,53 @@ jobs:
           echo ""
           echo "✅ Pages setup completed successfully"
           echo "📄 Site will be deployed from ./build/site directory"
+
+      # Verify PDF generation and copy to UI bundle expected location
+      - name: Verify PDF generation and copy to UI bundle expected location
+        run: |
+          if [ -f "./build/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf" ]; then
+            echo "✅ PDF generated in assembler location"
+            PDF_SIZE=$(stat -f%z "./build/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf" 2>/dev/null || stat -c%s "./build/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf")
+            echo "PDF Size: ${PDF_SIZE} bytes"
+            
+            # Copy PDF to location expected by UI bundle download link
+            mkdir -p "./build/site/microprofile-tutorial/6.1/"
+            cp "./build/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf" \
+               "./build/site/microprofile-tutorial/6.1/microprofile-tutorial.pdf"
+            echo "✅ PDF copied to UI bundle expected location"
+            ls -la ./build/site/microprofile-tutorial/6.1/microprofile-tutorial.pdf
+            
+            # Also copy assembler directory for backup access
+            cp -r ./build/assembler ./build/site/
+            echo "✅ Assembler directory copied for backup access"
+            
+            # Create .htaccess for GitHub Pages to force PDF downloads
+            cat > ./build/site/.htaccess << 'EOF'
+          # Force PDF files to download instead of opening in browser
+          <Files "*.pdf">
+              Header set Content-Disposition "attachment"
+              Header set Cache-Control "no-cache, no-store, must-revalidate"
+              Header set Pragma "no-cache"
+              Header set Expires "0"
+          </Files>
+          EOF
+            
+            echo "✅ Download headers configured for PDFs"
+          else
+            echo "⚠️ PDF not found in assembler location"
+            find . -name "*.pdf" -type f
+          fi
+
+      # Copy assembler directory to site for PDF access via UI bundle
+      - name: Copy assembler directory to site for PDF access
+        run: |
+          if [ -d "./build/assembler" ]; then
+            cp -r ./build/assembler ./build/site/
+            echo "✅ Assembler directory copied to site for web access"
+            ls -la ./build/site/assembler/microprofile-tutorial/6.1/
+          else
+            echo "⚠️ Assembler directory not found"
+          fi
 
       # Upload the generated Antora site as a GitHub Pages artifact
       - name: Upload Antora Site to GitHub Pages
