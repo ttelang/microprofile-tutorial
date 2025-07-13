@@ -65,6 +65,9 @@ jobs:
       # Generate the documentation site to validate it builds correctly
       - name: Validate Site Generation
         run: npx antora --fetch --stacktrace antora-assembler.yml
+        env:
+          # Set timestamp for fresh PDF generation
+          BUILD_TIMESTAMP: ${{ github.run_number }}-$(date +%Y%m%d%H%M%S)
         
       # Verify the build output exists
       - name: Verify Build Output
@@ -139,25 +142,52 @@ jobs:
       # --stacktrace: Shows detailed error information for troubleshooting
       - name: Generate Site with Antora
         run: npx antora --fetch --stacktrace antora-assembler.yml
+        env:
+          # Set timestamp for fresh PDF generation
+          BUILD_TIMESTAMP: ${{ github.run_number }}-$(date +%Y%m%d%H%M%S)
 
-      # Verify PDF generation in the location expected by UI bundle
-      - name: Verify PDF generation for UI bundle
+      # Verify PDF generation and add timestamp for fresh downloads
+      - name: Verify PDF generation and add timestamp
         run: |
           if [ -f "./build/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf" ]; then
             echo "✅ PDF generated in location expected by UI bundle"
+            ls -la ./build/assembler/microprofile-tutorial/6.1/*.pdf
+            
+            # Add timestamp to PDF filename to prevent browser caching
+            TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+            BUILD_NUM=${{ github.run_number }}
+            
+            # Copy original PDF with timestamp
+            cp "./build/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf" \
+               "./build/assembler/microprofile-tutorial/6.1/microprofile-tutorial-${BUILD_NUM}-${TIMESTAMP}.pdf"
+            
+            echo "✅ Timestamped PDF created: microprofile-tutorial-${BUILD_NUM}-${TIMESTAMP}.pdf"
             ls -la ./build/assembler/microprofile-tutorial/6.1/*.pdf
           else
             echo "⚠️ PDF not found in expected location for UI bundle"
             find . -name "*.pdf" -type f
           fi
 
-      # Copy assembler directory to site for PDF access via UI bundle
-      - name: Copy assembler directory to site for PDF access
+      # Copy assembler directory to site and add download headers
+      - name: Copy assembler directory and configure PDF downloads
         run: |
           if [ -d "./build/assembler" ]; then
             cp -r ./build/assembler ./build/site/
             echo "✅ Assembler directory copied to site for web access"
             ls -la ./build/site/assembler/microprofile-tutorial/6.1/
+            
+            # Create .htaccess for GitHub Pages to force PDF downloads
+            cat > ./build/site/.htaccess << 'EOF'
+          # Force PDF files to download instead of opening in browser
+          <Files "*.pdf">
+              Header set Content-Disposition "attachment"
+              Header set Cache-Control "no-cache, no-store, must-revalidate"
+              Header set Pragma "no-cache"
+              Header set Expires "0"
+          </Files>
+          EOF
+            
+            echo "✅ Download headers configured for PDFs"
           else
             echo "⚠️ Assembler directory not found"
           fi

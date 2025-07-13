@@ -1,3 +1,26 @@
+{{!-- Custom head metadata for PDF downloads --}}
+<meta name="pdf-download-timestamp" content="{{page.attributes.page-pdf-download-timestamp}}">
+
+{{!-- Force PDF downloads instead of opening in browser --}}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Find all PDF download links and ensure they download instead of opening
+    const pdfLinks = document.querySelectorAll('a[href$=".pdf"]');
+    pdfLinks.forEach(link => {
+      // Add download attribute to force download
+      if (!link.hasAttribute('download')) {
+        link.setAttribute('download', '');
+      }
+      
+      // Add timestamp parameter to ensure fresh downloads and prevent caching
+      const url = new URL(link.href, window.location.origin);
+      url.searchParams.set('t', Date.now());
+      link.href = url.toString();
+    });
+  });
+</script>
+
+{{!-- Favicons --}}
 <link rel="icon" href="{{{uiRootPath}}}/img/favicon.svg" type="image/svg+xml">
 <link rel="alternate icon" href="{{{uiRootPath}}}/img/favicon.png" type="image/png">
 <link rel="shortcut icon" href="{{{uiRootPath}}}/img/favicon.png" type="image/png">
