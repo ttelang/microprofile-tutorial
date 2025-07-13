@@ -62,12 +62,19 @@ jobs:
           npm install @antora/lunr-extension @antora/pdf-extension @asciidoctor/tabs
           gem install asciidoctor-pdf asciidoctor-kroki asciidoctor-plantuml
       
+      # Clean previous build directory to ensure fresh generation
+      - name: Clean previous build directory
+        run: |
+          if [ -d "./build" ]; then
+            rm -rf ./build
+            echo "✅ Previous build directory cleaned for fresh generation"
+          else
+            echo "ℹ️ No previous build directory found"
+          fi
+      
       # Generate the documentation site to validate it builds correctly
       - name: Validate Site Generation
         run: npx antora --fetch --stacktrace antora-assembler.yml
-        env:
-          # Set timestamp for fresh PDF generation
-          BUILD_TIMESTAMP: ${{ github.run_number }}-$(date +%Y%m%d%H%M%S)
         
       # Verify the build output exists
       - name: Verify Build Output
@@ -137,31 +144,31 @@ jobs:
       - name: Verify Antora Installation
         run: npm list @antora/cli @antora/site-generator-default || echo "Antora packages are not installed."
       
+      # Clean previous build directory to ensure fresh generation
+      - name: Clean previous build directory
+        run: |
+          if [ -d "./build" ]; then
+            rm -rf ./build
+            echo "✅ Previous build directory cleaned for fresh generation"
+          else
+            echo "ℹ️ No previous build directory found"
+          fi
+      
       # Generate the documentation site using Antora playbook configuration
       # --fetch: Downloads remote content sources defined in playbook
       # --stacktrace: Shows detailed error information for troubleshooting
       - name: Generate Site with Antora
         run: npx antora --fetch --stacktrace antora-assembler.yml
-        env:
-          # Set timestamp for fresh PDF generation
-          BUILD_TIMESTAMP: ${{ github.run_number }}-$(date +%Y%m%d%H%M%S)
 
-      # Verify PDF generation and add timestamp for fresh downloads
-      - name: Verify PDF generation and add timestamp
+      # Verify fresh PDF generation
+      - name: Verify fresh PDF generation
         run: |
           if [ -f "./build/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf" ]; then
-            echo "✅ PDF generated in location expected by UI bundle"
-            ls -la ./build/assembler/microprofile-tutorial/6.1/*.pdf
-            
-            # Add timestamp to PDF filename to prevent browser caching
-            TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-            BUILD_NUM=${{ github.run_number }}
-            
-            # Copy original PDF with timestamp
-            cp "./build/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf" \
-               "./build/assembler/microprofile-tutorial/6.1/microprofile-tutorial-${BUILD_NUM}-${TIMESTAMP}.pdf"
-            
-            echo "✅ Timestamped PDF created: microprofile-tutorial-${BUILD_NUM}-${TIMESTAMP}.pdf"
+            echo "✅ Fresh PDF generated in location expected by UI bundle"
+            PDF_SIZE=$(stat -f%z "./build/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf" 2>/dev/null || stat -c%s "./build/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf")
+            PDF_DATE=$(stat -f%m "./build/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf" 2>/dev/null || stat -c%Y "./build/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf")
+            echo "PDF Size: ${PDF_SIZE} bytes"
+            echo "PDF Generated: $(date -r ${PDF_DATE} 2>/dev/null || date -d @${PDF_DATE})"
             ls -la ./build/assembler/microprofile-tutorial/6.1/*.pdf
           else
             echo "⚠️ PDF not found in expected location for UI bundle"

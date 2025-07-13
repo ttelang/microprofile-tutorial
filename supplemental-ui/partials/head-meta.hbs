@@ -11,11 +11,6 @@
       if (!link.hasAttribute('download')) {
         link.setAttribute('download', '');
       }
-      
-      // Add timestamp parameter to ensure fresh downloads and prevent caching
-      const url = new URL(link.href, window.location.origin);
-      url.searchParams.set('t', Date.now());
-      link.href = url.toString();
     });
   });
 </script>
