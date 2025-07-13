@@ -98,9 +98,12 @@ jobs:
           node-version: '20'  # LTS version compatible with Antora
           cache: 'npm'        # Cache npm dependencies for faster builds
 
-      # Install Antora CLI and site generator packages
-      - name: Install Antora Locally
-        run: npm install @antora/cli @antora/site-generator-default
+      # Install Antora CLI, site generator, and advanced extensions
+      - name: Install Antora and Extensions
+        run: |
+          npm install @antora/cli @antora/site-generator-default
+          npm install @antora/lunr-extension @antora/pdf-extension @asciidoctor/tabs
+          gem install asciidoctor-pdf asciidoctor-kroki asciidoctor-plantuml
       
       # Verify that Antora was installed correctly (useful for debugging)
       - name: Verify Antora Installation
