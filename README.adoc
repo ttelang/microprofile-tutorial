@@ -4,7 +4,7 @@
 :toclevels: 3
 :doctype: book
 
-The MicroProfile Tutorial is a comprehensive guide for learning about Eclipse MicroProfile. This repository contains the documentation built with Antora.
+The MicroProfile Tutorial is a comprehensive guide for learning about MicroProfile. This repository contains the documentation built with Antora.
 
 toc::[]
 
