@@ -4,7 +4,7 @@
 :toclevels: 3
 :doctype: book
 
-The MicroProfile Tutorial is a comprehensive guide for learning about Eclipse MicroProfile. This repository contains the documentation built with Antora.
+The MicroProfile Tutorial is a comprehensive guide for learning about https://microprofile.io[MicroProfile]. This repository contains the documentation built with https://antora.org/[Antora].
 
 toc::[]
 
@@ -15,7 +15,7 @@ This repository contains the documentation for the MicroProfile Tutorial, built 
 ## Prerequisites
 
 ### Install Antora 
-You need to install Antora using npm. If you don't have npm installed, you can install it by following the instructions at https://docs.npmjs.com/getting-started/installing-node.
+You need to https://docs.antora.org/antora/latest/install-and-run-quickstart/#install-antora[install Antora] using npm. If you don't have Node.js installed, you can https://docs.antora.org/antora/latest/install-and-run-quickstart/#install-nodejs[install Node.js] by following this instructions.
 
 ```
 npm install -g @antora/cli @antora/site-generator-default 
@@ -38,7 +38,9 @@ antora antora-assembler.yml
 ./fix-edit-links.sh
 ```
 
-The first command ensures that the repository URLs are up-to-date. The second command will generate the site in the `build/site` directory. The third command fixes the "Edit this Page" links to properly point to GitHub instead of local file paths.
+- The first command ensures that the repository URLs are up-to-date. 
+- The second command will generate the site in the `build/site` directory. 
+- The third command fixes the "Edit this Page" links to properly point to GitHub instead of local file paths.
 
 Alternatively, you can use the following one-liner:
 
@@ -527,6 +529,153 @@ If you're hosting the documentation on a custom domain:
 2. Configure your domain's DNS settings to point to your hosting provider
 3. If using GitHub Pages, add a CNAME file to the `build/site` directory
 
+## GitHub Actions Workflow for Automated Deployment
+
+The MicroProfile Tutorial documentation is automatically built and deployed using a GitHub Actions workflow. This section explains the workflow configuration and how it ensures continuous deployment of the documentation.
+
+### Workflow Overview
+
+The repository includes a comprehensive GitHub Actions workflow (`antora.yml`) that:
+
+- **Validates builds on pull requests** without deploying
+- **Automatically deploys** to GitHub Pages when changes are pushed to the main branch  
+- **Handles concurrent deployments** to prevent conflicts
+- **Ensures GitHub Pages is enabled** automatically
+
+### Workflow Configuration
+
+The workflow is defined in `.github/workflows/build-and-deploy-tutorials.yml` and includes two main jobs:
+
+#### 1. Pull Request Validation (`validate-build`)
+
+This job runs on pull requests and validates that the documentation builds correctly:
+
+- **Triggers**: Pull requests to the main branch
+- **Purpose**: Validates documentation builds without deploying
+- **Steps**:
+  * Checkout repository code
+  * Set up Node.js environment with npm caching
+  * Install Antora CLI and site generator
+  * Generate the site to validate build success
+  * Verify build output exists
+
+#### 2. Build and Deploy (`build-and-deploy`)
+
+This job runs on pushes to the main branch and deploys the documentation:
+
+- **Triggers**: Pushes to main branch, manual workflow dispatch
+- **Purpose**: Build and deploy documentation to GitHub Pages
+- **Environment**: Uses `github-pages` environment for deployment tracking
+- **Steps**:
+  * Checkout repository code
+  * Set up Node.js environment with npm caching
+  * Install Antora CLI and site generator
+  * Verify Antora installation
+  * Generate site using Antora with `--fetch` and `--stacktrace` options
+  * Configure GitHub Pages settings
+  * Upload generated site as artifact
+  * Deploy to GitHub Pages
+
+### Key Features
+
+#### Concurrency Control
+```yaml
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+```
+Prevents multiple deployments from running simultaneously while allowing in-progress deployments to complete.
+
+#### Automatic Pages Enablement
+The workflow automatically enables GitHub Pages if it's not already configured, ensuring the repository is properly set up for deployment.
+
+#### Environment Protection
+Uses the `github-pages` environment for deployment tracking and provides the deployment URL after successful completion.
+
+#### Performance Optimizations
+- **npm caching**: Speeds up Node.js setup
+- **Conditional deployment**: Only deploys from main branch pushes
+- **Comprehensive error handling**: Includes verification steps and detailed logging
+
+### Required Permissions
+
+The workflow requires specific GitHub token permissions:
+
+```yaml
+permissions:
+  id-token: write  # Required for OIDC authentication to GitHub Pages
+  contents: read   # Required to read repository contents and checkout code
+  pages: write     # Required to deploy artifacts to GitHub Pages
+```
+
+### Deployment Process
+
+When code is pushed to the main branch:
+
+1. **Build Validation**: The workflow validates that Antora can successfully build the site
+2. **Site Generation**: Antora processes the `antora-assembler.yml` configuration and generates the static site
+3. **Pages Configuration**: GitHub Pages is automatically configured if needed
+4. **Artifact Upload**: The generated site (`./build/site`) is uploaded as a deployment artifact
+5. **Deployment**: The artifact is deployed to GitHub Pages
+
+### Accessing the Deployed Site
+
+After successful deployment, the documentation is available at:
+```
+https://<username>.github.io/<repository-name>/
+```
+
+For the MicroProfile Tutorial, this would be:
+```
+https://microprofile.github.io/microprofile-tutorial/
+```
+
+### Monitoring Deployments
+
+You can monitor deployment status through:
+
+- **GitHub Actions tab**: View workflow runs and their status
+- **Environment tab**: Track deployments to the `github-pages` environment  
+- **Settings > Pages**: Verify GitHub Pages configuration
+- **Repository insights**: View deployment frequency and success rates
+
+### Troubleshooting Workflow Issues
+
+Common issues and solutions:
+
+1. **Build Failures**:
+   - Check the workflow logs for Antora errors
+   - Verify `antora-assembler.yml` configuration
+   - Ensure all referenced content sources are accessible
+
+2. **Deployment Failures**:
+   - Verify GitHub Pages is enabled in repository settings
+   - Check that the workflow has necessary permissions
+   - Ensure the repository has GitHub Pages configured
+
+3. **Content Not Updating**:
+   - Check if the workflow completed successfully
+   - Verify the build generated the expected output
+   - Clear browser cache to see latest changes
+
+### Workflow Customization
+
+To customize the workflow for your needs:
+
+1. **Change trigger conditions**: Modify the `on:` section to change when the workflow runs
+2. **Update Node.js version**: Change the Node.js version in the setup step
+3. **Add build steps**: Include additional processing steps before or after Antora
+4. **Configure notifications**: Add steps to notify team members of deployment status
+
+### Migration from Static Deployment
+
+Previously, the repository included a `static.yml` workflow that deployed raw repository content. This has been removed in favor of the Antora-based workflow because:
+
+- **Proper documentation processing**: Antora generates a structured documentation site
+- **Better navigation**: Antora provides proper navigation and cross-references
+- **Improved maintenance**: Single workflow eliminates deployment conflicts
+- **Enhanced features**: Support for themes, search, and multi-version documentation
+
 ## Future Improvements
 
 Consider these potential improvements to the documentation site:
@@ -743,179 +892,3 @@ When troubleshooting UI problems:
 2. Check the browser console for JavaScript errors
 3. Verify that all required resources are loading correctly
 4. Test with different browsers to identify browser-specific issues
-
-## Tutorial Overview
-
-This comprehensive tutorial guides you through building modern, cloud-native microservices using MicroProfile and Jakarta EE. Each chapter builds upon the previous one, starting from fundamentals and progressing to advanced enterprise patterns.
-
-## Chapter Contents
-
-### link:chapter01/chapter01.adoc[Chapter 1: Introduction to MicroProfile]
-**Foundation & Concepts** +
-Learn the fundamentals of MicroProfile, its architecture philosophy, and relationship with Jakarta EE. Understand why MicroProfile was created and its benefits for microservices development.
-
-*Key Topics:* MicroProfile specifications, implementations, architecture philosophy, benefits, Jakarta EE relationship
-
-### link:chapter02/chapter02-00.adoc[Chapter 2: Getting Started with MicroProfile] 
-**Development Environment & First Service** +
-Set up your development environment and create your first MicroProfile microservice. Learn about build tools, project initialization, and deployment basics.
-
-*Key Topics:* JDK setup, Maven configuration, project structure, RESTful services, testing +
-*Code Examples:* link:code/chapter02/mp-ecomm-store/[Basic E-commerce Store Service]
-
-### link:chapter03/chapter03.adoc[Chapter 3: Jakarta EE 10 Core Profile]
-**Enterprise Foundation** +
-Dive deep into Jakarta EE 10 Core Profile as the foundation for MicroProfile. Master CDI, Jakarta REST, JSON processing, and component lifecycle management.
-
-*Key Topics:* CDI, Jakarta REST, JSON Binding/Processing, dependency injection, HTTP resources +
-*Code Examples:* link:code/chapter03/catalog/[Catalog Service], link:code/chapter03/mp-ecomm-store/[Enhanced E-commerce Store]
-
-### link:chapter04/chapter04.adoc[Chapter 4: MicroProfile OpenAPI]
-**API Documentation & Contracts** +
-Generate comprehensive API documentation using MicroProfile OpenAPI. Learn to create clear API contracts with annotations and explore APIs through Swagger UI.
-
-*Key Topics:* OpenAPI specification, API documentation, Swagger UI, authentication documentation +
-*Code Examples:* link:code/chapter04/catalog/[Documented Catalog Service]
-
-### link:chapter05/chapter05.adoc[Chapter 5: MicroProfile Configuration]
-**External Configuration Management** +
-Master configuration externalization across different environments. Implement custom configuration sources and handle dynamic configuration updates.
-
-*Key Topics:* Configuration injection, multiple environments, custom config sources, dynamic updates +
-*Code Examples:* link:code/chapter05/catalog/[Configurable Catalog], link:code/chapter05/payment/[Payment Service with Config]
-
-### link:chapter06/chapter06.adoc[Chapter 6: MicroProfile Health]
-**Service Health & Monitoring** +
-Implement comprehensive health checks for microservices reliability. Learn liveness, readiness, and startup probes for cloud and Kubernetes deployments.
-
-*Key Topics:* Health check types, liveness/readiness probes, CDI integration +
-*Code Examples:* link:code/chapter06/catalog/[Health-enabled Catalog Service]
-
-### link:chapter07/chapter07.adoc[Chapter 7: MicroProfile Metrics]
-**Performance Monitoring & Observability** +
-Add detailed performance monitoring to your microservices. Create custom metrics and integrate with monitoring solutions for production observability.
-
-*Key Topics:* Metric types, performance monitoring, custom metrics, monitoring integration +
-*Code Examples:* link:code/chapter07/catalog/[Metrics-enabled Catalog Service]
-
-### Chapter 8: MicroProfile Fault Tolerance _(Code Only)_
-**Resilience Patterns** +
-Implement resilience patterns including retry policies, circuit breakers, timeouts, and bulkheads to handle failures gracefully in distributed systems.
-
-*Key Features:* Retry mechanisms, circuit breaker protection, timeout handling, concurrent request limiting +
-*Code Examples:* link:code/chapter08/payment/[Fault-tolerant Payment Service]
-
-### Chapter 9: MicroProfile OpenTelemetry _(Code Only)_
-**Distributed Tracing & Observability** +
-Learn distributed tracing and observability using MicroProfile OpenTelemetry. Implement comprehensive monitoring across microservices to track requests through complex service interactions.
-
-*Key Features:* Distributed tracing, span creation, trace correlation, observability integration +
-*Code Examples:* link:code/chapter09/payment/[Payment Service with OpenTelemetry Tracing]
-
-### Chapter 10: MicroProfile JWT _(Code Only)_
-**Security & Authentication** +
-Implement JWT-based authentication and authorization. Learn role-based access control and secure microservice communication.
-
-*Key Features:* JWT authentication, role-based authorization, secure endpoints +
-*Code Examples:* link:code/chapter10/order/[Secure Order Service], link:code/chapter10/user/[User Service with JWT]
-
-### Chapter 11: Complete E-Commerce Application _(Code Only)_
-**Production-Ready Microservices** +
-Explore a complete, production-ready e-commerce application showcasing all MicroProfile specifications working together in a real-world scenario. Features comprehensive REST Client implementations for service-to-service communication.
-
-*Services:* 
-- link:code/chapter11/catalog/[Catalog Service] - Product management
-- link:code/chapter11/inventory/[Inventory Service] - Stock management with REST Client integration
-- link:code/chapter11/order/[Order Service] - Order processing
-- link:code/chapter11/payment/[Payment Service] - Payment processing with external service calls
-- link:code/chapter11/shipment/[Shipment Service] - Shipping management with order integration
-- link:code/chapter11/shoppingcart/[Shopping Cart Service] - Cart management
-- link:code/chapter11/user/[User Service] - User management
-
-*Features:* Complete microservices architecture, MicroProfile REST Client service communication, comprehensive security, full observability stack
-
-## Learning Path
-
-1. **Foundations** (Chapters 1-3): Core concepts and Jakarta EE fundamentals
-2. **Essential APIs** (Chapters 4-7): Key MicroProfile specifications with hands-on examples
-3. **Advanced Patterns** (Chapters 8-10): Resilience, communication, and security
-4. **Real-World Application** (Chapter 11): Complete production-ready system
-
-## Prerequisites
-
-- Java 17 or later
-- Maven 3.6+
-- Basic understanding of REST APIs and JSON
-- Familiarity with enterprise Java development
-
-## Getting Started
-
-1. Clone this repository
-2. Follow Chapter 2 for environment setup
-3. Work through chapters sequentially
-4. Experiment with the code examples in each chapter
-
-Each chapter builds practical knowledge while the code examples provide hands-on experience with real microservices development scenarios.
-=======
-
-## GitHub Actions Workflow for Deployment
-
-The documentation site is automatically built and deployed using GitHub Actions. Below is an overview of the workflow:
-
-### Workflow Configuration
-
-The workflow is defined in `.github/workflows/antora.yml` and includes the following steps:
-
-1. **Checkout Repository**:
-   Uses the `actions/checkout@v3` action to fetch the repository.
-
-2. **Set up Node.js**:
-   Configures Node.js version `18` using `actions/setup-node@v3`.
-
-3. **Install Antora Locally**:
-   Installs Antora CLI and site generator locally:
-   ```bash
-   npm install @antora/cli @antora/site-generator-default
-   ```
-
-4. **Verify Antora Installation**:
-   Ensures the required packages are installed:
-   ```bash
-   npm list @antora/cli @antora/site-generator-default || echo "Antora packages are not installed."
-   ```
-
-5. **Generate Site with Antora**:
-   Builds the site using the playbook:
-   ```bash
-   npx antora --fetch --stacktrace playbook.yml
-   ```
-
-6. **Setup Pages**:
-   Configures GitHub Pages using `actions/configure-pages@v4`.
-
-7. **Upload Site to GitHub Pages**:
-   Uploads the generated site artifact using `actions/upload-pages-artifact@v3`.
-
-8. **Deploy to GitHub Pages**:
-   Deploys the site using `actions/deploy-pages@v4`.
-
-### Permissions
-
-The workflow requires the following permissions:
-- `id-token: write` for authentication.
-- `contents: read` to access repository contents.
-- `pages: write` to deploy the site to GitHub Pages.
-
-### Deployment URL
-
-After a successful deployment, the site is available at:
-```
-https://<username>.github.io/<repository-name>/
-```
-Replace `<username>` (for e.g. microprofile) with your GitHub username and `<repository-name>` (for e.g. microprofile-tutorial) with the name of your repository.
-
-The production branch url for the MicroProfile Tutorial documentation would be:
-
-```
-https://microprofile.github.io/microprofile-tutorial/
-```

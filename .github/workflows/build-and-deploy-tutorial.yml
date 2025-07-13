@@ -1,0 +1,147 @@
+# GitHub Actions workflow for building and deploying MicroProfile Tutorial documentation
+# This workflow uses Antora to generate a static documentation site from AsciiDoc sources
+# and deploys it to GitHub Pages
+name: Generate MicroProfile Tutorial
+
+on:
+  # Allows manual triggering of the workflow from the GitHub Actions tab
+  workflow_dispatch:
+  
+  # Automatically runs when code is pushed to the main branch
+  push:
+    branches:
+      - main
+      
+  # Runs on pull requests to validate the build (but doesn't deploy)
+  pull_request: 
+    branches: 
+      - main
+
+# Prevent concurrent deployments to avoid conflicts and race conditions
+# Only allow one deployment at a time, but don't cancel in-progress runs
+# as we want to allow production deployments to complete
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # Validation job for pull requests - builds but doesn't deploy
+  validate-build:
+    # Only run this job on pull requests
+    if: github.event_name == 'pull_request'
+    
+    runs-on: ubuntu-latest
+    
+    # Minimal permissions needed for PR validation
+    permissions:
+      contents: read   # Required to read repository contents
+      
+    steps:
+      # Checkout the repository source code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Set up Node.js runtime environment for Antora
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'  # LTS version compatible with Antora
+          cache: 'npm'        # Cache npm dependencies for faster builds
+
+      # Install Antora CLI and site generator packages
+      - name: Install Antora Locally
+        run: npm install @antora/cli @antora/site-generator-default
+      
+      # Generate the documentation site to validate it builds correctly
+      - name: Validate Site Generation
+        run: npx antora --fetch --stacktrace antora-assembler.yml
+        
+      # Verify the build output exists
+      - name: Verify Build Output
+        run: |
+          if [ -d "./build/site" ]; then
+            echo "✅ Site generated successfully"
+            ls -la ./build/site
+          else
+            echo "❌ Site generation failed - output directory not found"
+            exit 1
+          fi
+
+  # Main job that builds the Antora documentation and deploys to GitHub Pages
+  build-and-deploy:
+    # Only deploy to Pages on pushes to main branch, not on PRs
+    # This prevents deploying from pull request builds
+    if: github.event_name != 'pull_request'
+    
+    # Use GitHub Pages environment for deployment tracking and protection
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+      
+    runs-on: ubuntu-latest
+    
+    # GitHub token permissions required for this workflow
+    permissions:
+      id-token: write  # Required for OIDC authentication to GitHub Pages
+      contents: read   # Required to read repository contents and checkout code
+      pages: write     # Required to deploy artifacts to GitHub Pages
+      
+    steps: 
+      # Checkout the repository source code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Set up Node.js runtime environment for Antora
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'  # LTS version compatible with Antora
+          cache: 'npm'        # Cache npm dependencies for faster builds
+
+      # Install Antora CLI and site generator packages
+      - name: Install Antora Locally
+        run: npm install @antora/cli @antora/site-generator-default
+      
+      # Verify that Antora was installed correctly (useful for debugging)
+      - name: Verify Antora Installation
+        run: npm list @antora/cli @antora/site-generator-default || echo "Antora packages are not installed."
+      
+      # Generate the documentation site using Antora playbook configuration
+      # --fetch: Downloads remote content sources defined in playbook
+      # --stacktrace: Shows detailed error information for troubleshooting
+      - name: Generate Site with Antora
+        run: npx antora --fetch --stacktrace antora-assembler.yml
+
+      # Ensure GitHub Pages is enabled and configure deployment settings
+      # This will enable Pages if it's not already enabled and set the source to GitHub Actions
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+        with: 
+          # Automatically enable Pages if not already enabled
+          enablement: true
+          # Set the publishing source to GitHub Actions (vs. legacy branch-based)
+          # This ensures the repository is configured to accept deployments from Actions
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Verify Pages configuration and provide helpful debugging info
+      - name: Verify Pages Configuration
+        run: |
+          echo "🔧 GitHub Pages Configuration Check:"
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Event: ${{ github.event_name }}"
+          echo "Actor: ${{ github.actor }}"
+          echo ""
+          echo "✅ Pages setup completed successfully"
+          echo "📄 Site will be deployed from ./build/site directory"
+
+      # Upload the generated Antora site as a GitHub Pages artifact
+      - name: Upload Antora Site to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./build/site  # Antora's default output directory
+          
+      # Deploy the uploaded artifact to GitHub Pages
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

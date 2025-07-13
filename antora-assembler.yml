@@ -1,6 +1,6 @@
 site:
   title: MicroProfile Tutorial
-  url: https://microprofile.io
+  url: https://microprofile.io/tutorial
   start_page: microprofile-tutorial::index.adoc
   keys:
     show_edit_page_link: true
@@ -24,23 +24,26 @@ asciidoc:
     idseparator: '-'
     page-pagination: true
     allow-uri-read: ''
-    page-pdf-download-name: microprofile-tutorial.pdf
     source-language: asciidoc@
     table-caption: false
     xrefstyle: full
-  extensions:
-    - asciidoctor-plantuml
-    - asciidoctor-kroki
-    - '@asciidoctor/tabs'
+  # Note: Advanced extensions like plantuml, kroki, tabs require additional packages
+  # Uncomment these lines after installing the required dependencies in your workflow
+  # extensions:
+  #   - asciidoctor-plantuml
+  #   - asciidoctor-kroki
+  #   - '@asciidoctor/tabs'
 
-antora:
-  extensions:
-    - require: '@antora/lunr-extension'
-      index_latest_only: true
-    - require: '@antora/pdf-extension'
-      generate_index: true
-      index_filename: microprofile-tutorial
-      output_format: pdf
+# Note: Antora extensions require additional npm packages in workflow
+# Uncomment and install dependencies if you want these features:
+# antora:
+#   extensions:
+#     - require: '@antora/lunr-extension'
+#       index_latest_only: true
+#     - require: '@antora/pdf-extension'
+#       generate_index: true
+#       index_filename: microprofile-tutorial
+#       output_format: pdf
 
 output:
   dir: ./build/site
