@@ -175,13 +175,20 @@ jobs:
             find . -name "*.pdf" -type f
           fi
 
-      # Copy assembler directory to site for PDF access
-      - name: Copy assembler directory and configure PDF downloads
+      # Copy PDF to location expected by UI bundle download link
+      - name: Copy PDF to UI bundle expected location
         run: |
-          if [ -d "./build/assembler" ]; then
+          if [ -f "./build/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf" ]; then
+            # Ensure the PDF is available where the UI bundle download link expects it
+            mkdir -p "./build/site/microprofile-tutorial/6.1/"
+            cp "./build/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf" \
+               "./build/site/microprofile-tutorial/6.1/microprofile-tutorial.pdf"
+            echo "✅ PDF copied to UI bundle expected location"
+            ls -la ./build/site/microprofile-tutorial/6.1/microprofile-tutorial.pdf
+            
+            # Also copy assembler directory for completeness
             cp -r ./build/assembler ./build/site/
-            echo "✅ Assembler directory copied to site for web access"
-            ls -la ./build/site/assembler/microprofile-tutorial/6.1/
+            echo "✅ Assembler directory also copied for backup access"
             
             # Create .htaccess for GitHub Pages to force PDF downloads
             cat > ./build/site/.htaccess << 'EOF'
@@ -196,7 +203,8 @@ jobs:
             
             echo "✅ Download headers configured for PDFs"
           else
-            echo "⚠️ Assembler directory not found"
+            echo "⚠️ PDF not found in assembler location"
+            find . -name "*.pdf" -type f
           fi
 
       # Ensure GitHub Pages is enabled and configure deployment settings

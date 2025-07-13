@@ -7,14 +7,12 @@
     // Find all PDF download links and ensure they download instead of opening
     const pdfLinks = document.querySelectorAll('a[href$=".pdf"]');
     pdfLinks.forEach(link => {
-      // Change the href to point to the assembler location
-      if (link.href.includes('microprofile-tutorial.pdf')) {
-        link.href = '/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf';
-      }
       // Add download attribute to force download
       if (!link.hasAttribute('download')) {
         link.setAttribute('download', '');
       }
+      // Log for debugging
+      console.log('PDF download link found:', link.href);
     });
   });
 </script>

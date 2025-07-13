@@ -17,6 +17,8 @@
       if (!link.hasAttribute('download')) {
         link.setAttribute('download', '');
       }
+      // Log for debugging
+      console.log('PDF download link found:', link.href);
     });
   });
 </script>
