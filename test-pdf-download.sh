@@ -11,13 +11,22 @@ fi
 
 echo "✅ Site directory exists"
 
-# Check if PDF exists in assembler location
+# Check if PDF exists in assembler location (could be index.pdf or microprofile-tutorial.pdf)
+PDF_FOUND=false
 if [ -f "build/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf" ]; then
-    echo "✅ PDF found in assembler location"
+    echo "✅ PDF found in assembler location: microprofile-tutorial.pdf"
     PDF_SIZE=$(stat -f%z "build/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf" 2>/dev/null || stat -c%s "build/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf")
     echo "   Size: ${PDF_SIZE} bytes"
+    PDF_FOUND=true
+elif [ -f "build/assembler/microprofile-tutorial/6.1/_exports/index.pdf" ]; then
+    echo "✅ PDF found in assembler/_exports location: index.pdf"
+    PDF_SIZE=$(stat -f%z "build/assembler/microprofile-tutorial/6.1/_exports/index.pdf" 2>/dev/null || stat -c%s "build/assembler/microprofile-tutorial/6.1/_exports/index.pdf")
+    echo "   Size: ${PDF_SIZE} bytes"
+    PDF_FOUND=true
 else
     echo "❌ PDF not found in assembler location"
+    echo "   Looking for PDF files:"
+    find . -name "*.pdf" -type f 2>/dev/null || echo "   No PDF files found"
 fi
 
 # Check if PDF exists in site location (where download link points)
