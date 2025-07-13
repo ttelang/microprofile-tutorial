@@ -173,26 +173,32 @@ jobs:
           echo "✅ Pages setup completed successfully"
           echo "📄 Site will be deployed from ./build/site directory"
 
-      # Verify PDF generation and copy to UI bundle expected location
-      - name: Verify PDF generation and copy to UI bundle expected location
+      # Verify PDF generation and copy to correct location for download
+      - name: Verify PDF generation and copy to correct location for download
         run: |
           if [ -f "./build/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf" ]; then
             echo "✅ PDF generated in assembler location"
             PDF_SIZE=$(stat -f%z "./build/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf" 2>/dev/null || stat -c%s "./build/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf")
             echo "PDF Size: ${PDF_SIZE} bytes"
             
-            # Copy PDF to location expected by UI bundle download link
+            # Copy PDF to the exact location the download link expects
+            # The download link is ../../microprofile-tutorial/6.1/microprofile-tutorial.pdf
+            # From /microprofile-tutorial/6.1/index.html, this resolves to /microprofile-tutorial/6.1/microprofile-tutorial.pdf
             mkdir -p "./build/site/microprofile-tutorial/6.1/"
             cp "./build/assembler/microprofile-tutorial/6.1/microprofile-tutorial.pdf" \
                "./build/site/microprofile-tutorial/6.1/microprofile-tutorial.pdf"
-            echo "✅ PDF copied to UI bundle expected location"
-            ls -la ./build/site/microprofile-tutorial/6.1/microprofile-tutorial.pdf
+            echo "✅ PDF copied to download location: /microprofile-tutorial/6.1/microprofile-tutorial.pdf"
             
-            # Also copy assembler directory for backup access
-            cp -r ./build/assembler ./build/site/
-            echo "✅ Assembler directory copied for backup access"
+            # Verify the copy was successful
+            if [ -f "./build/site/microprofile-tutorial/6.1/microprofile-tutorial.pdf" ]; then
+              echo "✅ PDF verification successful"
+              ls -la ./build/site/microprofile-tutorial/6.1/microprofile-tutorial.pdf
+            else
+              echo "❌ PDF copy failed"
+              exit 1
+            fi
             
-            # Create .htaccess for GitHub Pages to force PDF downloads
+            # Create .htaccess for GitHub Pages to ensure proper PDF serving
             cat > ./build/site/.htaccess << 'EOF'
           # Set proper MIME type for PDF files
           <Files "*.pdf">
@@ -203,17 +209,17 @@ jobs:
               Header set Pragma "no-cache"
               Header set Expires "0"
           </Files>
-          
-          # Ensure PDF files are served correctly
-          RewriteEngine On
-          RewriteCond %{REQUEST_FILENAME} \.pdf$
-          RewriteRule ^(.*)$ $1 [L,T=application/pdf]
           EOF
             
-            echo "✅ Download headers configured for PDFs"
+            # Also create PDF-specific .htaccess in the PDF directory
+            cp supplemental-ui/pdf-htaccess "./build/site/microprofile-tutorial/6.1/.htaccess"
+            echo "✅ PDF-specific .htaccess created"
+            
+            echo "✅ PDF download headers configured"
           else
-            echo "⚠️ PDF not found in assembler location"
+            echo "❌ PDF not found in assembler location"
             find . -name "*.pdf" -type f
+            exit 1
           fi
 
       # Copy assembler directory to site for PDF access via UI bundle
