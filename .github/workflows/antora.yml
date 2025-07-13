@@ -1,9 +1,13 @@
 name: Generate MicroProfile Tutorial
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main  # Or your default branch
+  pull_request: 
+    branches: 
+      - main
 
 jobs: 
   build-and-deploy:
