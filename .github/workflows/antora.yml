@@ -14,12 +14,12 @@ jobs:
       pages: write     # Required to deploy to GitHub Pages
     steps: 
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'  # Use a compatible Node.js version
+          node-version: '20'  # Use a compatible Node.js version
 
       - name: Install Antora Locally
         run: npm install @antora/cli @antora/site-generator-default
@@ -31,7 +31,9 @@ jobs:
         run: npx antora --fetch --stacktrace playbook.yml
 
       - name: Setup Pages
-        uses: actions/configure-pages@v4
+        uses: actions/configure-pages@v5
+        with: 
+          enablement: true
 
       - name: Upload Antora Site to GitHub Pages
         uses: actions/upload-pages-artifact@v3
