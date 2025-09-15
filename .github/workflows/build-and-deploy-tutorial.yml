@@ -6,12 +6,10 @@ name: Generate MicroProfile Tutorial
 on:
   # Allows manual triggering of the workflow from the GitHub Actions tab
   workflow_dispatch:
-  
   # Automatically runs when code is pushed to the main branch
   push:
     branches:
       - main
-      
   # Runs on pull requests to validate the build (but doesn't deploy)
   pull_request: 
     branches: 
@@ -29,13 +27,13 @@ jobs:
   validate-build:
     # Only run this job on pull requests
     if: github.event_name == 'pull_request'
-    
+
     runs-on: ubuntu-latest
-    
+
     # Minimal permissions needed for PR validation
     permissions:
       contents: read   # Required to read repository contents
-      
+
     steps:
       # Checkout the repository source code
       - name: Checkout Repository
@@ -65,7 +63,7 @@ jobs:
       # Generate the documentation site to validate it builds correctly
       - name: Validate Site Generation
         run: npx antora --fetch --stacktrace antora-assembler.yml
-        
+
       # Verify the build output exists
       - name: Verify Build Output
         run: |
@@ -92,7 +90,7 @@ jobs:
     # Only deploy to Pages on pushes to main branch, not on PRs
     # This prevents deploying from pull request builds
     if: github.event_name != 'pull_request'
-    
+
     # Use GitHub Pages environment for deployment tracking and protection
     environment:
       name: github-pages
@@ -105,7 +103,7 @@ jobs:
       id-token: write  # Required for OIDC authentication to GitHub Pages
       contents: read   # Required to read repository contents and checkout code
       pages: write     # Required to deploy artifacts to GitHub Pages
-      
+
     steps: 
       # Checkout the repository source code
       - name: Checkout Repository
@@ -135,7 +133,7 @@ jobs:
       # Verify that Antora was installed correctly (useful for debugging)
       - name: Verify Antora Installation
         run: npm list @antora/cli @antora/site-generator-default || echo "Antora packages are not installed."
-      
+
       # Clean previous build directory to ensure fresh generation
       - name: Clean previous build directory
         run: |
@@ -252,7 +250,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./build/site  # Antora's default output directory
-          
+
       # Deploy the uploaded artifact to GitHub Pages
       - name: Deploy to GitHub Pages
         id: deployment
