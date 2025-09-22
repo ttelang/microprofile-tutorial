@@ -61,6 +61,13 @@ jobs:
           npm install @antora/cli @antora/site-generator-default
           npm install @antora/lunr-extension @antora/pdf-extension @asciidoctor/tabs
           gem install asciidoctor-pdf asciidoctor-kroki asciidoctor-plantuml
+
+      # Make update-repo-url.sh executable and run it to update URLs
+      - name: Make update-repo-url.sh executable
+        run: chmod +x ./update-repo-url.sh
+
+      - name: Update repository URLs in configuration files
+        run: ./update-repo-url.sh
       
       # Generate the documentation site to validate it builds correctly
       - name: Validate Site Generation
