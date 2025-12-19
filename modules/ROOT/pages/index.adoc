@@ -98,7 +98,7 @@ we assume you have a basic understanding of RESTful Web Services.
 ** Explore integration with messaging systems such as Kafka or other brokers for scalable, decoupled communication.
 * API Design and Data Querying with GraphQL
 ** Understand the fundamentals of GraphQL and its advantages over traditional REST APIs
-** Learn to design flexible, client-driven APIs using MicroProfile GraphQL 2.0.
+** Learn to design flexible, client-driven APIs using MicroProfile GraphQL.
 ** Implement GraphQL endpoints within MicroProfile-based microservices.
 * Building Resilient and Scalable Services:
 ** Master techniques for developing resilient services using fault tolerance patterns such as retries, timeouts, circuit breakers and bulkhead.
@@ -107,14 +107,14 @@ we assume you have a basic understanding of RESTful Web Services.
 ** Learn the intricacies of securing microservices using MicroProfile JWT and Security API.
 * Effective Data Management in Microservices:
 ** Understand the role of JPA and JSON-B in MicroProfile for handling data operations in microservices.
-* Monitoring and Tracing:
+* Monitoring, Observability and Tracing:
 ** Implement monitoring strategies using MicroProfile Metrics.
-** Learn to trace microservice interactions with OpenTracing for enhanced observability.
+** Learn distributed tracing concepts and trace microservice interactions using OpenTracing and MicroProfile Telemetry for enhanced observability.
 * Collaborative Learning and Community Engagement:
 ** Participate in Q&A sessions, forums, and interactive discussions.
-** Engage with the MicroProfile community for continuous learning and staying updated with the latest trends.
+** Engage with the MicroProfile community to stay current with evolving specifications and best practices.
 
-By the end of this tutorial readers will have the knowledge and hands-on experience required to architect, develop, deploy, secure, and observe robust, event-driven microservices using MicroProfile. They will be well-prepared for advanced roles in software development and architecture in cloud-native environments.
+By the end of this tutorial, readers will have the knowledge and hands-on experience required to design, develop, secure, and observe robust, event-driven microservices using MicroProfile. They will be well prepared for advanced roles in cloud-native software development and microservices architecture.
 
 == Conventions
 [width="99%",cols="20%,38%,37%"]
