@@ -127,9 +127,9 @@ we assume you have a basic understanding of RESTful Web Services.
 
 ** Participate in Q&A sessions, forums, and interactive discussions.
 
-** Engage with the MicroProfile community for continuous learning and staying updated with the latest trends.
+** Engage with the MicroProfile community to stay current with evolving specifications and best practices.
 
-By the end of this tutorial readers will gain the knowledge and skills necessary to design, develop, and deploy robust microservices using MicroProfile, preparing them for advanced roles in software development and architecture in cloud-native environments.
+By the end of this tutorial, readers will have the knowledge and hands-on experience required to architect, develop, deploy, secure, and observe robust, event-driven microservices using MicroProfile. They will be well-preparing for advanced roles in cloud-native software development and microservices architecture.
 
 == Conventions
 [width="99%",cols="20%,38%,37%"]
