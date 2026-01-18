@@ -16,8 +16,8 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     
     <!-- Setting the source and target of the Java Compiler -->
-    <maven.compiler.source>17</maven.compiler.source>
-    <maven.compiler.target>17</maven.compiler.target>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
     
     <!-- Liberty configuration -->
     <liberty.var.default.http.port>5050</liberty.var.default.http.port>
