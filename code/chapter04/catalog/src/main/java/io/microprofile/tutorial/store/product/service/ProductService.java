@@ -5,6 +5,7 @@ import io.microprofile.tutorial.store.product.repository.JPA;
 import io.microprofile.tutorial.store.product.repository.ProductRepositoryInterface;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -48,6 +49,7 @@ public class ProductService {
      * @param product Product data to create
      * @return The created product with ID
      */
+    @Transactional
     public Product createProduct(Product product) {
         LOGGER.info("Service: Creating new product: " + product);
         return repository.createProduct(product);
@@ -60,6 +62,7 @@ public class ProductService {
      * @param updatedProduct Updated product data
      * @return The updated product or null if not found
      */
+    @Transactional
     public Product updateProduct(Long id, Product updatedProduct) {
         LOGGER.info("Service: Updating product with ID: " + id);
         
@@ -78,6 +81,7 @@ public class ProductService {
      * @param id ID of the product to delete
      * @return true if deleted, false if not found
      */
+    @Transactional
     public boolean deleteProduct(Long id) {
         LOGGER.info("Service: Deleting product with ID: " + id);
         return repository.deleteProduct(id);

@@ -278,7 +278,7 @@ void testGetAllProducts() {
 
 == Running the Tests
 
-Run tests using Maven:
+Run tests using Maven by giving the following command in the code/chapter03/mp-ecomm-store directory:
 
 [source,bash]
 ----

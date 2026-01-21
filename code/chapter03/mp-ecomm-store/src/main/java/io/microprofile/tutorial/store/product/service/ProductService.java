@@ -3,6 +3,7 @@ package io.microprofile.tutorial.store.product.service;
 import io.microprofile.tutorial.store.product.entity.Product;
 import io.microprofile.tutorial.store.interceptor.Logged;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.transaction.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,12 +32,14 @@ public class ProductService {
         return products.stream().filter(p -> p.getId().equals(id)).findFirst();
     }
 
+    @Transactional
     public Product createProduct(Product product) {
         LOGGER.info("Creating product: " + product);
         products.add(product);
         return product;
     }
 
+    @Transactional
     public Optional<Product> updateProduct(Long id, Product updatedProduct) {
         LOGGER.info("Updating product with id: " + id);
         for (int i = 0; i < products.size(); i++) {
@@ -51,6 +54,7 @@ public class ProductService {
         return Optional.empty();
     }
 
+    @Transactional
     public boolean deleteProduct(Long id) {
         LOGGER.info("Deleting product with id: " + id);
         Optional<Product> product = getProductById(id);
