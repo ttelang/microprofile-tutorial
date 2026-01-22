@@ -1,7 +1,7 @@
 name: microprofile-tutorial          # Component name/identifier
 title: MicroProfile Tutorial         # Display title for the component
 version: 7.0                        # Version of this component
-edit_url: https://github.com/microprofile/microprofile-tutorial/tree/v7.0/modules/ROOT/pages/{path} 
+edit_url: https://github.com/ttelang/microprofile-tutorial/edit/v7.0/modules/ROOT/pages/{path}
 asciidoc:                           # AsciiDoc processing settings
   attributes:                       # Document attributes
     source-language: asciidoc@
