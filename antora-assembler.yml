@@ -7,9 +7,9 @@ site:
 
 content:
   sources:
-    - url: "https://github.com/microprofile/microprofile-tutorial.git"          # Current directory (local content)
-      branches: main  # Use current branch
-      start_path: /   # Root of the content
+    - url: ./                             # Current directory (local content)
+      branches: HEAD                      # Use current branch
+      start_path: /                       # Root of the content
 
 ui:
   bundle:
