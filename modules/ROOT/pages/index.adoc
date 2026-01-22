@@ -5,7 +5,7 @@
 ----
 MicroProfile API Tutorial
 
-Version: 7.0
+Version: 7.1
 
 Status: Draft
 ----

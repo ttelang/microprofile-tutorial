@@ -12,6 +12,62 @@ toc::[]
 
 This repository contains the documentation for the MicroProfile Tutorial, built with Antora. This README provides information on how to set up, build, and customize the documentation site.
 
+## Version and Branch Strategy
+
+This repository uses a **branch-per-version** strategy to maintain documentation and code examples for different MicroProfile releases. Each major MicroProfile version has its own dedicated branch, ensuring clear separation and stability.
+
+### Branch Organization
+
+* **`main`** - Contains MicroProfile 6.1 documentation and code examples
+* **`v7.1`** - Contains MicroProfile 7.1 documentation and code examples
+* **Future versions** - Will follow the same pattern `v7.2`, `v8.0`, etc.
+
+### Which Branch Should You Use?
+
+Choose the branch that matches your MicroProfile version:
+
+[cols="1,1,2"]
+|===
+|MicroProfile Version |Branch 
+
+|6.1
+|`main`
+
+|7.1
+|`v7.1`
+
+|===
+
+### Workflow for New Versions
+
+When creating documentation for a new MicroProfile version:
+
+1. **Create a new branch** from the previous version:
++
+```bash
+git checkout main
+git checkout -b v7.2
+```
+
+2. **Update version numbers** in:
+   * `antora.yml` - Component version
+   * All `pom.xml` files in `code/` directory - MicroProfile dependencies
+   * Documentation content referencing version numbers
+
+3. **Update code examples** to use new MicroProfile features and APIs
+
+4. **Test the build** locally before pushing:
++
+```bash
+antora antora-assembler.yml
+```
+
+5. **Push the branch** and create a pull request when ready
+
+### Building Multiple Versions
+
+The `antora-assembler.yml` file is configured to build documentation for multiple versions simultaneously, creating a version selector in the UI. This allows users to switch between different MicroProfile versions easily.
+
 ## Prerequisites
 
 ### Install Antora 
