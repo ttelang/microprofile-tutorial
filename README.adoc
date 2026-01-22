@@ -14,44 +14,112 @@ This repository contains the documentation for the MicroProfile Tutorial, built 
 
 ## Version and Branch Strategy
 
-This repository uses a **branch-per-version** strategy to maintain documentation and code examples for different MicroProfile releases. Each major MicroProfile version has its own dedicated branch, ensuring clear separation and stability.
+This repository uses a **branch-per-version** strategy to maintain documentation and code examples for different MicroProfile releases. Each MicroProfile version has its own dedicated branch, ensuring long-term maintainability and clear separation between versions.
+
+### Why Version-Specific Branches?
+
+We maintain separate branches for each MicroProfile version instead of using a single `main` branch because:
+
+**1. Long-term Version Maintenance**
+
+* Each MicroProfile version follows its own lifecycle (6.1, 7.0, 7.1, 7.2, 8.0, etc.)
+* Versions may need independent bug fixes, clarifications, or dependency updates
+* With version-specific branches, we can update any version without affecting others
+
+**2. Clear Reference Points**
+
+* Developers often work on projects locked to specific MicroProfile versions for compatibility
+* Stable branch URLs (e.g., `tree/v6.1`, `tree/v7.1`) provide permanent, bookmarkable references
+* Users can easily find code examples matching their project's MicroProfile version
+* Documentation URLs remain stable even as new versions are released
+
+**3. Parallel Development**
+
+* We can work on future versions (7.2, 8.0) while earlier versions are still stabilizing
+* Separate branches allow preview/beta content without disrupting stable documentation
+* Teams can contribute to different versions simultaneously
+
+**4. Easier Comparison & Migration**
+
+* Branches make it trivial to compare differences between versions
+* Helps users understand breaking changes and migration paths (e.g., `git diff v6.1 v7.1`)
+* Clear separation of version-specific code examples and API usage
+
+**5. Antora Multi-version Support**
+
+* Antora is specifically designed to build documentation from multiple branches
+* Our build system automatically generates version-specific content (e.g., `build/site/microprofile-tutorial/6.1/` and `7.1/`)
+* Users get a version selector in the UI to switch between versions seamlessly
+
+**6. Avoiding "Moving Target" Problem**
+
+* If we used `main` for 7.1 today, what happens when 7.2 ships?
+* Version branches eliminate confusion about which version you're looking at
+* Each branch represents a stable target for learners and enterprise users
 
 ### Branch Organization
 
-* **`main`** - Contains MicroProfile 6.1 documentation and code examples
-* **`v7.1`** - Contains MicroProfile 7.1 documentation and code examples
-* **Future versions** - Will follow the same pattern `v7.2`, `v8.0`, etc.
+[cols="1,2,2"]
+|===
+|Branch |MicroProfile Version |Status
+
+|`v6.1`
+|6.1
+|Stable - maintenance mode
+
+|`v7.1`
+|7.1
+|Active development
+
+|`main`
+|Landing/Navigation
+|README and Antora configuration
+
+|Future: `v7.2`, `v8.0`
+|7.2, 8.0
+|Not yet created
+
+|===
 
 ### Which Branch Should You Use?
 
 Choose the branch that matches your MicroProfile version:
 
-[cols="1,1,2"]
-|===
-|MicroProfile Version |Branch 
+* **For MicroProfile 6.1 projects:** Use the `v6.1` branch
+* **For MicroProfile 7.1 projects:** Use the `v7.1` branch
+* **For the latest stable version:** Check the badges or releases page
 
-|6.1
-|`main`
+### Branches vs. Releases
 
-|7.1
-|`v7.1`
+**Branches** (`v6.1`, `v7.1`) are living documentation:
 
-|===
+* Can be continuously updated with fixes, improvements, and clarifications
+* Antora builds the documentation site from these branches
+* Used for active development and ongoing maintenance
+
+**GitHub Releases** (`v6.1.0`, `v7.1.0`) are immutable snapshots:
+
+* Mark official milestones (e.g., "Tutorial completed for MP 7.1")
+* Provide downloadable archives of specific versions
+* Useful for citations, training certifications, or enterprise policies
+* Created from branch tags at significant points
+
+You can use both: follow a branch for the latest updates, or download a specific release for a fixed reference.
 
 ### Workflow for New Versions
 
 When creating documentation for a new MicroProfile version:
 
-1. **Create a new branch** from the previous version:
+1. **Create a new version branch** from the most recent version:
 +
 ```bash
-git checkout main
+git checkout v7.1
 git checkout -b v7.2
 ```
 
-2. **Update version numbers** in:
-   * `antora.yml` - Component version
-   * All `pom.xml` files in `code/` directory - MicroProfile dependencies
+2. **Update version numbers** throughout the branch:
+   * `antora.yml` - Component version and display version
+   * All `pom.xml` files in `code/` directory - MicroProfile and dependency versions
    * Documentation content referencing version numbers
 
 3. **Update code examples** to use new MicroProfile features and APIs
@@ -62,11 +130,24 @@ git checkout -b v7.2
 antora antora-assembler.yml
 ```
 
-5. **Push the branch** and create a pull request when ready
+5. **Push the branch** to the repository:
++
+```bash
+git push -u origin v7.2
+```
+
+6. **Update `antora-assembler.yml`** in `main` branch to include the new version in builds
+
+7. **Create a GitHub Release** when the version reaches a stable milestone
 
 ### Building Multiple Versions
 
-The `antora-assembler.yml` file is configured to build documentation for multiple versions simultaneously, creating a version selector in the UI. This allows users to switch between different MicroProfile versions easily.
+The `antora-assembler.yml` file is configured to build documentation for multiple versions simultaneously. This:
+
+* Creates a version selector in the documentation UI
+* Allows users to switch between different MicroProfile versions easily
+* Builds all versions from their respective branches in a single site
+* Maintains separate navigation and content for each version
 
 ## Prerequisites
 
