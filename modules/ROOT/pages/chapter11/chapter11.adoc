@@ -1,6 +1,6 @@
 = MicroProfile Rest Client
 :rest-client-spec-name: MicroProfile Rest Client
-:rest-client-spec-version: 3.1
+:rest-client-spec-version: 4.0
 :idvar: id
 
 In microservices architecture, developers often face the cumbersome task of implementing boilerplate code to consume REST APIs - manually constructing HTTP requests, parsing responses, and handling errors. The MicroProfile Rest Client specification addresses this by leveraging Jakarta RESTful Web Services (formerly JAX-RS) annotations to create type-safe Rest client interfaces. Instead of writing low-level HTTP logic, developers define Java interfaces that mirror the target service’s endpoints. At runtime, MicroProfile Rest Client dynamically generates an implementation of these interfaces, automating HTTP communication while ensuring compile-time consistency between the client and server contracts.
@@ -26,7 +26,7 @@ The MicroProfile Rest Client specification simplifies RESTful service consumptio
 The MicroProfile Rest Client simplifies consuming RESTful services in Java microservices with the following key features:
 
 . *Type-Safe and Declarative APIs* - The MicroProfile Rest Client allows developers to define REST clients as Java interfaces using Jakarta RESTful Web Services annotations like `@GET`, `@POST`, `@PUT`, `@DELETE`, `@Path`, `@Consumes` and `@Produces`. This approach improves code clarity and ensures compile-time validation, reducing the possibility of runtime errors .
-. *Integration with CDI (Context and Dependency Injection)* - This specification allows developers to seamlessly inject MicroProfile Rest Client interfaces using `@Inject` and `@RestClient` into CDI-managed beans, promoting better dependency management and integration with other components. By leveraging CDI lifecycle management, the MicroProfile Rest Client can benefit from scope management (e.g., `@ApplicationScoped`), proxying, and automatic initialization.
+. *Integration with CDI (Context and Dependency Injection)* - This specification allows developers to seamlessly inject MicroProfile Rest Client interfaces using `@Inject` and `@RestClient` into CDI-managed beans, promoting better dependency management and integration with other components. The `@RestClient` qualifier is mandatory when injecting REST clients in CDI environments (as clarified in version 4.0). By leveraging CDI lifecycle management, the MicroProfile Rest Client can benefit from scope management (e.g., `@ApplicationScoped`), proxying, and automatic initialization.
 . *Runtime Configurable with MicroProfile Config* -  The behavior of MicroProfile Rest Client can be dynamically configured using MicroProfile Config. This allows properties like the base URL and other client settings to be adjusted without recompilation. The configuration can be provided through _microprofile-config.properties_ or environment variables, making the client highly adaptable to different environments.
 . *Support for Asynchronous Execution* - For asynchronous execution, MicroProfile Rest Client can return `CompletionStage<T>`, allowing non-blocking requests. This significantly  improves performance & scalability in high-concurrency environments.
 . *Automatic Handling of Redirect Responses* -  MicroProfile Rest Client can automatically follow HTTP redirects, simplifying client implementation when working with services that return `3xx` responses.
@@ -39,7 +39,7 @@ The MicroProfile Rest Client simplifies consuming RESTful services in Java micro
 
 == Setting up Dependency for MicroProfile Rest Client 
 
-To use MicroProfile Rest Client 3.1 in your project, you need to include the necessary dependencies in your build configuration. Below are configurations for Maven and Gradle:
+To use MicroProfile Rest Client 4.0 in your project, you need to include the necessary dependencies in your build configuration. Below are configurations for Maven and Gradle:
 
 === Maven Configuration
 For Maven-based projects, add the following dependency to your pom.xml file:
@@ -49,7 +49,7 @@ For Maven-based projects, add the following dependency to your pom.xml file:
 <dependency>
     <groupId>org.eclipse.microprofile.rest.client</groupId>
     <artifactId>microprofile-rest-client-api</artifactId>
-    <version>3.1</version>
+    <version>4.0</version>
 </dependency>
 ---- 
 
@@ -60,10 +60,12 @@ For Gradle-based projects, add the following dependency to your build.gradle fil
 [source, xml]
 ----
 dependencies {
-    Implementation 'org.eclipse.microprofile.rest.client:microprofile-rest-client-api:3.1'
-    compileOnly 'org.eclipse.microprofile:microprofile:6.1'
+    implementation 'org.eclipse.microprofile.rest.client:microprofile-rest-client-api:4.0'
+    compileOnly 'org.eclipse.microprofile:microprofile:7.0'
 }
 ----
+
+NOTE: MicroProfile Rest Client 4.0 aligns with Jakarta EE 10, ensuring compatibility with modern cloud-native applications. It is not compatible with earlier versions of Jakarta EE or Java EE.
 
 > Tip: The MicroProfile Rest Client is an Eclipse Foundation project. For more details and updates on the project, visit the official repository: MicroProfile Rest Client on GitHub.
 
@@ -419,10 +421,9 @@ import java.util.concurrent.TimeUnit;
 public class InventoryService {
 
     public boolean isProductAvailable(Long productId) {
-        URI productApiUri = URI.create("http://localhost:8080/api");
-
+        // MicroProfile Rest Client 4.0 introduces baseUri(String) for convenience
         try (ProductServiceClient productClient = RestClientBuilder.newBuilder()
-                .baseUri(productApiUri)
+                .baseUri("http://localhost:8080/api")
                 .connectTimeout(3, TimeUnit.SECONDS)
                 .readTimeout(5, TimeUnit.SECONDS)
                 .build(ProductServiceClient.class)) {
@@ -441,10 +442,10 @@ public class InventoryService {
 ==== Explanation
 
 - The `isProductAvailable()` method accepts a product ID and returns `true` if the product exists in the catalog.
-- A `URI` object is created pointing to the base path of the ProductService API using `URI.create()`.
+- MicroProfile Rest Client 4.0 introduces a convenient `baseUri(String uri)` method, eliminating the need to call `URI.create()` explicitly.
 - A `ProductServiceClient` instance is created using the builder pattern inside a `try-with-resource` block:
   * `newBuilder()` initializes the client builder.
-  * `baseUri()` sets the root endpoint of the target service.
+  * `baseUri(String)` sets the root endpoint of the target service using a String parameter directly (new in 4.0).
   * `connectTimeout()` and `readTimeout()` define connection and read timeouts respectively.
   * `build()` finalizes and returns the configured client proxy.
 - Because `ProductServiceClient` extends `AutoCloseable`, the try-with-resources block ensures that the client is automatically closed after the operation, preventing resource leaks.
