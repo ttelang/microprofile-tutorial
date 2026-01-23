@@ -8,6 +8,97 @@ The MicroProfile Tutorial is a comprehensive guide for learning about https://mi
 
 toc::[]
 
+# What's New in MicroProfile 7.1 Tutorial
+
+The MicroProfile Tutorial has been updated to reflect the latest features and changes in MicroProfile 7.1. The following sections highlight the key updates.
+
+## MicroProfile Rest Client 4.0
+
+The tutorial now covers **MicroProfile Rest Client 4.0**, which introduces several improvements:
+
+### Key Features and Changes
+
+**1. Jakarta EE 10 Alignment**
+
+* MicroProfile Rest Client 4.0 has been aligned with Jakarta EE 10 to ensure compatibility with modern cloud-native applications.
+* It is**not compatible** with earlier versions of Jakarta EE or Java EE.
+
+**2. Simplified `baseUri()` Configuration**
+
+MicroProfile Rest Client 4.0 introduces a new convenience method that eliminates boilerplate code:
+
+```java
+// Before (Rest Client 3.x): Required explicit URI creation
+URI productApiUri = URI.create("http://localhost:8080/api");
+ProductServiceClient client = RestClientBuilder.newBuilder()
+    .baseUri(productApiUri)
+    .build(ProductServiceClient.class);
+
+// Now (Rest Client 4.0): Direct String parameter
+ProductServiceClient client = RestClientBuilder.newBuilder()
+    .baseUri("http://localhost:8080/api")  // No URI.create() needed!
+    .build(ProductServiceClient.class);
+```
+
+This simplifies client configuration and reduces unnecessary object creation.
+
+**3. CDI `@RestClient` Qualifier Clarification**
+
+* The `@RestClient` qualifier is **mandatory** when injecting REST clients in CDI environments
+* This requirement has been explicitly clarified in the specification to avoid ambiguity
+
+```java
+@Inject
+@RestClient  // Required - not optional
+private ProductServiceClient productClient;
+```
+
+**4. Filter Priority Handling**
+
+* Implementations must honor `@Priority` annotations on client request and response filters
+* Ensures predictable and consistent filter execution order across different implementations
+
+### Tutorial Updates
+
+**Chapter 11** has been comprehensively updated to reflect these changes:
+
+* All dependency versions updated to MicroProfile Rest Client 4.0
+* Code examples demonstrate the new `baseUri(String)` method
+* Added Jakarta EE 10 compatibility notes
+* Clarified CDI injection requirements with `@RestClient` qualifier
+* Updated Maven and Gradle dependency configurations
+
+## Updated Dependencies
+
+All code examples throughout the tutorial have been updated to use:
+
+* **MicroProfile 7.1**: The umbrella specification including all platform APIs
+* **MicroProfile Rest Client 4.0**: For type-safe REST service consumption
+* **Jakarta EE 10 Core Profile**: The foundation for cloud-native microservices
+
+## Migration Guide
+
+If you're upgrading from MicroProfile 6.1 to 7.1:
+
+1. **Update your dependencies** in `pom.xml` or `build.gradle`:
+   ```xml
+   <dependency>
+       <groupId>org.eclipse.microprofile</groupId>
+       <artifactId>microprofile</artifactId>
+       <version>7.1</version>
+       <type>pom</type>
+       <scope>provided</scope>
+   </dependency>
+   ```
+
+2. **Update Rest Client configuration** to use the simpler `baseUri(String)` method where applicable
+
+3. **Verify CDI injection** uses `@RestClient` qualifier explicitly
+
+4. **Test your application** with Jakarta EE 10-compatible runtime
+
+For detailed migration guidance and complete code examples, see the updated chapters in this tutorial.
+
 # Getting Started with MicroProfile Tutorial
 
 This repository contains the documentation for the MicroProfile Tutorial, built with Antora. This README provides information on how to set up, build, and customize the documentation site.
