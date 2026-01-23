@@ -60,13 +60,40 @@ private ProductServiceClient productClient;
 
 ### Tutorial Updates
 
-**Chapter 11** has been comprehensively updated to reflect these changes:
+**Chapter 11** has been comprehensively updated to MicroProfile Rest Client 4.0, covering the following:
 
-* All dependency versions updated to MicroProfile Rest Client 4.0
-* Code examples demonstrate the new `baseUri(String)` method
-* Added Jakarta EE 10 compatibility notes
-* Clarified CDI injection requirements with `@RestClient` qualifier
-* Updated Maven and Gradle dependency configurations
+** Addtional Topics Coverage **
+
+* **Jakarta EE 10 Alignment** - Complete namespace migration (`javax.*` → `jakarta.*`), breaking changes, and compatibility benefits
+* **Defining REST Client Interfaces** - `@RegisterRestClient` usage, configKey configuration, and interface design patterns
+* **CDI Integration** - Mandatory `@RestClient` qualifier, scope management (`@ApplicationScoped`, `@RequestScoped`), lifecycle management
+* **MicroProfile Config Integration** - Complete configuration reference (URL, timeouts, scopes, providers, SSL/TLS), configuration precedence, environment-specific overrides
+* **Parameter Configuration** - `@PathParam`, `@QueryParam`, `@HeaderParam`, `@BeanParam` with practical examples
+* **Request & Response Handling** - All HTTP methods (GET, POST, PUT, DELETE, PATCH), response types (DTO, `Response`, `void`, collections), `AutoCloseable` resource management
+* **JSON & Multipart Data** - JSON-B automatic serialization, JSON-B annotations, multipart file uploads, JSON-P for dynamic processing
+* **Error Handling** - `ResponseExceptionMapper` implementation, priority-based exception mapping, checked vs unchecked exceptions
+* **RestClientBuilder API** - Programmatic client creation with new `baseUri(String)` method, complete configuration options (timeouts, SSL, proxies), when to use vs CDI injection
+* **Custom Filters & Interceptors** - ClientRequestFilter/ClientResponseFilter for HTTP-level interception (authentication, logging, header manipulation), WriterInterceptor/ReaderInterceptor for entity-level processing (compression, encryption), execution order with `@Priority`, three registration methods
+
+** Code Examples**
+
+* Added code examples demonstrating real-world patterns
+* Authentication filters (Basic Auth, Bearer Token, header propagation)
+* Response/request logging and caching filters
+* GZIP compression/decompression interceptors
+* Request/response body validation
+* Complete CRUD operations combining all concepts
+* E-commerce domain examples (Product, Order, Payment services)
+
+** Best Practices **
+
+* Security considerations (SSL/TLS configuration, sensitive data handling)
+* Performance optimization (connection timeouts, resource cleanup, scope selection)
+* Testing strategies (mocking, CDI alternatives)
+* Configuration management (externalization, environment-specific settings)
+* Error handling patterns (domain-specific exceptions, priority ordering)
+
+All dependency versions updated to MicroProfile Rest Client 4.0 with Maven and Gradle configurations.
 
 ## Updated Dependencies
 
