@@ -49,7 +49,5 @@
 			"label": "MicroProfile App",
 			"onAutoForward": "notify"
 		}
-	},
-
-	"remoteUser": "codespace"
+	}
 }
