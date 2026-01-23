@@ -50,7 +50,8 @@ The application is split into the following microservices:
 == Technology Stack
 
 * *Jakarta EE 10.0*: For enterprise Java standardization
-* *MicroProfile 6.1*: For cloud-native APIs
+* *MicroProfile 7.0*: For cloud-native APIs
+* *MicroProfile Rest Client 4.0*: Type-safe REST service consumption
 * *Open Liberty*: Lightweight, flexible runtime for Java microservices
 * *Maven*: For project management and builds
 
@@ -157,6 +158,61 @@ Each microservice provides its own OpenAPI documentation, available at:
 * Inventory Service: http://localhost:7050/inventory/openapi
 * Order Service: http://localhost:8050/order/openapi
 * Catalog Service: http://localhost:9050/catalog/openapi
+
+== MicroProfile Rest Client 4.0 Features
+
+This application demonstrates the latest MicroProfile Rest Client 4.0 features:
+
+=== New `baseUri(String)` Convenience Method
+
+The Inventory Service showcases the new `baseUri(String)` method that eliminates the need for `URI.create()`:
+
+[source,java]
+----
+// MicroProfile Rest Client 4.0 - Simplified approach
+ProductServiceClient client = RestClientBuilder.newBuilder()
+    .baseUri("http://localhost:5050/catalog/api")  // Direct String parameter
+    .connectTimeout(5, TimeUnit.SECONDS)
+    .readTimeout(10, TimeUnit.SECONDS)
+    .build(ProductServiceClient.class);
+----
+
+This replaces the older pattern:
+
+[source,java]
+----
+// Old approach (Rest Client 3.x)
+URI catalogServiceUri = URI.create("http://localhost:5050/catalog/api");
+ProductServiceClient client = RestClientBuilder.newBuilder()
+    .baseUri(catalogServiceUri)  // Required URI object
+    .build(ProductServiceClient.class);
+----
+
+=== CDI Integration with `@RestClient`
+
+The `@RestClient` qualifier is mandatory for CDI injection:
+
+[source,java]
+----
+@Inject
+@RestClient  // Required qualifier
+private ProductServiceClient productClient;
+----
+
+=== AutoCloseable Support
+
+REST client interfaces extend `AutoCloseable` for proper resource management:
+
+[source,java]
+----
+@RegisterRestClient(configKey = "product-service")
+@Path("/products")
+public interface ProductServiceClient extends AutoCloseable {
+    // Client methods
+}
+----
+
+See the `InventoryService` class for complete working examples of these features.
 
 == Testing the Services
 
