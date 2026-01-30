@@ -853,7 +853,7 @@ ui:
     snapshot: true
 ----
 
-Replease _./path/to/local/ui-bundle.zip_ with actual path to your local UI bundle under development.
+Replace _./path/to/local/ui-bundle.zip_ with actual path to your local UI bundle under development.
 
 This approach is useful when developing your own UI bundle or testing modifications.
 

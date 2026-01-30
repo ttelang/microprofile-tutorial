@@ -107,7 +107,8 @@ See the link:DEVELOPERS.adoc[Developers Guide] for detailed setup instructions.
 
 ### Building the Documentation
 
-```bash
+[source,bash]
+----
 # Install Antora (first time only)
 npm install -g @antora/cli @antora/site-generator-default
 
@@ -116,13 +117,14 @@ npm install -g @antora/cli @antora/site-generator-default
 
 # Run locally
 cd build/site && python3 -m http.server 8080
-```
+----
 
 For more details, see the link:CONTRIBUTORS.adoc[Contributors Guide].
 
 ### Running the Code
 
-```bash
+[source,bash]
+----
 # Clone the repository
 git clone https://github.com/microprofile/microprofile-tutorial.git
 cd microprofile-tutorial
@@ -132,7 +134,7 @@ cd code/chapter02/mp-ecomm-store
 
 # Run in development mode
 mvn liberty:dev
-```
+----
 
 For more details, see the link:DEVELOPERS.adoc[Developers Guide].
 
