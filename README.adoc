@@ -127,9 +127,16 @@ If you're upgrading from MicroProfile 6.1 to 7.1:
 For detailed migration guidance and complete code examples, see the updated chapters in this tutorial.
 
 # Getting Started with MicroProfile Tutorial
+
 ## About This Repository
 
 This repository provides:
+
+* **Tutorial Documentation**: Comprehensive learning materials built with Antora and deployed as a static site
+* **Source Code Examples**: Practical MicroProfile e-commerce application code organized by chapter
+* **Two Specialized Guides**:
+  - link:CONTRIBUTORS.adoc[Contributors Guide] (`CONTRIBUTORS.adoc`) - For documentation contributors
+  - link:DEVELOPERS.adoc[Developers Guide] (`DEVELOPERS.adoc`) - For application developers
 
 ## Version and Branch Strategy
 
@@ -267,13 +274,6 @@ The `antora-assembler.yml` file is configured to build documentation for multipl
 * Allows users to switch between different MicroProfile versions easily
 * Builds all versions from their respective branches in a single site
 * Maintains separate navigation and content for each version
-
-
-* **Tutorial Documentation**: Comprehensive learning materials built with Antora and deployed as a static site
-* **Source Code Examples**: Practical MicroProfile e-commerce application code organized by chapter
-* **Two Specialized Guides**:
-  - link:CONTRIBUTORS.adoc[Contributors Guide] (`CONTRIBUTORS.adoc`) - For documentation contributors
-  - link:DEVELOPERS.adoc[Developers Guide] (`DEVELOPERS.adoc`) - For application developers
 
 ## Getting Started
 
