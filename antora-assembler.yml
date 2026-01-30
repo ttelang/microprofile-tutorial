@@ -7,9 +7,9 @@ site:
 
 content:
   sources:
-    - url: https://github.com/microprofile/microprofile-tutorial.git
-      branches: [main, v7.1]           # Pull both version 6.1 (main) and 7.1 (v7.1)
-      start_path: /
+    - url: https://github.com/microprofile/microprofile-tutorial.git           # Current directory (local content)
+      branches: [main, v7.1]                                                   # Pull both version 6.1 (main) and 7.1 (v7.1)
+      start_path: /                                                            # Root of the content
 
 ui:
   bundle:
