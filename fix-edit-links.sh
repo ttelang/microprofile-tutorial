@@ -13,8 +13,8 @@ NC='\033[0m' # No Color
 SITE_DIR="/workspaces/microprofile-tutorial/build/site"
 
 # GitHub repository information
-REPO_URL="https://github.com/ttelang/microprofile-tutorial"
-BRANCH="copilot/split-readme-into-guides"
+REPO_URL="https://github.com/microprofile/microprofile-tutorial"
+BRANCH="main"
 PATH_PREFIX="modules/ROOT/pages/"
 
 # Check if the site directory exists

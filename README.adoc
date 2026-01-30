@@ -14,7 +14,9 @@ This repository provides:
 
 * **Tutorial Documentation**: Comprehensive learning materials built with Antora and deployed as a static site
 * **Source Code Examples**: Practical MicroProfile e-commerce application code organized by chapter
-* **Two Specialized Guides**: Separate guides for contributors and developers
+* **Two Specialized Guides**:
+  - link:CONTRIBUTORS.adoc[Contributors Guide] (`CONTRIBUTORS.adoc`) - For documentation contributors
+  - link:DEVELOPERS.adoc[Developers Guide] (`DEVELOPERS.adoc`) - For application developers
 
 ## Getting Started
 
