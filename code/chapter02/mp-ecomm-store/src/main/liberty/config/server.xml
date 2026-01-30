@@ -1,7 +1,9 @@
 <server description="MicroProfile Tutorial Liberty Server">
     <featureManager>
-        <feature>restfulWS-3.1</feature>
-        <feature>jsonb-3.0</feature>
+        <platform>microProfile-7.1</platform>
+        <platform>jakartaEE-10.0</platform>
+        <feature>restfulWS</feature>
+        <feature>jsonb</feature>
     </featureManager>
 
     <httpEndpoint httpPort="${default.http.port}" httpsPort="${default.https.port}"

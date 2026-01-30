@@ -8,10 +8,599 @@ The MicroProfile Tutorial is a comprehensive guide for learning about https://mi
 
 toc::[]
 
+# What's New in MicroProfile 7.1 Tutorial
+
+The MicroProfile Tutorial has been updated to reflect the latest features and changes in MicroProfile 7.1. The following sections highlight the key updates.
+
+## MicroProfile Rest Client 4.0
+
+The tutorial now covers **MicroProfile Rest Client 4.0**, which introduces several improvements:
+
+### Key Features and Changes
+
+**1. Jakarta EE 10 Alignment**
+
+* MicroProfile Rest Client 4.0 has been aligned with Jakarta EE 10 to ensure compatibility with modern cloud-native applications.
+* It is**not compatible** with earlier versions of Jakarta EE or Java EE.
+
+**2. Simplified `baseUri()` Configuration**
+
+MicroProfile Rest Client 4.0 introduces a new convenience method that eliminates boilerplate code:
+
+```java
+// Before (Rest Client 3.x): Required explicit URI creation
+URI productApiUri = URI.create("http://localhost:8080/api");
+ProductServiceClient client = RestClientBuilder.newBuilder()
+    .baseUri(productApiUri)
+    .build(ProductServiceClient.class);
+
+// Now (Rest Client 4.0): Direct String parameter
+ProductServiceClient client = RestClientBuilder.newBuilder()
+    .baseUri("http://localhost:8080/api")  // No URI.create() needed!
+    .build(ProductServiceClient.class);
+```
+
+This simplifies client configuration and reduces unnecessary object creation.
+
+**3. CDI `@RestClient` Qualifier Clarification**
+
+* The `@RestClient` qualifier is **mandatory** when injecting REST clients in CDI environments
+* This requirement has been explicitly clarified in the specification to avoid ambiguity
+
+```java
+@Inject
+@RestClient  // Required - not optional
+private ProductServiceClient productClient;
+```
+
+**4. Filter Priority Handling**
+
+* Implementations must honor `@Priority` annotations on client request and response filters
+* Ensures predictable and consistent filter execution order across different implementations
+
+### Tutorial Updates
+
+**Chapter 11** has been comprehensively updated to MicroProfile Rest Client 4.0, covering the following:
+
+** Addtional Topics Coverage **
+
+* **Jakarta EE 10 Alignment** - Complete namespace migration (`javax.*` → `jakarta.*`), breaking changes, and compatibility benefits
+* **Defining REST Client Interfaces** - `@RegisterRestClient` usage, configKey configuration, and interface design patterns
+* **CDI Integration** - Mandatory `@RestClient` qualifier, scope management (`@ApplicationScoped`, `@RequestScoped`), lifecycle management
+* **MicroProfile Config Integration** - Complete configuration reference (URL, timeouts, scopes, providers, SSL/TLS), configuration precedence, environment-specific overrides
+* **Parameter Configuration** - `@PathParam`, `@QueryParam`, `@HeaderParam`, `@BeanParam` with practical examples
+* **Request & Response Handling** - All HTTP methods (GET, POST, PUT, DELETE, PATCH), response types (DTO, `Response`, `void`, collections), `AutoCloseable` resource management
+* **JSON & Multipart Data** - JSON-B automatic serialization, JSON-B annotations, multipart file uploads, JSON-P for dynamic processing
+* **Error Handling** - `ResponseExceptionMapper` implementation, priority-based exception mapping, checked vs unchecked exceptions
+* **RestClientBuilder API** - Programmatic client creation with new `baseUri(String)` method, complete configuration options (timeouts, SSL, proxies), when to use vs CDI injection
+* **Custom Filters & Interceptors** - ClientRequestFilter/ClientResponseFilter for HTTP-level interception (authentication, logging, header manipulation), WriterInterceptor/ReaderInterceptor for entity-level processing (compression, encryption), execution order with `@Priority`, three registration methods
+
+** Code Examples**
+
+* Added code examples demonstrating real-world patterns
+* Authentication filters (Basic Auth, Bearer Token, header propagation)
+* Response/request logging and caching filters
+* GZIP compression/decompression interceptors
+* Request/response body validation
+* Complete CRUD operations combining all concepts
+* E-commerce domain examples (Product, Order, Payment services)
+
+** Best Practices **
+
+* Security considerations (SSL/TLS configuration, sensitive data handling)
+* Performance optimization (connection timeouts, resource cleanup, scope selection)
+* Testing strategies (mocking, CDI alternatives)
+* Configuration management (externalization, environment-specific settings)
+* Error handling patterns (domain-specific exceptions, priority ordering)
+
+All dependency versions updated to MicroProfile Rest Client 4.0 with Maven and Gradle configurations.
+
+## Updated Dependencies
+
+All code examples throughout the tutorial have been updated to use:
+
+* **MicroProfile 7.1**: The umbrella specification including all platform APIs
+* **MicroProfile Rest Client 4.0**: For type-safe REST service consumption
+* **Jakarta EE 10 Core Profile**: The foundation for cloud-native microservices
+
+## Migration Guide
+
+If you're upgrading from MicroProfile 6.1 to 7.1:
+
+1. **Update your dependencies** in `pom.xml` or `build.gradle`:
+   ```xml
+   <dependency>
+       <groupId>org.eclipse.microprofile</groupId>
+       <artifactId>microprofile</artifactId>
+       <version>7.1</version>
+       <type>pom</type>
+       <scope>provided</scope>
+   </dependency>
+   ```
+
+2. **Update Rest Client configuration** to use the simpler `baseUri(String)` method where applicable
+
+3. **Verify CDI injection** uses `@RestClient` qualifier explicitly
+
+4. **Test your application** with Jakarta EE 10-compatible runtime
+
+For detailed migration guidance and complete code examples, see the updated chapters in this tutorial.
+
+# Getting Started with MicroProfile Tutorial
 ## About This Repository
 
 This repository provides:
 
+## Version and Branch Strategy
+
+This repository uses a **branch-per-version** strategy to maintain documentation and code examples for different MicroProfile releases. Each MicroProfile version has its own dedicated branch, ensuring long-term maintainability and clear separation between versions.
+
+### Why Version-Specific Branches?
+
+We maintain separate branches for each MicroProfile version instead of using a single `main` branch because:
+
+**1. Long-term Version Maintenance**
+
+* Each MicroProfile version follows its own lifecycle (6.1, 7.0, 7.1, 7.2, 8.0, etc.)
+* Versions may need independent bug fixes, clarifications, or dependency updates
+* With version-specific branches, we can update any version without affecting others
+
+**2. Clear Reference Points**
+
+* Developers often work on projects locked to specific MicroProfile versions for compatibility
+* Stable branch URLs (e.g., `tree/v6.1`, `tree/v7.1`) provide permanent, bookmarkable references
+* Users can easily find code examples matching their project's MicroProfile version
+* Documentation URLs remain stable even as new versions are released
+
+**3. Parallel Development**
+
+* We can work on future versions (7.2, 8.0) while earlier versions are still stabilizing
+* Separate branches allow preview/beta content without disrupting stable documentation
+* Teams can contribute to different versions simultaneously
+
+**4. Easier Comparison & Migration**
+
+* Branches make it trivial to compare differences between versions
+* Helps users understand breaking changes and migration paths (e.g., `git diff v6.1 v7.1`)
+* Clear separation of version-specific code examples and API usage
+
+**5. Antora Multi-version Support**
+
+* Antora is specifically designed to build documentation from multiple branches
+* Our build system automatically generates version-specific content (e.g., `build/site/microprofile-tutorial/6.1/` and `7.1/`)
+* Users get a version selector in the UI to switch between versions seamlessly
+
+**6. Avoiding "Moving Target" Problem**
+
+* If we used `main` for 7.1 today, what happens when 7.2 ships?
+* Version branches eliminate confusion about which version you're looking at
+* Each branch represents a stable target for learners and enterprise users
+
+### Branch Organization
+
+[cols="1,2,2"]
+|===
+|Branch |MicroProfile Version |Status
+
+|`v6.1`
+|6.1
+|Stable - maintenance mode
+
+|`v7.1`
+|7.1
+|Active development
+
+|`main`
+|Landing/Navigation
+|README and Antora configuration
+
+|Future: `v7.2`, `v8.0`
+|7.2, 8.0
+|Not yet created
+
+|===
+
+### Which Branch Should You Use?
+
+Choose the branch that matches your MicroProfile version:
+
+* **For MicroProfile 6.1 projects:** Use the `v6.1` branch
+* **For MicroProfile 7.1 projects:** Use the `v7.1` branch
+* **For the latest stable version:** Check the badges or releases page
+
+### Branches vs. Releases
+
+**Branches** (`v6.1`, `v7.1`) are living documentation:
+
+* Can be continuously updated with fixes, improvements, and clarifications
+* Antora builds the documentation site from these branches
+* Used for active development and ongoing maintenance
+
+**GitHub Releases** (`v6.1.0`, `v7.1.0`) are immutable snapshots:
+
+* Mark official milestones (e.g., "Tutorial completed for MP 7.1")
+* Provide downloadable archives of specific versions
+* Useful for citations, training certifications, or enterprise policies
+* Created from branch tags at significant points
+
+You can use both: follow a branch for the latest updates, or download a specific release for a fixed reference.
+
+### Workflow for New Versions
+
+When creating documentation for a new MicroProfile version:
+
+1. **Create a new version branch** from the most recent version:
++
+```bash
+git checkout v7.1
+git checkout -b v7.2
+```
+
+2. **Update version numbers** throughout the branch:
+   * `antora.yml` - Component version and display version
+   * All `pom.xml` files in `code/` directory - MicroProfile and dependency versions
+   * Documentation content referencing version numbers
+
+3. **Update code examples** to use new MicroProfile features and APIs
+
+4. **Test the build** locally before pushing:
++
+```bash
+antora antora-assembler.yml
+```
+
+5. **Push the branch** to the repository:
++
+```bash
+git push -u origin v7.2
+```
+
+6. **Update `antora-assembler.yml`** in `main` branch to include the new version in builds
+
+7. **Create a GitHub Release** when the version reaches a stable milestone
+
+### Building Multiple Versions
+
+The `antora-assembler.yml` file is configured to build documentation for multiple versions simultaneously. This:
+
+* Creates a version selector in the documentation UI
+* Allows users to switch between different MicroProfile versions easily
+* Builds all versions from their respective branches in a single site
+* Maintains separate navigation and content for each version
+
+## Prerequisites
+
+### Install Antora 
+You need to https://docs.antora.org/antora/latest/install-and-run-quickstart/#install-antora[install Antora] using npm. If you don't have Node.js installed, you can https://docs.antora.org/antora/latest/install-and-run-quickstart/#install-nodejs[install Node.js] by following this instructions.
+
+```
+npm install -g @antora/cli @antora/site-generator-default 
+```
+
+### Recommended VS Code Extensions
+
+For the best experience editing AsciiDoc files in Visual Studio Code, we recommend installing the following extensions:
+
+* AsciiDoc extension by Asciidoctor (`asciidoctor.asciidoctor-vscode`) - Provides rich language support for AsciiDoc
+* Auto Open Preview Panel (`matt-rudge.auto-open-preview-panel`) - Opens preview automatically when opening AsciiDoc files
+
+## Building the Documentation Site
+
+You can build the site by running the following commands in the root directory of the project:
+
+```
+./update-repo-url.sh
+antora antora-assembler.yml
+./fix-edit-links.sh
+```
+
+- The first command ensures that the repository URLs are up-to-date. 
+- The second command will generate the site in the `build/site` directory. 
+- The third command fixes the "Edit this Page" links to properly point to GitHub instead of local file paths.
+
+Alternatively, you can use the following one-liner:
+
+```
+./update-repo-url.sh && antora antora-assembler.yml && ./fix-edit-links.sh
+```
+
+## Running the Site Locally
+
+You can run the site locally using Python's built-in HTTP server. First, navigate to the `build/site` directory:
+```
+cd build/site
+```
+Then, run the following command:
+```
+python3 -m http.server 8080
+```
+This will start a local server on port 8080. You can then open your web browser and navigate to `http://<hostname>:8080` to view the site.
+
+[TIP]
+====
+If port 8080 is already in use, you can free it by finding and stopping the process using it. For example, on Linux or macOS:
++
+----
+lsof -i :8080
+kill <PID>
+----
+Replace `<PID>` with the process ID shown in the output.
+====
+
+## Development Workflow
+
+To streamline the development process, a development server script is included that can automatically rebuild the documentation when files change.
+
+### Using the Development Server
+
+The `dev-server.sh` script provides three commands:
+
+1. **Build only**:
++
+----
+./dev-server.sh build
+----
++
+This builds the documentation site once.
+
+2. **Build and serve**:
++
+----
+./dev-server.sh serve
+----
++
+This builds the documentation site and starts a local HTTP server on port 8080.
+
+3. **Build, serve, and watch for changes**:
++
+----
+./dev-server.sh watch
+----
++
+This builds the documentation site, starts a local HTTP server, and automatically rebuilds the site when files change.
+
+### Requirements
+
+The development server requires:
+
+- Python 3 (for the HTTP server)
+- inotify-tools (for file watching, will be automatically installed if missing)
+
+### Typical Development Workflow
+
+1. Start the development server in watch mode: `./dev-server.sh watch`
+2. Open your browser at http://localhost:8080
+3. Edit AsciiDoc files in the `modules/ROOT/pages/` directory
+4. Save your changes and see them automatically reflected in the browser
+
+## Understanding Antora Configuration
+
+Antora uses several configuration files to manage the documentation site. The main files are:
+
+- `antora-assembler.yml`: The primary configuration file that defines the site structure, UI bundle, and supplemental files.
+- `antora.yml`: Component configuration for the MicroProfile Tutorial, including metadata and edit URL configuration.
+- `supplemental-ui/`: Directory containing customizations like favicons and custom partials.
+
+### Site Structure Configuration
+
+The main configuration file for the site is `antora-assembler.yml`, which defines:
+
+- **Site metadata**: Title, URL, and starting page
+- **Content sources**: Where to find documentation content
+- **UI bundle**: The theme and UI components to use
+- **Output**: Where to generate the site
+- **Asciidoc attributes**: Global attributes for all pages
+
+Here's a breakdown of the key sections:
+
+#### Site Information
+[source,yaml]
+----
+site:
+  title: MicroProfile Tutorial
+  url: https://microprofile.io
+  start_page: microprofile-tutorial::index.adoc
+  keys:
+    show_edit_page_link: true
+----
+
+#### Content Sources
+[source,yaml]
+----
+content:
+  sources:
+    - url: .
+      start_path: .
+      branches: HEAD
+----
+
+#### UI Configuration
+[source,yaml]
+----
+ui:
+  bundle:
+    url: https://github.com/microprofile/microprofile-tutorial-ui/releases/download/latest/ui-bundle.zip
+    snapshot: true
+  supplemental_files: ./supplemental-ui
+----
+
+### Component Configuration
+
+The `antora.yml` file defines the documentation component:
+
+[source,yaml]
+----
+name: microprofile-tutorial
+title: MicroProfile Tutorial
+version: 6.1
+edit_url: https://github.com/microprofile/microprofile-tutorial/tree/main/modules/ROOT/pages/{path}
+asciidoc:
+  attributes:
+    source-language: asciidoc@
+    table-caption: false
+    xrefstyle: full
+nav:
+  - modules/ROOT/pages/nav.adoc
+start_page: index.adoc
+----
+
+Key properties:
+
+- **name**: The component name used in xrefs and URLs
+- **title**: The human-readable title
+- **version**: The component version (appears in URLs and version selector)
+- **edit_url**: The URL template for "Edit this Page" links
+- **nav**: The navigation file(s) for the component
+- **start_page**: The default page when accessing the component root
+
+### Navigation Configuration
+
+The navigation is defined in `modules/ROOT/pages/nav.adoc` and uses AsciiDoc with special Antora directives:
+
+[source,asciidoc]
+----
+* xref:index.adoc[Home]
+* xref:chapter01/chapter01.adoc[Chapter 1: Introduction]
+* Chapter 2: Getting Started
+** xref:chapter02/chapter02-01.adoc[Section 2.1: Environment Setup]
+----
+
+The navigation structure directly affects the sidebar menu in the generated site.
+
+## Navigation and Site Structure
+
+The navigation system in Antora is a critical component that determines how users find and access content. Understanding how navigation works can help you create a better user experience.
+
+### Navigation Components
+
+The MicroProfile Tutorial site navigation consists of:
+
+1. **Main Navigation**: Defined in `modules/ROOT/pages/nav.adoc`, controls the sidebar navigation.
+2. **Breadcrumbs**: Shows the current page's location in the content hierarchy.
+3. **Previous/Next Links**: Helps users navigate sequentially through content.
+4. **Table of Contents**: Generated from page headings, provides in-page navigation.
+
+### Customizing Navigation
+
+The navigation can be customized in several ways:
+
+#### Modifying the nav.adoc File
+
+The main navigation structure is defined in `modules/ROOT/pages/nav.adoc`:
+
+[source,asciidoc]
+----
+* xref:index.adoc[Home]
+* xref:chapter01/chapter01.adoc[Chapter 1: Introduction]
+* Chapter 2: Getting Started
+** xref:chapter02/chapter02-01.adoc[Section 2.1: Environment Setup]
+** xref:chapter02/chapter02-02.adoc[Section 2.2: First Steps]
+----
+
+Navigation entries can be:
+
+- Direct links to pages (with `xref:`)
+- Unlinked category headers (without `xref:`)
+- Nested to create hierarchical structures (using multiple `*` characters)
+
+#### Navigation UI Customization
+
+To customize the navigation appearance:
+
+1. **Style Overrides**: Add CSS for navigation elements in your supplemental UI files.
+2. **Template Customization**: Override the navigation templates in the UI bundle.
+3. **JavaScript Enhancements**: Add interactive features like search, filtering, or collapsible sections.
+
+Example CSS customization for navigation:
+
+[source,css]
+----
+/* Customizing the sidebar navigation */
+.nav-menu {
+  background-color: #f5f5f5;
+}
+
+.nav-item.is-current-page > .nav-link {
+  color: #0d5aa7;
+  font-weight: bold;
+}
+----
+
+### Navigation Best Practices
+
+1. **Logical Organization**: Group related content together in the navigation.
+2. **Consistent Naming**: Use consistent naming conventions for pages and sections.
+3. **Limited Nesting**: Avoid deep nesting (more than 3 levels) to prevent navigation complexity.
+4. **Descriptive Labels**: Use clear, descriptive labels for navigation items.
+5. **Progressive Disclosure**: Organize content from basic to advanced topics.
+
+### Advanced Navigation Features
+
+The UI bundle can be customized to include advanced navigation features:
+
+1. **Search Integration**: Add search functionality to help users find content quickly.
+2. **Version Selector**: Allow users to switch between different versions of the documentation.
+3. **Component Selector**: If you have multiple components, provide a way to navigate between them.
+4. **Tag-Based Navigation**: Group content by tags or categories for alternative navigation paths.
+
+## About the fix-edit-links.sh Script
+
+The `fix-edit-links.sh` script is a necessary post-processing step in the build process. Despite having `edit_url` properly configured in `antora.yml`, when building from a local repository (`url: .` in `antora-assembler.yml`), Antora generates edit links that point to local file paths instead of GitHub URLs.
+
+The script performs a simple text replacement in the generated HTML files, replacing local file paths with proper GitHub repository URLs. This ensures that the "Edit this Page" links work correctly for users viewing the documentation.
+
+If you update the repository URL or branch name, make sure to update the replacement URL in the `fix-edit-links.sh` script accordingly. The current implementation assumes the GitHub repository URL is `https://github.com/microprofile/microprofile-tutorial` and the branch is `main`.
+
+## Automating Repository URL Configuration
+
+To simplify the management of repository URLs across configuration files, the `update-repo-url.sh` script is provided. This script:
+
+1. Automatically detects your Git repository URL and current branch
+2. Updates the `edit_url` in `antora.yml`
+3. Updates the repository information in `fix-edit-links.sh`
+
+### Using the URL Configuration Script
+
+Run the script before building the documentation:
+
+```
+./update-repo-url.sh
+```
+
+This ensures that both the Antora configuration and the fix-edit-links script use the same repository URL and branch, eliminating duplication and reducing the chance of errors.
+
+When you clone the repository or switch branches, run this script to update the configuration automatically.
+
+## Customizing the Documentation Site
+
+The MicroProfile Tutorial documentation site can be customized in various ways to enhance its appearance and functionality. Here are the key customization options:
+
+### Favicon Configuration
+
+Favicons are configured using the `supplemental-ui/partials/head-meta.hbs` file, which is included in the HTML `<head>` section of each page. The current setup includes:
+
+- An SVG favicon (primary)
+- A PNG favicon (fallback for browsers that don't support SVG)
+
+To change the favicons:
+
+1. Replace the files in `supplemental-ui/img/`:
+   - `favicon.svg` - Vector version of the favicon
+   - `favicon.png` - Bitmap version of the favicon
+2. Make sure the references in `head-meta.hbs` match your file names
+
+### UI Customization
+
+The UI bundle is defined in `antora-assembler.yml` under the `ui.bundle.url` key. The current configuration uses a custom UI bundle from the `microprofile-documentation-ui` repository.
+
+To apply additional customizations:
+
+1. Add or modify files in the `supplemental-ui/` directory:
+   - `partials/` - Override specific UI components
+   - `css/` - Add custom CSS styles
+   - `js/` - Add custom JavaScript
+
+Common customizations include:
 * **Tutorial Documentation**: Comprehensive learning materials built with Antora and deployed as a static site
 * **Source Code Examples**: Practical MicroProfile e-commerce application code organized by chapter
 * **Two Specialized Guides**:
