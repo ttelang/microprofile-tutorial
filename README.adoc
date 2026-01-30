@@ -1,4 +1,6 @@
-= MicroProfile Tutorial Documentation
+> Note: The source code for the Micrprofile API tutorial is available in the `/code` folder. 
+
+= MicroProfile Tutorial Documentation - Contributors Guide
 :toc: macro
 :toc-title: Table of Contents
 :toclevels: 3
