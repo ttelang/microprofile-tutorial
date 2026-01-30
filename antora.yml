@@ -1,7 +1,7 @@
 name: microprofile-tutorial          # Component name/identifier
 title: MicroProfile Tutorial         # Display title for the component
-version: 6.1                        # Version of this component
-edit_url: https://github.com/ttelang/microprofile-tutorial/edit/copilot/split-readme-into-guides/modules/ROOT/pages/{path}
+version: 7.1                        # Version of this component
+edit_url: https://github.com/microprofile/microprofile-tutorial/tree/main/modules/ROOT/pages/{path}
 asciidoc:                           # AsciiDoc processing settings
   attributes:                       # Document attributes
     source-language: asciidoc@
