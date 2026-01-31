@@ -7,7 +7,7 @@ A comprehensive Jakarta EE and MicroProfile-based REST service for inventory man
 
 == Overview
 
-The Inventory Service is a production-ready microservice built with Jakarta EE 10.0 and MicroProfile 6.1, showcasing comprehensive REST client integration patterns with the Catalog Service. This service demonstrates three different approaches to MicroProfile Rest Client usage:
+The Inventory Service is a production-ready microservice built with Jakarta EE 10.0 and MicroProfile 7.1, showcasing comprehensive REST client integration patterns with the Catalog Service. This service demonstrates three different approaches to MicroProfile Rest Client usage:
 
 * **Injected REST Client** (`@RestClient`) for standard operations
 * **RestClientBuilder** with custom timeouts for availability checks  

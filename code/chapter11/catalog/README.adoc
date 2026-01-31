@@ -9,7 +9,7 @@ toc::[]
 
 == Overview
 
-The MicroProfile Catalog Service is a modern Jakarta EE 10 application built with MicroProfile 6.1 specifications and running on Open Liberty. This service provides a RESTful API for product catalog management with enhanced MicroProfile features.
+The MicroProfile Catalog Service is a modern Jakarta EE 10 application built with MicroProfile 7.1 specifications and running on Open Liberty. This service provides a RESTful API for product catalog management with enhanced MicroProfile features.
 
 This project demonstrates the key capabilities of MicroProfile OpenAPI and in-memory persistence architecture.
 

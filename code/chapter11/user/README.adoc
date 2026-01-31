@@ -26,7 +26,7 @@ The User Management Service uses the following technologies:
 ** Context and Dependency Injection (CDI 4.0)
 ** Bean Validation 3.0
 ** JSON-B 3.0
-* MicroProfile 6.1
+* MicroProfile 7.1
 ** OpenAPI 3.1
 * Open Liberty
 * Maven
@@ -277,4 +277,4 @@ For production use, consider implementing a proper database persistence layer.
 
 * https://jakarta.ee/specifications/restful-ws/3.1/jakarta-restful-ws-spec-3.1.html[Jakarta RESTful Web Services Specification]
 * https://openliberty.io/docs/latest/documentation.html[Open Liberty Documentation]
-* https://download.eclipse.org/microprofile/microprofile-6.1/microprofile-spec-6.1.html[MicroProfile 6.1 Specification]
+* https://download.eclipse.org/microprofile/microprofile-7.1/microprofile-spec-7.1.html[MicroProfile 7.1 Specification]
