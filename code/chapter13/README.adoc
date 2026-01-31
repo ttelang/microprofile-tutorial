@@ -1,6 +1,6 @@
-= Chapter 12: MicroProfile Reactive Messaging
+= Chapter 13: MicroProfile Reactive Messaging
 
-This directory contains code examples for Chapter 12: MicroProfile Reactive Messaging.
+This directory contains code examples for Chapter 13: MicroProfile Reactive Messaging.
 
 == Overview
 
