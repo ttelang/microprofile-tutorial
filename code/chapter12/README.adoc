@@ -1,0 +1,28 @@
+= Chapter 12: MicroProfile Reactive Messaging
+
+This directory contains code examples for Chapter 12: MicroProfile Reactive Messaging.
+
+== Overview
+
+The examples in this chapter demonstrate how to build event-driven microservices using MicroProfile Reactive Messaging 3.0, including:
+
+* Event-Driven Architecture patterns
+* Reactive Streams implementation
+* Message processing with @Incoming and @Outgoing
+* Backpressure handling
+* Message acknowledgments and error handling
+* Integration with message brokers (Kafka, AMQP)
+* Best practices for reactive microservices
+
+== Prerequisites
+
+* JDK 17 or later
+* Maven 3.8+
+* Apache Kafka (for connector examples)
+* MicroProfile 6.1 compatible runtime (Quarkus, Open Liberty, etc.)
+
+== Running the Examples
+
+Detailed instructions for running each example are provided in the respective example directories.
+
+For the complete chapter documentation, see the main tutorial.
