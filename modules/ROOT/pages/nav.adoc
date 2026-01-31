@@ -16,3 +16,4 @@
 * xref:chapter09/index.adoc[MicroProfile Telemetry]
 * xref:chapter10/chapter10.adoc[MicroProfile JWT]
 * xref:chapter11/chapter11.adoc[MicroProfile Rest Client]
+* xref:chapter12/chapter12.adoc[MicroProfile GraphQL]
