@@ -14,6 +14,15 @@ This chapter will explore the primary features of MicroProfile OpenAPI, demonstr
 - Generating API Documentation
 - Documenting Authentication and Authorization Requirements
 - Exploring the APIs using Swagger UI
+- New Features in MicroProfile OpenAPI 4.1:
+  * OpenAPI v3.1 compatibility
+  * Java Records support
+  * @Target annotation enhancements
+  * JSON Schema Dialect support
+  * Extensible interface methods
+  * Async operations with callbacks
+  * Optional<T> nullable fields
+  * Comprehensive security schemes
 
 == OpenAPI Specification
 
