@@ -1,0 +1,1824 @@
+= MicroProfile Reactive Messaging
+:reactive-messaging-spec-name: MicroProfile Reactive Messaging
+:reactive-messaging-spec-version: 3.0
+
+In modern cloud-native applications, the need to handle high-volume, real-time data streams and respond to events as they occur has become increasingly important. Traditional request-response architectures, while suitable for many scenarios, struggle with the demands of event-driven systems that require asynchronous, non-blocking communication between services. MicroProfile Reactive Messaging addresses this challenge by providing a powerful framework for building event-driven microservices that can process streams of data efficiently and resiliently.
+
+This chapter introduces MicroProfile Reactive Messaging 3.0, a specification designed to simplify the development of asynchronous, message-driven applications. This chapter explores how Reactive Messaging enables developers to build reactive systems that can handle backpressure, process continuous data streams, and integrate seamlessly with message brokers like Apache Kafka and AMQP. By leveraging reactive streams and CDI beans, developers can create scalable, resilient microservices that embrace event-driven architecture patterns.
+
+NOTE: This chapter covers MicroProfile Reactive Messaging 3.0 as part of MicroProfile 7.1. All examples and code in this chapter require JDK 21 or later and a MicroProfile 7.1 compatible runtime (such as Open Liberty, Quarkus, or Payara).
+
+== Topics to be Covered
+
+* Event-Driven Architecture (EDA) Overview
+* Understanding Data Streaming and Event Sourcing
+* Introduction to Reactive Streams
+* Defining Messaging Logic with CDI Beans
+* @Channel and @Emitter Support
+* Declarative Messaging with @Incoming and @Outgoing
+* Dealing with Backpressure
+* Message Acknowledgments and Error Handling
+* Integration with other MicroProfile Specifications
+* Reactive Streams Operators
+* Support for Connectors
+* Support for Different Communication Protocols
+* Best Practices and Design Patterns
+
+== Event-Driven Architecture (EDA) Overview
+
+Event-Driven Architecture (EDA) is a software design paradigm where the flow of the program is determined by events—significant changes in state or occurrences that the system needs to respond to. In an event-driven system, components communicate by producing and consuming events asynchronously, rather than through direct, synchronous method calls.
+
+=== Principles and Benefits
+
+Event-Driven Architecture is built on several core principles:
+
+*Asynchronous Communication*: Components communicate through events without waiting for immediate responses, enabling non-blocking operations and improved system responsiveness.
+
+*Loose Coupling*: Event producers and consumers are decoupled from each other. Producers emit events without knowing who will consume them, and consumers react to events without knowing their origin.
+
+*Scalability*: EDA naturally supports horizontal scaling. Multiple consumers can process events in parallel, and new consumers can be added without modifying producers.
+
+*Resilience*: Because components are loosely coupled and communicate asynchronously, failures in one component do not directly cascade to others. Message brokers can persist events, allowing consumers to process them when they recover.
+
+*Real-time Processing*: Events can be processed as they occur, enabling real-time analytics, monitoring, and responsive user experiences.
+
+The benefits of adopting an event-driven architecture include:
+
+* *Improved System Performance*: Asynchronous processing prevents blocking operations, allowing systems to handle more concurrent requests.
+* *Better Resource Utilization*: Components can process events at their own pace, optimizing resource usage.
+* *Enhanced Flexibility*: New event consumers can be added without modifying existing producers, making the system more adaptable to changing requirements.
+* *Audit and Compliance*: Event logs provide a complete history of state changes, supporting audit trails and compliance requirements.
+
+=== Comparison with Request-Response Architecture
+
+Traditional request-response architecture follows a synchronous, call-and-wait pattern where a client sends a request and blocks until it receives a response. While this model is straightforward and suitable for many use cases, it has limitations in distributed systems:
+
+[cols="1,1,1"]
+|===
+|Aspect |Request-Response |Event-Driven
+
+|Communication Style
+|Synchronous, blocking
+|Asynchronous, non-blocking
+
+|Coupling
+|Tight coupling between client and server
+|Loose coupling between producers and consumers
+
+|Scalability
+|Limited by synchronous dependencies
+|Highly scalable with parallel processing
+
+|Failure Handling
+|Failures directly impact the caller
+|Failures are isolated; events can be reprocessed
+
+|Data Flow
+|Point-to-point
+|Publish-subscribe or streaming
+
+|Latency
+|Lower latency for simple operations
+|Optimized for high throughput and batch processing
+|===
+
+*Example Comparison*:
+
+In a request-response model, when a user places an order, the order service might synchronously call the payment service, inventory service, and shipping service in sequence. If any service is slow or fails, the entire operation is delayed or fails.
+
+In an event-driven model, placing an order emits an "OrderCreated" event. The payment, inventory, and shipping services independently consume this event and process it asynchronously. If one service is slow, it doesn't block others, and each can retry independently.
+
+=== Common Use Cases
+
+Event-Driven Architecture excels in scenarios requiring high performance, scalability, and real-time processing:
+
+*High-Performance Applications*:
+
+* *Stock Trading Platforms*: Processing millions of trades per second requires non-blocking, asynchronous event processing.
+* *Gaming Backends*: Handling real-time player actions and state updates across distributed game servers.
+
+*Real-Time Applications*:
+
+* *IoT Data Processing*: Collecting and analyzing data from thousands of sensors in real-time.
+* *Live Analytics Dashboards*: Aggregating and visualizing metrics as events stream in.
+* *Fraud Detection*: Analyzing transaction events in real-time to identify suspicious patterns.
+
+*Microservices Communication*:
+
+* *Order Processing Systems*: Coordinating multiple services (inventory, payment, shipping) through events.
+* *Notification Systems*: Broadcasting events to multiple subscribers (email, SMS, push notifications).
+
+*Data Integration*:
+
+* *Change Data Capture (CDC)*: Streaming database changes to analytics platforms or search indexes.
+* *ETL Pipelines*: Processing and transforming data streams between systems.
+
+== Understanding Data Streaming and Event Sourcing
+
+Modern applications often need to handle continuous flows of data and maintain comprehensive audit trails of state changes. Data streaming and event sourcing are two complementary patterns that address these needs in event-driven architectures.
+
+=== Using Data Streaming for Real-Time Processing
+
+Data streaming involves processing a continuous flow of data in real-time as it arrives, rather than in discrete batches. Unlike traditional batch processing, where data is collected and processed at intervals, streaming systems process each event or message as it occurs.
+
+*Key Characteristics of Data Streaming*:
+
+* *Continuous Processing*: Data is processed immediately as it arrives, enabling near-real-time insights and actions.
+* *Unbounded Data Sets*: Streams have no defined end; they represent ongoing sequences of events.
+* *Low Latency*: Processing occurs with minimal delay, often in milliseconds or seconds.
+* *Scalable Throughput*: Streaming systems can handle high-volume data flows by distributing processing across multiple nodes.
+
+*Use Cases for Data Streaming*:
+
+* *Real-Time Analytics*: Computing metrics, aggregations, and trends as data arrives (e.g., website click streams, sensor data).
+* *Event Processing*: Detecting patterns, anomalies, or triggers in event streams (e.g., fraud detection, system monitoring).
+* *Data Pipelines*: Moving and transforming data between systems in real-time (e.g., synchronizing databases, populating search indexes).
+
+*Example*: An e-commerce platform streams user clickstream data to analyze shopping behavior in real-time, enabling personalized product recommendations and dynamic pricing.
+
+MicroProfile Reactive Messaging provides excellent support for data streaming through its integration with messaging systems like Apache Kafka, allowing developers to build robust streaming applications with minimal boilerplate code.
+
+=== Using Event Sourcing for Storing Changes
+
+Event sourcing is a pattern where all changes to application state are stored as a sequence of events, rather than storing only the current state. Instead of updating a record in place, the system appends events describing what happened.
+
+*Core Concepts of Event Sourcing*:
+
+* *Event Store*: A database or log that stores all events in the order they occurred.
+* *Immutable Events*: Once written, events cannot be changed, providing an authoritative audit trail.
+* *Event Replay*: The current state can be reconstructed by replaying events from the beginning.
+
+*Benefits of Event Sourcing*:
+
+* *Complete Audit Trail*: Every state change is recorded, enabling full history and compliance.
+* *Temporal Queries*: You can query what the state was at any point in time.
+* *Event Replay*: Bugs in business logic can be fixed and events replayed to correct state.
+* *Multiple Projections*: Different views or read models can be created from the same event stream.
+
+*Example*: In a banking application, instead of storing just the current account balance, the system stores events like "AccountCredited: $100", "AccountDebited: $50", etc. The current balance is computed by summing all events.
+
+=== Rebuilding State from Events
+
+One of the powerful features of event sourcing is the ability to rebuild application state by replaying events. This process involves:
+
+1. *Starting with an Initial State*: Begin with an empty or default state.
+2. *Applying Events Sequentially*: Process each event in order, updating the state according to the event's semantics.
+3. *Reaching the Current State*: After processing all events, the system arrives at the current state.
+
+*Benefits of State Rebuilding*:
+
+* *Disaster Recovery*: If the current state is lost or corrupted, it can be reconstructed from events.
+* *New Projections*: New read models or views can be created by replaying events with different logic.
+* *Debugging and Testing*: Historical states can be recreated to understand bugs or test scenarios.
+
+*Optimization with Snapshots*:
+
+For systems with long event histories, replaying every event can be time-consuming. Snapshots periodically capture the current state, allowing rebuilding to start from the snapshot and replay only subsequent events.
+
+*Example*: An order management system stores events like "OrderCreated", "ItemAdded", "PaymentProcessed", "OrderShipped". To rebuild the current state of an order, replay these events in sequence, updating the order's status and contents at each step.
+
+MicroProfile Reactive Messaging, combined with event stores like Apache Kafka or databases, provides the foundation for implementing event sourcing patterns in microservices.
+
+== Introduction to Reactive Streams
+
+Reactive Streams is a specification that provides a standard for asynchronous stream processing with non-blocking backpressure. It defines a minimal set of interfaces, methods, and protocols to enable different libraries and tools to interoperate while handling streams of data efficiently.
+
+The Reactive Streams specification addresses a critical challenge in stream processing: how to handle scenarios where data producers generate data faster than consumers can process it. Without proper flow control, this mismatch can lead to out-of-memory errors, dropped messages, or system instability.
+
+=== Publisher/Subscriber
+
+The Reactive Streams specification defines four core interfaces that work together to enable asynchronous stream processing:
+
+*Publisher*:
+
+A Publisher is a provider of a potentially unbounded number of sequenced elements, publishing them according to the demand received from its Subscribers.
+
+[source,java]
+----
+public interface Publisher<T> {
+    void subscribe(Subscriber<? super T> subscriber);
+}
+----
+
+The Publisher produces elements and pushes them to subscribers. It respects backpressure by only emitting elements when subscribers signal demand.
+
+*Subscriber*:
+
+A Subscriber receives and processes elements from a Publisher. It implements callbacks for different lifecycle events:
+
+[source,java]
+----
+public interface Subscriber<T> {
+    void onSubscribe(Subscription subscription);
+    void onNext(T item);
+    void onError(Throwable throwable);
+    void onComplete();
+}
+----
+
+* `onSubscribe`: Called when the subscription is established, providing a Subscription object.
+* `onNext`: Called for each element produced by the Publisher.
+* `onError`: Called if an error occurs, terminating the stream.
+* `onComplete`: Called when the Publisher has finished sending all elements.
+
+*Example Flow*:
+
+1. A Subscriber subscribes to a Publisher
+2. The Publisher calls `onSubscribe`, passing a Subscription
+3. The Subscriber uses the Subscription to request elements
+4. The Publisher sends elements via `onNext`
+5. When done, the Publisher calls `onComplete`
+
+=== Subscription and Processor
+
+*Subscription*:
+
+A Subscription represents the link between a Publisher and a Subscriber. It provides methods for requesting elements and canceling the subscription:
+
+[source,java]
+----
+public interface Subscription {
+    void request(long n);
+    void cancel();
+}
+----
+
+* `request(n)`: The Subscriber requests up to `n` elements from the Publisher. This is the mechanism for backpressure control.
+* `cancel()`: The Subscriber can cancel the subscription to stop receiving elements.
+
+The request/response pattern enables backpressure: subscribers control the flow by requesting only as many elements as they can handle.
+
+*Processor*:
+
+A Processor sits between a Publisher and a Subscriber, acting as both. It receives elements from an upstream Publisher, processes or transforms them, and publishes the results to downstream Subscribers:
+
+[source,java]
+----
+public interface Processor<T, R> extends Subscriber<T>, Publisher<R> {
+}
+----
+
+Processors enable stream pipelines where data flows through multiple transformation stages. Each Processor can apply operations like filtering, mapping, aggregating, or enriching data.
+
+*Example*: A Processor might receive temperature readings in Celsius from a sensor Publisher, convert them to Fahrenheit, and publish the converted values to downstream Subscribers.
+
+*Flow Control Example*:
+
+[source,java]
+----
+// Subscriber requests 10 elements
+subscription.request(10);
+
+// Publisher sends up to 10 elements via onNext
+for (int i = 0; i < 10; i++) {
+    subscriber.onNext(data[i]);
+}
+
+// Subscriber processes elements and requests more
+subscription.request(5);
+----
+
+This request-based flow control prevents overwhelming slow consumers and ensures efficient resource utilization.
+
+MicroProfile Reactive Messaging builds on the Reactive Streams specification, providing a higher-level API that leverages these concepts while hiding much of the complexity through annotations and CDI integration.
+
+== Defining Messaging Logic with CDI Beans
+
+MicroProfile Reactive Messaging leverages Contexts and Dependency Injection (CDI) to provide a declarative, annotation-based approach to building reactive messaging applications. By using CDI beans, developers can define message processing logic in a clean, maintainable way without dealing with low-level messaging APIs.
+
+=== Basic Structure of Messaging Beans
+
+A messaging bean in MicroProfile Reactive Messaging is a standard CDI bean with methods annotated to indicate how they participate in message processing. These beans are automatically discovered and initialized by the CDI container.
+
+*Key Characteristics*:
+
+* *CDI Managed*: Beans are managed by the CDI container, enabling dependency injection and lifecycle management.
+* *Annotation-Driven*: Methods are annotated with `@Incoming`, `@Outgoing`, or both to define message flows.
+* *Flexible Scopes*: Beans can use various CDI scopes (@ApplicationScoped, @RequestScoped, etc.) based on requirements.
+
+*Basic Bean Structure*:
+
+[source,java]
+----
+import org.eclipse.microprofile.reactive.messaging.Incoming;
+import org.eclipse.microprofile.reactive.messaging.Outgoing;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class PriceConverter {
+    
+    @Incoming("prices-in")
+    @Outgoing("prices-out")
+    public double convertPrice(int priceInCents) {
+        return priceInCents / 100.0;
+    }
+}
+----
+
+In this example:
+* The bean is application-scoped, meaning one instance exists for the entire application.
+* The `convertPrice` method receives messages from the "prices-in" channel.
+* It processes each message (converting cents to dollars).
+* It sends the result to the "prices-out" channel.
+
+=== Leveraging CDI for Dependency Injection and Scope Management
+
+CDI provides powerful capabilities that enhance messaging beans:
+
+*Dependency Injection*:
+
+Messaging beans can inject other services, repositories, or resources needed for processing:
+
+[source,java]
+----
+@ApplicationScoped
+public class OrderProcessor {
+    
+    @Inject
+    OrderService orderService;
+    
+    @Inject
+    NotificationService notificationService;
+    
+    @Incoming("orders")
+    public CompletionStage<Void> processOrder(Order order) {
+        return orderService.createOrder(order)
+            .thenAccept(savedOrder -> 
+                notificationService.sendConfirmation(savedOrder)
+            );
+    }
+}
+----
+
+*Scope Management*:
+
+Different CDI scopes affect bean lifecycle and threading:
+
+* *@ApplicationScoped*: Single instance for the entire application. Suitable for stateless processors. Most common for messaging beans.
+* *@RequestScoped*: New instance per request. Generally not used for messaging beans as they do not operate in request contexts.
+* *@Dependent*: New instance for each injection point. Use with caution as it can create multiple message processing pipelines.
+
+*Configuration Injection*:
+
+MicroProfile Config can be injected to externalize configuration:
+
+[source,java]
+----
+@ApplicationScoped
+public class ConfigurableProcessor {
+    
+    @Inject
+    @ConfigProperty(name = "processor.batch.size", defaultValue = "100")
+    int batchSize;
+    
+    @Incoming("items")
+    @Outgoing("batches")
+    public PublisherBuilder<List<Item>> batchItems(PublisherBuilder<Item> items) {
+        // Batch items using configured batchSize
+        return items.collect(
+            () -> new ArrayList<Item>(),
+            (list, item) -> {
+                list.add(item);
+                return list.size() < batchSize;
+            }
+        );
+    }
+}
+----
+
+*Lifecycle Integration*:
+
+CDI lifecycle callbacks can be used with messaging beans:
+
+[source,java]
+----
+@ApplicationScoped
+public class MessageHandler {
+    
+    private ExecutorService executor;
+    
+    @PostConstruct
+    public void initialize() {
+        executor = Executors.newFixedThreadPool(10);
+    }
+    
+    @Incoming("tasks")
+    public CompletionStage<Void> handleTask(Task task) {
+        return CompletableFuture.runAsync(() -> 
+            processTask(task), executor
+        );
+    }
+    
+    @PreDestroy
+    public void cleanup() {
+        executor.shutdown();
+    }
+}
+----
+
+*Benefits of CDI Integration*:
+
+* *Simplified Code*: No need to manually manage bean lifecycles or wire dependencies.
+* *Testability*: CDI beans can be easily mocked and tested in isolation.
+* *Modularity*: Messaging logic can be organized across multiple beans with clear separation of concerns.
+* *Integration*: Seamlessly works with other Jakarta EE and MicroProfile specifications.
+
+== @Channel and @Emitter Support
+
+While declarative messaging with `@Incoming` and `@Outgoing` handles most use cases, there are scenarios where more programmatic control over message production is needed. MicroProfile Reactive Messaging provides `@Channel` and `@Emitter` for these situations.
+
+=== Named Channels for Message Flow
+
+Channels are named pathways through which messages flow in a Reactive Messaging application. They serve as logical conduits connecting message producers, processors, and consumers.
+
+*Channel Types*:
+
+* *Internal Channels*: Connect components within the same application.
+* *External Channels*: Connected to external message brokers (Kafka, AMQP, etc.) via connectors.
+
+*Channel Configuration*:
+
+Channels are configured using MicroProfile Config, typically in `microprofile-config.properties`:
+
+[source,properties]
+----
+# Incoming channel from Kafka
+mp.messaging.incoming.orders.connector=smallrye-kafka
+mp.messaging.incoming.orders.topic=order-topic
+mp.messaging.incoming.orders.bootstrap.servers=localhost:9092
+
+# Outgoing channel to Kafka
+mp.messaging.outgoing.notifications.connector=smallrye-kafka
+mp.messaging.outgoing.notifications.topic=notification-topic
+mp.messaging.outgoing.notifications.bootstrap.servers=localhost:9092
+----
+
+*Channel Names*:
+
+Channel names referenced in `@Incoming`, `@Outgoing`, and `@Channel` must match the configuration:
+
+[source,java]
+----
+@Incoming("orders")  // Matches mp.messaging.incoming.orders.*
+public void processOrder(Order order) {
+    // Processing logic
+}
+----
+
+=== Using @Channel to Access Channels
+
+The `@Channel` annotation allows developers to inject a channel directly into a bean, providing programmatic access to the message stream:
+
+[source,java]
+----
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.streams.operators.PublisherBuilder;
+
+@ApplicationScoped
+public class OrderService {
+    
+    @Inject
+    @Channel("orders")
+    PublisherBuilder<Order> orders;
+    
+    public void displayOrders() {
+        orders.forEach(order -> 
+            System.out.println("Order: " + order.getId())
+        ).run();
+    }
+}
+----
+
+=== Using @Emitter for Programmatic Message Emission
+
+An `Emitter` provides a way to programmatically send messages to a channel from imperative code, such as REST endpoints or scheduled tasks:
+
+[source,java]
+----
+import org.eclipse.microprofile.reactive.messaging.Emitter;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+
+@ApplicationScoped
+public class OrderController {
+    
+    @Inject
+    @Channel("orders")
+    Emitter<Order> orderEmitter;
+    
+    public void createOrder(Order order) {
+        orderEmitter.send(order);
+    }
+}
+----
+
+*Emitter Features*:
+
+* *Synchronous Sending*: `send(T message)` sends a message and returns void.
+* *Asynchronous Sending*: `send(Message<T> message)` returns `CompletionStage<Void>` for async handling.
+* *Backpressure Aware*: Emitters respect backpressure from downstream consumers.
+
+*Emitter with Acknowledgment*:
+
+[source,java]
+----
+@Inject
+@Channel("orders")
+Emitter<Order> orderEmitter;
+
+public CompletionStage<Void> createOrderAsync(Order order) {
+    return orderEmitter.send(Message.of(order))
+        .thenAccept(v -> log.info("Order sent successfully"))
+        .exceptionally(throwable -> {
+            log.error("Failed to send order", throwable);
+            return null;
+        });
+}
+----
+
+*Use Cases for @Emitter*:
+
+* *REST Endpoints*: Converting REST requests into messages for async processing.
+* *Scheduled Tasks*: Periodically generating messages based on timers or cron schedules.
+* *External Integrations*: Forwarding events from external systems to message channels.
+* *Testing*: Injecting test messages into channels programmatically.
+
+*Example: REST to Messaging Bridge*:
+
+[source,java]
+----
+@Path("/orders")
+@ApplicationScoped
+public class OrderResource {
+    
+    @Inject
+    @Channel("orders")
+    Emitter<Order> orderEmitter;
+    
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response createOrder(Order order) {
+        orderEmitter.send(order);
+        return Response.accepted().build();
+    }
+}
+----
+
+This pattern decouples the REST layer from the processing layer, enabling asynchronous processing and better scalability.
+
+== Declarative Messaging
+
+Declarative messaging is at the heart of MicroProfile Reactive Messaging. By using simple annotations, developers can define complex message processing pipelines without writing boilerplate code for message handling, threading, or backpressure management.
+
+=== Consuming Messages with @Incoming
+
+The `@Incoming` annotation marks a method as a consumer of messages from a specified channel. When messages arrive on that channel, the method is automatically invoked.
+
+*Basic Consumption*:
+
+[source,java]
+----
+@Incoming("product-updates")
+public void processUpdate(Product product) {
+    productService.updateCache(product);
+}
+----
+
+*Supported Method Signatures*:
+
+MicroProfile Reactive Messaging supports various method signatures for flexibility:
+
+*1. Simple Payload*:
+[source,java]
+----
+@Incoming("items")
+public void process(String item) { }
+----
+
+*2. Message Wrapper*:
+[source,java]
+----
+@Incoming("items")
+public void process(Message<String> message) { 
+    String payload = message.getPayload();
+    // Manual acknowledgment
+    message.ack();
+}
+----
+
+*3. Reactive Types*:
+[source,java]
+----
+@Incoming("items")
+public CompletionStage<Void> process(String item) {
+    return processAsync(item);
+}
+----
+
+*4. Reactive Streams*:
+[source,java]
+----
+@Incoming("items")
+public Subscriber<String> process() {
+    return ReactiveStreams.<String>builder()
+        .forEach(this::handleItem)
+        .build();
+}
+----
+
+=== Accessing Metadata
+
+Messages can carry metadata in addition to their payload. This metadata might include headers, timestamps, keys, or connector-specific information.
+
+*Accessing Metadata through Message*:
+
+[source,java]
+----
+@Incoming("orders")
+public void processOrder(Message<Order> message) {
+    Order order = message.getPayload();
+    
+    // Access metadata
+    Optional<String> source = message.getMetadata(IncomingKafkaRecordMetadata.class)
+        .map(metadata -> metadata.getTopic());
+    
+    Optional<Long> timestamp = message.getMetadata(IncomingKafkaRecordMetadata.class)
+        .map(metadata -> metadata.getTimestamp());
+}
+----
+
+*Common Metadata Types*:
+
+* *Kafka Metadata*: Topic, partition, offset, timestamp, key
+* *AMQP Metadata*: Exchange, routing key, content type
+* *Custom Metadata*: Application-specific metadata
+
+=== Producing Messages with @Outgoing
+
+The `@Outgoing` annotation marks a method as a producer of messages to a specified channel. The method can produce messages in various ways:
+
+*Simple Value Production*:
+
+[source,java]
+----
+@Outgoing("prices")
+public double generatePrice() {
+    return computeCurrentPrice();
+}
+----
+
+*Stream Production*:
+
+[source,java]
+----
+@Outgoing("heartbeat")
+public Publisher<String> generateHeartbeat() {
+    return ReactiveStreams.generate(() -> "alive")
+        .buildRs();
+}
+----
+
+*Periodic Production*:
+
+[source,java]
+----
+@Outgoing("ticks")
+public Publisher<Instant> generateTicks() {
+    return Multi.createFrom().ticks().every(Duration.ofSeconds(1))
+        .map(tick -> Instant.now());
+}
+----
+
+=== One-to-Many and Many-to-One Message Transformations
+
+MicroProfile Reactive Messaging supports flexible transformations between channels:
+
+*One-to-One Transformation*:
+
+[source,java]
+----
+@Incoming("celsius")
+@Outgoing("fahrenheit")
+public double convert(double celsius) {
+    return celsius * 9/5 + 32;
+}
+----
+
+*One-to-Many (Splitting)*:
+
+[source,java]
+----
+@Incoming("orders")
+@Outgoing("order-items")
+public PublisherBuilder<OrderItem> splitOrder(Order order) {
+    return ReactiveStreams.fromIterable(order.getItems());
+}
+----
+
+Each order produces multiple order items sent downstream.
+
+*Many-to-One (Aggregation)*:
+
+[source,java]
+----
+@Incoming("sensor-readings")
+@Outgoing("averages")
+public PublisherBuilder<Double> calculateAverage(PublisherBuilder<Double> readings) {
+    return readings.collect(Collectors.averagingDouble(d -> d));
+}
+----
+
+*Filtering*:
+
+[source,java]
+----
+@Incoming("all-events")
+@Outgoing("important-events")
+public PublisherBuilder<Event> filterEvents(PublisherBuilder<Event> events) {
+    return events.filter(event -> event.getPriority() > 5);
+}
+----
+
+*Enrichment*:
+
+[source,java]
+----
+@Incoming("user-ids")
+@Outgoing("users")
+public CompletionStage<User> enrichUser(String userId) {
+    return userRepository.findById(userId);
+}
+----
+
+These transformation patterns enable building complex processing pipelines declaratively.
+
+== Dealing with Backpressure
+
+Backpressure is one of the most critical challenges in reactive systems. It occurs when message producers generate data faster than consumers can process it. Without proper handling, this mismatch can lead to memory exhaustion, dropped messages, or system failures.
+
+=== Understanding Backpressure in Messaging Context
+
+In a messaging system, backpressure scenarios include:
+
+* *Fast Producer, Slow Consumer*: A Kafka topic receives thousands of messages per second, but the consumer can only process 100 per second.
+* *Bursty Traffic*: Periodic spikes in message volume overwhelm downstream processors.
+* *Resource Constraints*: Database connections, network bandwidth, or CPU become bottlenecks.
+
+*Traditional Approaches and Problems*:
+
+1. *Unbounded Buffers*: Queue all messages in memory, leading to OutOfMemoryError.
+2. *Dropping Messages*: Discard excess messages, causing data loss.
+3. *Blocking*: Block producers until consumers catch up, reducing throughput and causing cascading failures.
+
+Reactive Streams' request-based flow control provides a better solution: consumers explicitly request the number of elements they can handle, and producers respect these requests.
+
+=== Automatic Handling of Backpressure
+
+MicroProfile Reactive Messaging automatically manages backpressure through the Reactive Streams protocol:
+
+*Request Propagation*:
+
+When using this pattern:
+
+[source,java]
+----
+@Incoming("data")
+@Outgoing("processed-data")
+public String process(String data) {
+    return transform(data);
+}
+----
+
+The framework:
+1. Requests one element from the upstream channel
+2. Waits for the `process` method to complete
+3. Sends the result downstream
+4. Requests the next element
+
+This sequential processing naturally provides backpressure: the upstream producer will not send more data until the current item is processed.
+
+*Asynchronous Processing with Backpressure*:
+
+[source,java]
+----
+@Incoming("tasks")
+@Outgoing("results")
+public CompletionStage<Result> processAsync(Task task) {
+    return CompletableFuture.supplyAsync(() -> 
+        expensiveOperation(task)
+    );
+}
+----
+
+The framework waits for the CompletionStage to complete before requesting the next message, ensuring backpressure is maintained even with async operations.
+
+=== Strategies for Configuring Backpressure Behavior
+
+While automatic backpressure works well for many cases, developers can configure behavior for specific requirements:
+
+*Buffering Strategy*:
+
+Configure buffer sizes for channels:
+
+[source,properties]
+----
+mp.messaging.incoming.data.buffer-size=256
+----
+
+This creates a buffer of 256 messages, allowing the producer to send ahead while the consumer processes at its own pace.
+
+*Overflow Strategy*:
+
+Define what happens when buffers fill:
+
+[source,properties]
+----
+mp.messaging.incoming.data.overflow-strategy=drop-oldest
+----
+
+Strategies include:
+* `drop-oldest`: Remove the oldest message when buffer is full
+* `drop-latest`: Discard the newest message
+* `fail`: Throw an exception
+
+*Concurrent Processing*:
+
+Process multiple messages concurrently while maintaining backpressure:
+
+[source,java]
+----
+@Incoming("tasks")
+@Outgoing("results")
+public PublisherBuilder<Result> processConcurrent(
+        PublisherBuilder<Task> tasks) {
+    return tasks.flatMapCompletionStage(3, task ->
+        CompletableFuture.supplyAsync(() -> process(task))
+    );
+}
+----
+
+The `flatMapCompletionStage(3, ...)` processes up to 3 messages concurrently, providing controlled parallelism while respecting backpressure.
+
+*Batching*:
+
+Process messages in batches to improve throughput:
+
+[source,java]
+----
+@Incoming("events")
+@Outgoing("batched-events")
+public PublisherBuilder<List<Event>> batch(
+        PublisherBuilder<Event> events) {
+    return events.collect(
+        () -> new ArrayList<Event>(),
+        (list, event) -> {
+            list.add(event);
+            return list.size() < 100;
+        }
+    );
+}
+----
+
+*Throttling*:
+
+Limit message processing rate:
+
+[source,java]
+----
+@Incoming("high-volume")
+@Outgoing("throttled")
+public PublisherBuilder<Data> throttle(PublisherBuilder<Data> data) {
+    return ReactiveStreams.fromPublisher(
+        Multi.createFrom().publisher(data.buildRs())
+            .group().intoLists().of(10, Duration.ofSeconds(1))
+            .flatMap(list -> Multi.createFrom().iterable(list))
+    );
+}
+----
+
+== Message Acknowledgments and Error Handling
+
+Reliable message processing requires proper acknowledgment and error handling strategies. MicroProfile Reactive Messaging provides flexible mechanisms to ensure messages are processed reliably and failures are handled appropriately.
+
+=== Message Acknowledgment Strategies
+
+Acknowledgment confirms that a message has been successfully processed. The timing and handling of acknowledgments affect reliability and performance.
+
+*Acknowledgment Strategies*:
+
+MicroProfile Reactive Messaging supports several acknowledgment strategies configured via `@Acknowledgment`:
+
+[source,java]
+----
+import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
+----
+
+*1. PRE_PROCESSING*:
+
+Acknowledge the message before processing:
+
+[source,java]
+----
+@Incoming("data")
+@Acknowledgment(Acknowledgment.Strategy.PRE_PROCESSING)
+public void process(String data) {
+    // Message already acknowledged
+    processData(data);
+}
+----
+
+* *Use when*: Processing is idempotent or occasional message loss is acceptable.
+* *Risk*: If processing fails, the message is already acknowledged and will not be redelivered.
+
+*2. POST_PROCESSING*:
+
+Acknowledge after successful processing (default for most signatures):
+
+[source,java]
+----
+@Incoming("data")
+@Acknowledgment(Acknowledgment.Strategy.POST_PROCESSING)
+public void process(String data) {
+    processData(data);
+    // Message acknowledged after method returns
+}
+----
+
+* *Use when*: You need at-least-once delivery guarantees.
+* *Behavior*: If processing throws an exception, the message is not acknowledged.
+
+*3. MANUAL*:
+
+Manually control when to acknowledge:
+
+[source,java]
+----
+@Incoming("data")
+@Acknowledgment(Acknowledgment.Strategy.MANUAL)
+public CompletionStage<Void> process(Message<String> message) {
+    return processData(message.getPayload())
+        .thenCompose(v -> message.ack())
+        .exceptionally(throwable -> {
+            message.nack(throwable);
+            return null;
+        });
+}
+----
+
+* *Use when*: You need fine-grained control over acknowledgment timing.
+* *Methods*: `message.ack()` acknowledges, `message.nack(throwable)` negative acknowledges.
+
+*4. NONE*:
+
+No automatic acknowledgment:
+
+[source,java]
+----
+@Incoming("data")
+@Acknowledgment(Acknowledgment.Strategy.NONE)
+public void process(String data) {
+    // No acknowledgment occurs
+}
+----
+
+* *Use when*: Connected to systems that do not support acknowledgment.
+
+=== Error Handling and Failure Strategies
+
+When message processing fails, strategies are needed to handle the failure:
+
+*1. Retry*:
+
+Automatically retry failed messages:
+
+[source,properties]
+----
+mp.messaging.incoming.data.failure-strategy=retry
+mp.messaging.incoming.data.retry.max-retries=3
+mp.messaging.incoming.data.retry.delay=1000
+----
+
+*2. Dead Letter Queue*:
+
+Send failed messages to a separate channel:
+
+[source,properties]
+----
+mp.messaging.incoming.data.failure-strategy=dead-letter-queue
+mp.messaging.incoming.data.dead-letter-queue.topic=failed-data
+----
+
+*3. Ignore*:
+
+Log and ignore failures:
+
+[source,properties]
+----
+mp.messaging.incoming.data.failure-strategy=ignore
+----
+
+*Programmatic Error Handling*:
+
+[source,java]
+----
+@Incoming("orders")
+public CompletionStage<Void> processOrder(Message<Order> message) {
+    return orderService.process(message.getPayload())
+        .thenCompose(v -> message.ack())
+        .exceptionally(throwable -> {
+            if (throwable instanceof ValidationException) {
+                log.warn("Invalid order", throwable);
+                return message.ack(); // Acknowledge to skip
+            } else {
+                log.error("Processing failed", throwable);
+                return message.nack(throwable); // Retry
+            }
+        });
+}
+----
+
+*Circuit Breaker Integration*:
+
+Combine with MicroProfile Fault Tolerance:
+
+[source,java]
+----
+@Incoming("external-calls")
+@CircuitBreaker(requestVolumeThreshold = 10)
+@Fallback(fallbackMethod = "fallbackProcess")
+public CompletionStage<Void> process(Data data) {
+    return externalService.call(data);
+}
+
+public CompletionStage<Void> fallbackProcess(Data data) {
+    log.warn("Circuit open, using fallback");
+    return CompletableFuture.completedFuture(null);
+}
+----
+
+== Integration with Other MicroProfile Specifications
+
+MicroProfile Reactive Messaging integrates seamlessly with other MicroProfile specifications, enabling comprehensive solutions for building resilient, observable, and secure microservices.
+
+=== Fault Tolerance Integration
+
+Combine Reactive Messaging with MicroProfile Fault Tolerance for robust error handling:
+
+[source,java]
+----
+import org.eclipse.microprofile.faulttolerance.*;
+
+@ApplicationScoped
+public class ResilientProcessor {
+    
+    @Incoming("orders")
+    @Retry(maxRetries = 3, delay = 1000)
+    @Timeout(2000)
+    @CircuitBreaker(
+        requestVolumeThreshold = 10,
+        failureRatio = 0.5,
+        delay = 5000
+    )
+    public CompletionStage<Void> processOrder(Order order) {
+        return externalService.process(order);
+    }
+    
+    @Incoming("payments")
+    @Fallback(fallbackMethod = "cachePayment")
+    public CompletionStage<Void> processPayment(Payment payment) {
+        return paymentGateway.process(payment);
+    }
+    
+    public CompletionStage<Void> cachePayment(Payment payment) {
+        return paymentCache.store(payment);
+    }
+}
+----
+
+*Benefits*:
+* Automatic retries for transient failures
+* Timeouts prevent hanging operations
+* Circuit breakers protect against cascading failures
+* Fallbacks provide graceful degradation
+
+=== MicroProfile Metrics Integration
+
+Monitor messaging performance with MicroProfile Metrics:
+
+[source,java]
+----
+import org.eclipse.microprofile.metrics.annotation.*;
+
+@ApplicationScoped
+public class MonitoredProcessor {
+    
+    @Inject
+    @Metric(name = "orders.processed")
+    Counter ordersProcessed;
+    
+    @Inject
+    @Metric(name = "processing.time")
+    Histogram processingTime;
+    
+    @Incoming("orders")
+    @Counted(name = "orders.received")
+    @Timed(name = "order.processing.time")
+    public CompletionStage<Void> processOrder(Order order) {
+        long start = System.nanoTime();
+        return orderService.process(order)
+            .thenRun(() -> {
+                ordersProcessed.inc();
+                processingTime.update(
+                    System.nanoTime() - start
+                );
+            });
+    }
+}
+----
+
+*Metrics Exposed*:
+* Message throughput (messages/second)
+* Processing latency
+* Error rates
+* Queue depths
+
+=== MicroProfile Health for Liveness and Readiness Checks
+
+Implement health checks for messaging components:
+
+[source,java]
+----
+import org.eclipse.microprofile.health.*;
+
+@ApplicationScoped
+public class MessagingHealthCheck {
+    
+    @Inject
+    @Channel("orders")
+    Emitter<Order> orderEmitter;
+    
+    @Liveness
+    public HealthCheckResponse liveness() {
+        boolean isAlive = checkKafkaConnection();
+        return HealthCheckResponse
+            .named("messaging-liveness")
+            .status(isAlive)
+            .build();
+    }
+    
+    @Readiness
+    public HealthCheckResponse readiness() {
+        boolean isReady = orderEmitter != null && 
+                         checkChannelAvailability();
+        return HealthCheckResponse
+            .named("messaging-readiness")
+            .status(isReady)
+            .withData("channel", "orders")
+            .build();
+    }
+    
+    private boolean checkKafkaConnection() {
+        // Check Kafka broker connectivity
+        return true;
+    }
+    
+    private boolean checkChannelAvailability() {
+        // Verify channel configuration
+        return true;
+    }
+}
+----
+
+*Benefits*:
+* Kubernetes/OpenShift integration for pod management
+* Automatic restart on liveness failure
+* Traffic routing based on readiness
+
+=== Config Integration
+
+External configuration for messaging:
+
+[source,properties]
+----
+# Kafka connector configuration
+mp.messaging.connector.smallrye-kafka.bootstrap.servers=${KAFKA_SERVERS:localhost:9092}
+
+# Channel-specific configuration
+mp.messaging.incoming.orders.connector=smallrye-kafka
+mp.messaging.incoming.orders.topic=${ORDER_TOPIC:orders}
+mp.messaging.incoming.orders.group.id=${ORDER_GROUP:order-processors}
+mp.messaging.incoming.orders.auto.offset.reset=earliest
+
+# Outgoing configuration
+mp.messaging.outgoing.notifications.connector=smallrye-kafka
+mp.messaging.outgoing.notifications.topic=${NOTIFICATION_TOPIC:notifications}
+----
+
+Environment-specific configurations can be managed externally, enabling the same application to run in different environments without code changes.
+
+== Reactive Streams Operators
+
+Reactive Streams operators provide powerful tools for transforming, filtering, and combining message streams. MicroProfile Reactive Messaging supports the Reactive Streams Operators specification, enabling functional-style stream processing.
+
+=== Common Operators
+
+*Map*: Transform each element:
+
+[source,java]
+----
+@Incoming("prices-cents")
+@Outgoing("prices-dollars")
+public PublisherBuilder<Double> convert(PublisherBuilder<Integer> prices) {
+    return prices.map(cents -> cents / 100.0);
+}
+----
+
+*Filter*: Select elements based on a predicate:
+
+[source,java]
+----
+@Incoming("all-orders")
+@Outgoing("large-orders")
+public PublisherBuilder<Order> filterLarge(PublisherBuilder<Order> orders) {
+    return orders.filter(order -> order.getTotal() > 1000);
+}
+----
+
+*FlatMap*: Transform each element into a stream:
+
+[source,java]
+----
+@Incoming("orders")
+@Outgoing("items")
+public PublisherBuilder<Item> extractItems(PublisherBuilder<Order> orders) {
+    return orders.flatMap(order -> 
+        ReactiveStreams.fromIterable(order.getItems())
+    );
+}
+----
+
+*Collect*: Aggregate elements:
+
+[source,java]
+----
+@Incoming("temperatures")
+@Outgoing("averages")
+public PublisherBuilder<Double> average(PublisherBuilder<Double> temps) {
+    return temps.collect(Collectors.averagingDouble(t -> t));
+}
+----
+
+*Take/Skip*: Limit stream elements:
+
+[source,java]
+----
+@Incoming("events")
+@Outgoing("first-ten")
+public PublisherBuilder<Event> takeFirst(PublisherBuilder<Event> events) {
+    return events.limit(10);
+}
+
+@Incoming("events")
+@Outgoing("skip-header")
+public PublisherBuilder<Event> skipFirst(PublisherBuilder<Event> events) {
+    return events.skip(5);
+}
+----
+
+*Peek*: Observe elements without modifying them:
+
+[source,java]
+----
+@Incoming("orders")
+@Outgoing("processed-orders")
+public PublisherBuilder<Order> logOrders(PublisherBuilder<Order> orders) {
+    return orders.peek(order -> 
+        log.info("Processing order: {}", order.getId())
+    );
+}
+----
+
+=== Combining Streams
+
+*Merge*: Combine multiple streams:
+
+[source,java]
+----
+public Publisher<Event> mergeStreams(
+        Publisher<Event> stream1,
+        Publisher<Event> stream2) {
+    return Multi.createBy().merging()
+        .streams(stream1, stream2);
+}
+----
+
+*Zip*: Combine corresponding elements from streams:
+
+[source,java]
+----
+public Publisher<OrderWithPrice> zipStreams(
+        Publisher<Order> orders,
+        Publisher<Price> prices) {
+    return Multi.createBy().combining()
+        .streams(orders, prices)
+        .using(OrderWithPrice::new);
+}
+----
+
+== Support for Connectors
+
+Connectors bridge MicroProfile Reactive Messaging channels with external messaging systems. They handle the complexity of interacting with message brokers, allowing developers to focus on business logic.
+
+=== Connector Architecture
+
+Connectors implement the MicroProfile Reactive Messaging SPI to:
+* Subscribe to external message sources and publish to channels
+* Consume from channels and publish to external destinations
+* Handle serialization/deserialization
+* Manage connections and configurations
+
+Common connectors include:
+* *Kafka Connector*: Apache Kafka integration
+* *AMQP Connector*: RabbitMQ and other AMQP brokers
+* *JMS Connector*: Java Message Service
+* *In-Memory Connector*: Testing and development
+
+=== Kafka Connector Example
+
+Configuration:
+
+[source,properties]
+----
+# Incoming from Kafka
+mp.messaging.incoming.orders.connector=smallrye-kafka
+mp.messaging.incoming.orders.topic=order-topic
+mp.messaging.incoming.orders.bootstrap.servers=localhost:9092
+mp.messaging.incoming.orders.group.id=order-service
+mp.messaging.incoming.orders.key.deserializer=org.apache.kafka.common.serialization.StringDeserializer
+mp.messaging.incoming.orders.value.deserializer=io.quarkus.kafka.client.serialization.ObjectMapperDeserializer
+
+# Outgoing to Kafka
+mp.messaging.outgoing.order-confirmations.connector=smallrye-kafka
+mp.messaging.outgoing.order-confirmations.topic=confirmation-topic
+mp.messaging.outgoing.order-confirmations.bootstrap.servers=localhost:9092
+mp.messaging.outgoing.order-confirmations.key.serializer=org.apache.kafka.common.serialization.StringSerializer
+mp.messaging.outgoing.order-confirmations.value.serializer=io.quarkus.kafka.client.serialization.ObjectMapperSerializer
+----
+
+Usage:
+
+[source,java]
+----
+@ApplicationScoped
+public class OrderProcessor {
+    
+    @Incoming("orders")
+    @Outgoing("order-confirmations")
+    public OrderConfirmation process(Order order) {
+        // Process the order
+        return new OrderConfirmation(order.getId());
+    }
+}
+----
+
+=== Using @Blocking for Worker Threads
+
+By default, message processing occurs on the event loop thread. For blocking operations (database calls, file I/O, synchronous HTTP calls), use `@Blocking` to offload to a worker thread:
+
+[source,java]
+----
+import io.smallrye.reactive.messaging.annotations.Blocking;
+
+@ApplicationScoped
+public class DatabaseProcessor {
+    
+    @Inject
+    EntityManager entityManager;
+    
+    @Incoming("user-updates")
+    @Blocking
+    public void updateUser(User user) {
+        // Blocking database operation
+        entityManager.merge(user);
+        entityManager.flush();
+    }
+}
+----
+
+*@Blocking Parameters*:
+
+[source,java]
+----
+@Blocking(value = "my-pool", ordered = false)
+----
+
+* `value`: Custom worker pool name
+* `ordered`: Whether to preserve message order (default: true)
+
+*When to Use @Blocking*:
+* Database operations (JPA, JDBC)
+* File system operations
+* Synchronous HTTP clients
+* CPU-intensive computations
+
+*When NOT to Use @Blocking*:
+* Asynchronous operations returning CompletionStage
+* Non-blocking I/O operations
+* Simple, fast transformations
+
+== Support for Different Communication Protocols
+
+While message brokers are the primary integration point for Reactive Messaging, the specification can be extended to support various communication protocols.
+
+=== Integrating gRPC Bidirectional Streaming
+
+gRPC bidirectional streaming can be integrated with Reactive Messaging for real-time, low-latency communication:
+
+[source,java]
+----
+import io.grpc.stub.StreamObserver;
+
+@ApplicationScoped
+public class GrpcStreamingService extends OrderServiceGrpc.OrderServiceImplBase {
+    
+    @Inject
+    @Channel("orders")
+    Emitter<Order> orderEmitter;
+    
+    @Override
+    public StreamObserver<OrderRequest> streamOrders(
+            StreamObserver<OrderResponse> responseObserver) {
+        return new StreamObserver<OrderRequest>() {
+            @Override
+            public void onNext(OrderRequest request) {
+                Order order = convertToOrder(request);
+                orderEmitter.send(order);
+                responseObserver.onNext(
+                    OrderResponse.newBuilder()
+                        .setOrderId(order.getId())
+                        .setStatus("RECEIVED")
+                        .build()
+                );
+            }
+            
+            @Override
+            public void onError(Throwable t) {
+                log.error("Stream error", t);
+            }
+            
+            @Override
+            public void onCompleted() {
+                responseObserver.onCompleted();
+            }
+        };
+    }
+}
+----
+
+=== Real-Time Communication with WebSockets
+
+WebSocket integration enables real-time browser-to-backend messaging:
+
+[source,java]
+----
+import jakarta.websocket.*;
+import jakarta.websocket.server.ServerEndpoint;
+
+@ServerEndpoint("/notifications")
+@ApplicationScoped
+public class NotificationWebSocket {
+    
+    private static final Set<Session> sessions = 
+        ConcurrentHashMap.newKeySet();
+    
+    @OnOpen
+    public void onOpen(Session session) {
+        sessions.add(session);
+    }
+    
+    @OnClose
+    public void onClose(Session session) {
+        sessions.remove(session);
+    }
+    
+    @Incoming("notifications")
+    public void broadcastNotification(Notification notification) {
+        String message = notification.toJson();
+        sessions.forEach(session -> {
+            try {
+                session.getBasicRemote().sendText(message);
+            } catch (IOException e) {
+                log.error("Failed to send notification", e);
+            }
+        });
+    }
+}
+----
+
+=== Server-Sent Events (SSE)
+
+Expose message streams via SSE for browser consumption:
+
+[source,java]
+----
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import org.reactivestreams.Publisher;
+
+@Path("/events")
+@ApplicationScoped
+public class EventStreamResource {
+    
+    @Inject
+    @Channel("events")
+    Publisher<Event> events;
+    
+    @GET
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    public Publisher<Event> streamEvents() {
+        return events;
+    }
+}
+----
+
+== Best Practices and Design Patterns
+
+Building production-ready reactive messaging applications requires following best practices and established design patterns.
+
+=== Testing Reactive Messaging Components
+
+*Using In-Memory Connectors*:
+
+For unit testing, use in-memory connectors to avoid external dependencies:
+
+[source,properties]
+----
+# test/resources/application.properties
+mp.messaging.incoming.orders.connector=smallrye-in-memory
+mp.messaging.outgoing.confirmations.connector=smallrye-in-memory
+----
+
+*Test Example*:
+
+[source,java]
+----
+import io.smallrye.reactive.messaging.memory.InMemoryConnector;
+import io.smallrye.reactive.messaging.memory.InMemorySource;
+import io.smallrye.reactive.messaging.memory.InMemorySink;
+
+@QuarkusTest
+public class OrderProcessorTest {
+    
+    @Inject
+    @Any
+    InMemoryConnector connector;
+    
+    @Test
+    public void testOrderProcessing() {
+        InMemorySource<Order> orders = 
+            connector.source("orders");
+        InMemorySink<OrderConfirmation> confirmations = 
+            connector.sink("confirmations");
+        
+        Order order = new Order("123", 100.0);
+        orders.send(order);
+        
+        await().atMost(Duration.ofSeconds(5))
+            .until(() -> confirmations.received().size() == 1);
+        
+        OrderConfirmation confirmation = 
+            confirmations.received().get(0).getPayload();
+        assertEquals("123", confirmation.getOrderId());
+    }
+}
+----
+
+*Mocking Dependencies*:
+
+[source,java]
+----
+@QuarkusTest
+public class ProcessorWithDependenciesTest {
+    
+    @InjectMock
+    OrderService orderService;
+    
+    @Test
+    public void testWithMockedService() {
+        when(orderService.process(any()))
+            .thenReturn(CompletableFuture.completedFuture(null));
+        
+        // Test messaging component
+    }
+}
+----
+
+=== Structuring Reactive Microservices
+
+*Separation of Concerns*:
+
+Organize code by responsibility:
+* *Controllers/Resources*: REST endpoints, WebSocket endpoints
+* *Messaging Handlers*: Message processing logic
+* *Services*: Business logic
+* *Repositories*: Data access
+
+*Example Structure*:
+
+----
+src/main/java/com/example/
+├── resources/
+│   └── OrderResource.java       # REST endpoints
+├── messaging/
+│   ├── OrderConsumer.java       # Message consumers
+│   ├── OrderProducer.java       # Message producers
+│   └── OrderTransformer.java    # Message transformations
+├── services/
+│   └── OrderService.java        # Business logic
+└── repositories/
+    └── OrderRepository.java     # Data access
+----
+
+=== Handling Idempotent Operations
+
+Messages may be delivered more than once. Ensure operations are idempotent:
+
+*Idempotency Key Pattern*:
+
+[source,java]
+----
+@Incoming("payments")
+@Blocking
+public void processPayment(Message<Payment> message) {
+    Payment payment = message.getPayload();
+    String idempotencyKey = payment.getIdempotencyKey();
+    
+    if (processedPayments.contains(idempotencyKey)) {
+        log.info("Payment already processed: {}", idempotencyKey);
+        message.ack();
+        return;
+    }
+    
+    try {
+        paymentService.process(payment);
+        processedPayments.add(idempotencyKey);
+        message.ack();
+    } catch (Exception e) {
+        message.nack(e);
+    }
+}
+----
+
+*Database-Based Idempotency*:
+
+[source,java]
+----
+@Transactional
+public void processOrder(Order order) {
+    Optional<ProcessedOrder> existing = 
+        repository.findByExternalId(order.getExternalId());
+    
+    if (existing.isPresent()) {
+        return; // Already processed
+    }
+    
+    // Process order
+    ProcessedOrder processed = new ProcessedOrder(order);
+    repository.persist(processed);
+}
+----
+
+=== Strategies for Message Serialization/Deserialization
+
+*JSON Serialization with Jackson*:
+
+[source,java]
+----
+@ApplicationScoped
+public class OrderSerializer implements Serializer<Order> {
+    
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    
+    @Override
+    public byte[] serialize(String topic, Order order) {
+        try {
+            return objectMapper.writeValueAsBytes(order);
+        } catch (JsonProcessingException e) {
+            throw new SerializationException(e);
+        }
+    }
+}
+----
+
+*Avro Serialization*:
+
+Use Apache Avro with schema registry for versioned, efficient serialization.
+
+NOTE: This example uses Confluent's Kafka Avro serializer. Add the following dependency to your project:
+
+[source,xml]
+----
+<dependency>
+    <groupId>io.confluent</groupId>
+    <artifactId>kafka-avro-serializer</artifactId>
+    <version>7.5.0</version>
+</dependency>
+----
+
+Configuration:
+
+[source,properties]
+----
+mp.messaging.incoming.orders.value.deserializer=io.confluent.kafka.serializers.KafkaAvroDeserializer
+mp.messaging.incoming.orders.schema.registry.url=http://localhost:8081
+----
+
+Alternatively, developers can use Apache Avro's standard serializer with a custom implementation for schema management.
+
+*Protocol Buffers*:
+
+For gRPC or high-performance scenarios:
+
+[source,java]
+----
+@Incoming("orders")
+public void processOrder(byte[] data) {
+    Order order = Order.parseFrom(data);
+    // Process order
+}
+----
+
+=== Deployment Considerations
+
+*Resource Limits*:
+
+Configure thread pools and buffers appropriately:
+
+[source,properties]
+----
+# Thread pool for @Blocking operations
+smallrye.messaging.worker.pool-size=10
+
+# Buffer sizes
+mp.messaging.incoming.orders.buffer-size=1000
+----
+
+*Monitoring and Observability*:
+
+* Enable metrics for throughput, latency, and errors
+* Implement health checks for messaging infrastructure
+* Use distributed tracing to track message flows
+
+*Scaling Strategies*:
+
+* *Horizontal Scaling*: Deploy multiple instances with load balancing
+* *Partition-Based Scaling*: Use message broker partitions for parallel processing
+* *Consumer Groups*: Distribute message processing across instances
+
+*Configuration Management*:
+
+Externalize all environment-specific configurations:
+
+[source,properties]
+----
+mp.messaging.connector.smallrye-kafka.bootstrap.servers=${KAFKA_BOOTSTRAP_SERVERS}
+mp.messaging.incoming.orders.topic=${ORDER_TOPIC:orders}
+mp.messaging.incoming.orders.group.id=${CONSUMER_GROUP:order-service}
+----
+
+*Security*:
+
+[source,properties]
+----
+# Kafka SSL configuration
+mp.messaging.connector.smallrye-kafka.security.protocol=SSL
+mp.messaging.connector.smallrye-kafka.ssl.truststore.location=/path/to/truststore.jks
+mp.messaging.connector.smallrye-kafka.ssl.truststore.password=${TRUSTSTORE_PASSWORD}
+mp.messaging.connector.smallrye-kafka.ssl.keystore.location=/path/to/keystore.jks
+mp.messaging.connector.smallrye-kafka.ssl.keystore.password=${KEYSTORE_PASSWORD}
+
+# SASL authentication
+mp.messaging.connector.smallrye-kafka.sasl.mechanism=PLAIN
+mp.messaging.connector.smallrye-kafka.sasl.jaas.config=${SASL_JAAS_CONFIG}
+----
+
+== Summary
+
+MicroProfile Reactive Messaging 3.0 provides a powerful, standardized approach to building event-driven microservices. By leveraging reactive streams, CDI integration, and declarative annotations, developers can create scalable, resilient messaging applications with minimal boilerplate code.
+
+Key takeaways from this chapter:
+
+* *Event-Driven Architecture* enables loose coupling, scalability, and real-time processing
+* *Reactive Streams* provide backpressure management and efficient stream processing
+* *CDI Integration* simplifies dependency injection and lifecycle management
+* *Declarative Messaging* with @Incoming and @Outgoing reduces boilerplate
+* *Backpressure Handling* prevents resource exhaustion in high-throughput scenarios
+* *Acknowledgments and Error Handling* ensure reliable message processing
+* *Integration with MicroProfile* specifications enhances observability and resilience
+* *Connectors* bridge messaging channels with external brokers like Kafka
+* *Best Practices* include testing strategies, idempotency, and proper serialization
+
+For more information, refer to the https://download.eclipse.org/microprofile/microprofile-reactive-messaging-3.0.1/microprofile-reactive-messaging-spec-3.0.1.html[MicroProfile Reactive Messaging 3.0 Specification].
+
+By mastering these concepts and patterns, developers can build modern, reactive microservices that handle high-volume data streams efficiently and reliably in production environments.

@@ -1,0 +1,232 @@
+= Reactive Messaging Example
+
+This example demonstrates the key concepts of MicroProfile Reactive Messaging 3.0 as covered in Chapter 13.
+
+== Overview
+
+This project showcases:
+
+* **Message transformation** with `@Incoming` and `@Outgoing` annotations
+* **Programmatic message emission** using `@Emitter` and `@Channel`
+* **Message acknowledgment strategies** with manual control
+* **Stream filtering and transformation** using reactive operators
+* **Async message processing** with `CompletionStage`
+
+== Project Structure
+
+----
+reactive-messaging-example/
+├── pom.xml
+└── src/main/java/io/microprofile/tutorial/reactive/
+    ├── ReactiveMessagingApplication.java  # JAX-RS Application
+    ├── Order.java                         # Order entity
+    ├── PriceConverter.java                # Basic message transformation
+    ├── OrderResource.java                 # REST endpoint with Emitter
+    ├── OrderProcessor.java                # Async processing with acknowledgment
+    └── OrderFilter.java                   # Stream filtering example
+└── src/main/resources/META-INF/
+    └── microprofile-config.properties     # Messaging configuration
+----
+
+== Code Examples
+
+=== 1. PriceConverter - Basic Message Transformation
+
+Demonstrates the simplest form of reactive messaging: receiving a message, transforming it, and publishing the result.
+
+[source,java]
+----
+@Incoming("prices-in")
+@Outgoing("prices-out")
+public double convertPrice(int priceInCents) {
+    return priceInCents / 100.0;
+}
+----
+
+=== 2. OrderResource - Programmatic Message Emission
+
+Shows how to use `@Emitter` to programmatically send messages from a REST endpoint.
+
+[source,java]
+----
+@Inject
+@Channel("orders")
+Emitter<Order> orderEmitter;
+
+@POST
+public Response createOrder(Order order) {
+    orderEmitter.send(order);
+    return Response.accepted().build();
+}
+----
+
+=== 3. OrderProcessor - Async Processing with Acknowledgment
+
+Demonstrates manual message acknowledgment with async processing and error handling.
+
+[source,java]
+----
+@Incoming("orders")
+@Acknowledgment(Acknowledgment.Strategy.MANUAL)
+public CompletionStage<Void> processOrder(Message<Order> message) {
+    return processOrderAsync(message.getPayload())
+        .thenCompose(v -> message.ack())
+        .exceptionally(throwable -> {
+            message.nack(throwable);
+            return null;
+        });
+}
+----
+
+=== 4. OrderFilter - Stream Filtering
+
+Shows how to filter message streams using reactive operators.
+
+[source,java]
+----
+@Incoming("all-orders")
+@Outgoing("large-orders")
+public PublisherBuilder<Order> filterLargeOrders(PublisherBuilder<Order> orders) {
+    return orders.filter(order -> order.getAmount() > 1000.0);
+}
+----
+
+== Prerequisites
+
+* JDK 21 or later
+* Maven 3.8+
+* MicroProfile 7.1 compatible runtime (Open Liberty, Quarkus, Payara, etc.)
+
+== Building the Project
+
+[source,bash]
+----
+mvn clean package
+----
+
+== Running with Open Liberty
+
+1. Add Open Liberty Maven plugin to pom.xml
+2. Configure server.xml with reactive messaging features
+3. Run:
+
+[source,bash]
+----
+mvn liberty:dev
+----
+
+== Running with Quarkus
+
+1. Convert to Quarkus project structure
+2. Add SmallRye Reactive Messaging dependencies
+3. Run:
+
+[source,bash]
+----
+mvn quarkus:dev
+----
+
+== Configuration
+
+The example uses in-memory connectors for development. See `microprofile-config.properties` for Kafka configuration examples.
+
+=== In-Memory Configuration (Default)
+
+[source,properties]
+----
+mp.messaging.incoming.orders.connector=smallrye-in-memory
+mp.messaging.outgoing.orders.connector=smallrye-in-memory
+----
+
+=== Kafka Configuration (Production)
+
+[source,properties]
+----
+mp.messaging.incoming.orders.connector=smallrye-kafka
+mp.messaging.incoming.orders.topic=orders-topic
+mp.messaging.incoming.orders.bootstrap.servers=localhost:9092
+mp.messaging.incoming.orders.group.id=order-processors
+----
+
+== Testing the Example
+
+=== Create an Order via REST API
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/api/orders \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "ORD-001",
+    "customerId": "CUST-123",
+    "amount": 1500.00
+  }'
+----
+
+Expected response:
+[source,json]
+----
+{
+  "message": "Order accepted for processing"
+}
+----
+
+The order will be:
+1. Sent to the "orders" channel via the Emitter
+2. Processed asynchronously by OrderProcessor
+3. Filtered by OrderFilter (as amount > $1000)
+4. Published to "large-orders" channel
+
+== Key Concepts Demonstrated
+
+=== Declarative Messaging
+
+* `@Incoming` - Consumes messages from a channel
+* `@Outgoing` - Produces messages to a channel
+* Method chaining - Same method can have both annotations
+
+=== Programmatic Control
+
+* `@Channel` - Inject a channel
+* `@Emitter` - Programmatically send messages
+* Useful for REST endpoints, scheduled tasks, etc.
+
+=== Message Acknowledgment
+
+* `MANUAL` - Developer controls when to acknowledge
+* `message.ack()` - Acknowledge successful processing
+* `message.nack(throwable)` - Negative acknowledgment on failure
+
+=== Reactive Operators
+
+* `filter()` - Select messages based on predicate
+* `map()` - Transform messages
+* `peek()` - Observe messages without modifying
+* `flatMap()` - Transform each message into a stream
+
+=== Backpressure
+
+Automatically handled by the Reactive Streams specification. The framework ensures producers do not overwhelm consumers.
+
+== Integration with Other MicroProfile Specs
+
+The example can be extended with:
+
+* **MicroProfile Fault Tolerance** - Add `@Retry`, `@CircuitBreaker`, `@Timeout` to message processors
+* **MicroProfile Metrics** - Track message throughput and processing time
+* **MicroProfile Health** - Add health checks for messaging connectivity
+* **MicroProfile Config** - Externalize all configuration
+
+== Next Steps
+
+1. Add Kafka connector and test with real Kafka broker
+2. Implement message serialization with JSON-B or Avro
+3. Add fault tolerance annotations for resilience
+4. Integrate with MicroProfile Metrics for monitoring
+5. Add health checks for messaging infrastructure
+
+== References
+
+* link:https://download.eclipse.org/microprofile/microprofile-reactive-messaging-3.0.1/microprofile-reactive-messaging-spec-3.0.1.html[MicroProfile Reactive Messaging 3.0 Specification]
+* link:https://www.reactive-streams.org/[Reactive Streams Specification]
+* link:https://smallrye.io/smallrye-reactive-messaging/[SmallRye Reactive Messaging Documentation]

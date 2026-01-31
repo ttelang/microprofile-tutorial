@@ -1,0 +1,71 @@
+= Chapter 13: MicroProfile Reactive Messaging
+
+This directory contains code examples for Chapter 13: MicroProfile Reactive Messaging.
+
+== Overview
+
+The examples in this chapter demonstrate how to build event-driven microservices using MicroProfile Reactive Messaging 3.0, including:
+
+* Event-Driven Architecture patterns
+* Reactive Streams implementation
+* Message processing with @Incoming and @Outgoing
+* Backpressure handling
+* Message acknowledgments and error handling
+* Integration with message brokers (Kafka, AMQP)
+* Best practices for reactive microservices
+
+== Code Examples
+
+=== reactive-messaging-example/
+
+A comprehensive example project demonstrating:
+
+* **PriceConverter** - Basic message transformation with `@Incoming` and `@Outgoing`
+* **OrderResource** - Programmatic message emission using `@Emitter` and `@Channel`
+* **OrderProcessor** - Async message processing with manual acknowledgment
+* **OrderFilter** - Stream filtering using reactive operators
+
+See link:reactive-messaging-example/README.adoc[reactive-messaging-example/README.adoc] for detailed documentation and usage instructions.
+
+== Prerequisites
+
+* JDK 21 or later
+* Maven 3.8+
+* Apache Kafka (for connector examples)
+* MicroProfile 7.1 compatible runtime (Quarkus, Open Liberty, etc.)
+
+== Running the Examples
+
+Each example directory contains its own README with specific instructions.
+
+=== Quick Start
+
+[source,bash]
+----
+cd reactive-messaging-example
+mvn clean package
+# Deploy to your MicroProfile 7.1 runtime
+----
+
+== Testing with Different Runtimes
+
+=== Open Liberty
+
+[source,bash]
+----
+mvn liberty:dev
+----
+
+=== Quarkus
+
+[source,bash]
+----
+mvn quarkus:dev
+----
+
+== Additional Resources
+
+For the complete chapter documentation, see the main tutorial.
+
+* link:https://download.eclipse.org/microprofile/microprofile-reactive-messaging-3.0.1/microprofile-reactive-messaging-spec-3.0.1.html[MicroProfile Reactive Messaging 3.0 Specification]
+* link:https://www.reactive-streams.org/[Reactive Streams Specification]
