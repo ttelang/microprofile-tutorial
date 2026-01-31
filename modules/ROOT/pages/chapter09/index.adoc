@@ -1,43 +1,122 @@
-= MicroProfile Telemetry
+= MicroProfile Telemetry 2.1
 
 Microservices-based applications have better scalability, flexibility, and resilience, but they suffer from additional challenges regarding availability and performance monitoring. This makes observability critical to ensure these distributed systems operate reliably.
 
-MicroProfile Telemetry specification provides a set of vendor-neutral APIs for instrumenting, collecting, and exporting telemetry data such as traces, metrics, and logs. It is built on the foundation of https://opentelemetry.io/[OpenTelemetry] from the https://www.cncf.io/[Cloud Native Computing Foundation (CNCF)] project, an open-source observability framework. 
+MicroProfile Telemetry 2.1 specification provides a set of vendor-neutral APIs for instrumenting, collecting, and exporting telemetry data such as traces, metrics, and logs. It is built on the foundation of https://opentelemetry.io/[OpenTelemetry] from the https://www.cncf.io/[Cloud Native Computing Foundation (CNCF)] project, an open-source observability framework.
 
-In this chapter, we will explore the fundamentals of MicroProfile Telemetry, covering topics such as tracing concepts, instrumenting Telemetry, setting up tracing providers, context propagation and correlation, analyzing traces, security considerations for tracing, and more. By the end of this chapter, you will learn how to effectively leverage distributed tracing for debugging, performance monitoring, and system optimization.
+This chapter covers MicroProfile Telemetry 2.1, which is part of the MicroProfile 7.1 platform release. MicroProfile Telemetry 2.1 brings significant improvements including Jakarta EE 10 support, upgraded OpenTelemetry integration (version 1.48.0), simplified configuration, and enhanced metrics instrumentation capabilities.
+
+In this chapter, we will explore the fundamentals of MicroProfile Telemetry 2.1, covering topics such as observability in microservices, tracing concepts, metrics collection, instrumenting Telemetry, setting up tracing providers, context propagation and correlation, integrating with other MicroProfile specifications, analyzing traces, deployment, visualization, security considerations for tracing, and more. By the end of this chapter, you will learn how to effectively leverage distributed tracing and metrics for debugging, performance monitoring, and system optimization.
 
 == Topics to be covered
 
-* Introduction to MicroProfile Telemetry
-* Tracing Concepts 
-** Spans 
-** Traces
-** Context Propagation
-** Correlation
-* Instrumenting OpenTelemetry
-* Tools for Trace Analysis
-* Exporting the Traces
-* Types of Telemetry
-* Agent Instrumentation
-* Analyzing Traces
+* Introduction to Observability in Microservices
+* Overview of MicroProfile Telemetry 2.1
+** Jakarta EE 10 Support
+** What's New in Telemetry 2.1
+* Core Concepts
+** Spans, Traces, and Context Propagation
+** Metrics and Instruments
+** Default Behavior and Auto-Discovery
+* Project Setup and Dependencies
+** Maven Configuration
+** Gradle Configuration
+* Tracing with MicroProfile Telemetry 2.1
+** Automatic Span Generation
+** Custom Span Creation
+** Context Propagation Across Services
+** Nested and Parent-Child Span Relationships
+* Metrics Collection
+** Overview of Metrics API in OpenTelemetry
+** Metrics Instruments: Counter, Histogram, Observable Gauge
+** Defining and Registering Metrics
+** Exporting Metrics
+* Integration with Other MicroProfile Specifications
+** MicroProfile Config
+** MicroProfile OpenAPI
+** MicroProfile Health
+** MicroProfile Fault Tolerance
+* Configuration
+** Using microprofile.telemetry.* Properties
+** Enabling Exporters
+* Advanced Features
+** Using Tracer, SpanBuilder, and Span APIs
+* Deployment and Visualization
+** Tools for Trace Analysis
+** Visualizing Traces and Metrics
 * Security Considerations for Tracing
 
-== Introduction to MicroProfile Telemetry
+== Introduction to Observability in Microservices
 
 MicroProfile Telemetry addresses the operational challenges inherent in modern microservices architectures. Without proper observability, debugging, performance monitoring, and ensuring system reliability become complex and time-consuming.
+
+Observability is the ability to understand the internal state of a system by examining its outputs. For microservices-based applications, observability encompasses three key pillars:
+
+* *Traces*: Track the flow of requests across distributed services, showing how services interact and where time is spent.
+* *Metrics*: Provide quantitative measurements of system behavior, such as request counts, response times, and resource utilization.
+* *Logs*: Offer detailed records of events and errors, providing context for troubleshooting and analysis.
+
+=== Key Challenges in Microservices
 
 Some of the key challenges in microservices-based applications include:
 
 * *Complexity due to Distributed Architecture*: Microservices are often deployed across multiple nodes, containers, or cloud environments, making it challenging to track requests as they move through the system. This lack of visibility increases debugging complexity, making it harder to identify bottlenecks and analyze system behavior.
 * *Polyglot Architecture*: Microservices are developed using multiple programming languages (e.g., Java, Python, and Go) and frameworks, resulting in inconsistent telemetry data and a lack of standardization in observability. This fragmentation makes correlating logs, traces, and metrics across services difficult.
-* *Latency*: Communication between Microservices involves latency, and all of this adds up as requests traverse several services. This makes it difficult to identify the root causes of issues.
-Ensuring High Availability: Failures in one microservice can affect the entire system, impacting multiple dependent microservices. This can lead to downtime or degraded performance, resulting in lost revenue and diminished user trust.
+* *Latency and Performance*: Communication between microservices involves latency, and all of this adds up as requests traverse several services. This makes it difficult to identify the root causes of performance issues and bottlenecks.
+* *Ensuring High Availability*: Failures in one microservice can affect the entire system, impacting multiple dependent microservices. This can lead to downtime or degraded performance, resulting in lost revenue and diminished user trust.
 
-To address these challenges, MicroProfile Telemetry specification provides a standardized set of APIs for capturing telemetry data, including trace information and context propagation, to improve observability in distributed systems. By enabling seamless tracing, developers can analyze system behavior, troubleshoot service interactions, and ensure application reliability. 
+To address these challenges, MicroProfile Telemetry 2.1 specification provides a standardized set of APIs for capturing telemetry data, including trace information, metrics, and context propagation, to improve observability in distributed systems. By enabling seamless tracing and metrics collection, developers can analyze system behavior, troubleshoot service interactions, and ensure application reliability. 
 
 MicroProfile Telemetry is vendor-neutral. It allows developers to switch between different OpenTelemetry implementations without modifying their application code. This flexibility ensures that MicroProfile applications can easily integrate with various observability platforms, making it easier to adopt, scale, and maintain Telemetry in modern cloud-native environments.
 
-== Tracing Concepts
+== Overview of MicroProfile Telemetry 2.1
+
+MicroProfile Telemetry 2.1 represents a significant advancement in observability for Jakarta EE and MicroProfile applications. This section covers the key improvements and features introduced in this release.
+
+=== Jakarta EE 10 Support
+
+MicroProfile Telemetry 2.1 is fully aligned with Jakarta EE 10, providing seamless integration with the Jakarta EE 10 Core Profile. This alignment ensures:
+
+* *Namespace Migration*: Full support for the `jakarta.*` namespace instead of the legacy `javax.*` namespace.
+* *Modern APIs*: Integration with Jakarta CDI 4.0, Jakarta RESTful Web Services 3.1, and other Jakarta EE 10 specifications.
+* *Cloud-Native Readiness*: Built for modern containerized and cloud-native deployments.
+* *Long-Term Support*: Compatibility with the latest enterprise Java standards and runtimes.
+
+Jakarta EE 10 support means that applications built with MicroProfile Telemetry 2.1 can take advantage of the latest enterprise Java features while maintaining standardized observability capabilities.
+
+=== What's New in Telemetry 2.1
+
+MicroProfile Telemetry 2.1 introduces several important improvements over previous versions:
+
+==== OpenTelemetry 1.48.0
+
+* Upgraded from OpenTelemetry 1.39.0 to 1.48.0, bringing the latest features and improvements from the OpenTelemetry project.
+* Enhanced compatibility with external observability platforms and tools.
+* Improved performance and stability for telemetry data collection.
+
+==== Simplified Configuration
+
+* No longer requires `<classloader apiTypeVisibility="+third-party"/>` in `server.xml` for using the OpenTelemetry API.
+* Reduced boilerplate configuration, making it easier for developers to get started.
+* Streamlined integration with Jakarta EE application servers.
+
+==== Enhanced Metrics Support
+
+* Full support for OpenTelemetry Metrics API, including Counter, Histogram, and Observable Gauge instruments.
+* Seamless integration with existing MicroProfile Metrics applications.
+* Standardized metrics export through OTLP (OpenTelemetry Protocol) and other exporters.
+
+==== Improved Multi-Application Handling
+
+* Better handling of the `otel.sdk.disabled` property in environments running multiple applications.
+* More flexible configuration options for enabling/disabling telemetry per application.
+
+==== Backward Compatibility
+
+* Designed as a non-breaking release, maintaining compatibility with existing MicroProfile Telemetry applications.
+* Migration from version 1.1 requires minimal code changes.
+
+== Core Concepts
 
 Tracing is critical for observability. It allows developers to inspect the flow of requests as they traverse through distributed systems. Tracing provides visibility into the interactions and dependencies within a system by breaking down a request into multiple spans, and connecting them into traces with context propagated across services.
 
@@ -91,30 +170,1811 @@ When viewing logs, the +traceId+ and +spanId+ allow you to link specific log ent
 
 Together, these concepts form the foundation of distributed tracing, enabling developers to monitor, analyze, and optimize the performance of their microservices effectively.
 
-== Instrumenting Telemetry
+=== Metrics and Instruments
 
-MicroProfile Telemetry simplifies instrumentation by integrating OpenTelemetry for distributed tracing. The following steps outline how to instrument telemetry in a MicroProfile E-Commerce application.
+MicroProfile Telemetry 2.1 provides comprehensive support for metrics through the OpenTelemetry Metrics API. Metrics provide quantitative measurements of system behavior and are essential for monitoring application performance, resource utilization, and business-level indicators.
 
-=== *Step 1: Add the MicroProfile Telemetry Dependency*
+==== Understanding Metrics in OpenTelemetry
 
-To enable tracing and exporting of telemetry data, include the MicroProfile Telemetry API dependency in your `pom.xml` file.
+Unlike traditional metrics systems, OpenTelemetry treats metrics as a first-class signal alongside traces and logs. This unified approach enables better correlation between different types of telemetry data, allowing developers to:
 
-[source, xml]
+* Track application performance over time
+* Monitor resource utilization (CPU, memory, network)
+* Measure business-specific indicators (orders processed, revenue generated)
+* Identify trends and anomalies in system behavior
+* Create dashboards and alerts for proactive monitoring
+
+==== Metric Instruments
+
+OpenTelemetry defines several types of metric instruments, each suited for specific use cases:
+
+*Counter*
+
+A Counter is a monotonic instrument that only increases over time. It's ideal for tracking events that accumulate, such as:
+
+* Total number of HTTP requests processed
+* Total number of errors encountered
+* Total bytes sent or received
+* Total number of items processed
+
+Counters reset to zero when the application restarts and cannot decrease during runtime.
+
+*Histogram*
+
+A Histogram captures the distribution of values and is useful for understanding how data is spread across different ranges. Histograms are commonly used for:
+
+* HTTP request latencies and response times
+* Request/response payload sizes
+* Database query durations
+* Processing times for business operations
+
+Histograms automatically calculate statistics like minimum, maximum, sum, and count, and can also compute percentiles (e.g., p50, p95, p99).
+
+*Observable Gauge*
+
+An Observable Gauge represents a current value that can increase or decrease. It's typically used for:
+
+* Current memory usage
+* Number of active connections
+* Queue size or depth
+* Temperature readings or other sensor data
+* Number of items in a cache
+
+Observable Gauges are registered with a callback function that is invoked when metrics are collected, providing the current value at that moment.
+
+=== Default Behavior and Auto-Discovery
+
+MicroProfile Telemetry 2.1 provides intelligent defaults and automatic discovery features to minimize configuration and maximize developer productivity.
+
+==== Automatic Instrumentation
+
+By default, MicroProfile Telemetry automatically instruments several common frameworks and libraries:
+
+* *Jakarta RESTful Web Services*: Automatically creates spans for incoming HTTP requests and outgoing REST client calls.
+* *CDI Beans*: Methods annotated with `@WithSpan` are automatically traced.
+* *Database Operations*: JDBC calls can be automatically instrumented (when supported by the runtime).
+
+This automatic instrumentation follows OpenTelemetry semantic conventions, ensuring consistency across different implementations.
+
+==== Service Name Auto-Discovery
+
+If not explicitly configured, MicroProfile Telemetry attempts to determine the service name automatically:
+
+1. From the `otel.service.name` configuration property
+2. From the application name in the deployment descriptor
+3. From a default value based on the application context
+
+==== Exporter Auto-Configuration
+
+MicroProfile Telemetry can automatically configure exporters based on environment variables and configuration properties, following OpenTelemetry SDK conventions:
+
+* OTLP exporter configuration via `otel.exporter.otlp.*` properties
+* Jaeger exporter configuration via `otel.exporter.jaeger.*` properties
+* Zipkin exporter configuration via `otel.exporter.zipkin.*` properties
+
+==== SDK Disabled by Default
+
+By default, the OpenTelemetry SDK is disabled in MicroProfile Telemetry 2.1. To enable telemetry collection, you must explicitly set:
+
+[source,properties]
 ----
-<!-- Adding MicroProfile Telemetry dependency -->
+otel.sdk.disabled=false
+----
+
+This prevents accidental telemetry collection in environments where it's not needed and allows fine-grained control over when telemetry is active.
+
+== Project Setup and Dependencies
+
+To use MicroProfile Telemetry 2.1 in your application, you need to add the appropriate dependencies to your project. This section covers setup for both Maven and Gradle build systems.
+
+=== Maven Configuration
+
+For Maven projects, add the MicroProfile Telemetry API dependency to your `pom.xml` file:
+
+[source,xml]
+----
+<!-- MicroProfile Telemetry 2.1 API -->
 <dependency>
-   <groupId>org.eclipse.microprofile.telemetry</groupId>
-   <artifactId>microprofile-telemetry-api</artifactId>
-   <version>1.1</version>
-   <scope>provided</scope>
+    <groupId>org.eclipse.microprofile.telemetry</groupId>
+    <artifactId>microprofile-telemetry-api</artifactId>
+    <version>2.1</version>
+    <scope>provided</scope>
 </dependency>
 ----
 
-=== *Step 2: Create a Tracer*
+The `provided` scope is used because the runtime environment (such as Open Liberty, WildFly, or Payara) provides the implementation.
 
-MicroProfile automatically traces requests, but you can manually instrument your code using OpenTelementry APIs.
+==== Using MicroProfile Platform BOM
 
-A *Tracer* is a core component of OpenTelemetry, responsible for *creating spans* and *managing trace data* within the application. To use it, inject a +Tracer+ instance into your MicroProfile service:
+Alternatively, you can use the MicroProfile Platform BOM (Bill of Materials) to manage all MicroProfile dependencies:
+
+[source,xml]
+----
+<dependencyManagement>
+    <dependencies>
+        <!-- MicroProfile 7.1 Platform BOM -->
+        <dependency>
+            <groupId>org.eclipse.microprofile</groupId>
+            <artifactId>microprofile</artifactId>
+            <version>7.1</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+
+<dependencies>
+    <!-- MicroProfile Telemetry will use version from BOM -->
+    <dependency>
+        <groupId>org.eclipse.microprofile.telemetry</groupId>
+        <artifactId>microprofile-telemetry-api</artifactId>
+        <scope>provided</scope>
+    </dependency>
+</dependencies>
+----
+
+This approach ensures all MicroProfile specifications are at compatible versions.
+
+=== Gradle Configuration
+
+For Gradle projects, add the following dependency to your `build.gradle` file:
+
+[source,gradle]
+----
+dependencies {
+    // MicroProfile Telemetry 2.1 API
+    providedCompile 'org.eclipse.microprofile.telemetry:microprofile-telemetry-api:2.1'
+}
+----
+
+For Gradle projects using the Kotlin DSL (`build.gradle.kts`):
+
+[source,kotlin]
+----
+dependencies {
+    // MicroProfile Telemetry 2.1 API
+    compileOnly("org.eclipse.microprofile.telemetry:microprofile-telemetry-api:2.1")
+}
+----
+
+==== Using MicroProfile Platform in Gradle
+
+You can also use the MicroProfile Platform BOM with Gradle:
+
+[source,gradle]
+----
+dependencies {
+    // Import MicroProfile Platform BOM
+    implementation platform('org.eclipse.microprofile:microprofile:7.1')
+    
+    // MicroProfile Telemetry will use version from BOM
+    providedCompile 'org.eclipse.microprofile.telemetry:microprofile-telemetry-api'
+}
+----
+
+=== OpenTelemetry API (Optional)
+
+If you need direct access to OpenTelemetry APIs for advanced use cases, you can also add the OpenTelemetry dependencies:
+
+[source,xml]
+----
+<!-- OpenTelemetry API for advanced usage -->
+<dependency>
+    <groupId>io.opentelemetry</groupId>
+    <artifactId>opentelemetry-api</artifactId>
+    <version>1.48.0</version>
+    <scope>provided</scope>
+</dependency>
+----
+
+However, for most use cases, the MicroProfile Telemetry API provides sufficient functionality without needing to directly depend on OpenTelemetry.
+
+== Tracing with MicroProfile Telemetry 2.1
+
+MicroProfile Telemetry 2.1 provides multiple approaches for instrumenting distributed tracing in your applications. This section covers automatic span generation, custom span creation, context propagation, and parent-child span relationships.
+
+=== Automatic Span Generation
+
+MicroProfile Telemetry automatically traces requests without requiring any modifications to the application code. This is particularly beneficial for Jakarta RESTful Web Services and MicroProfile REST Clients, as it enables seamless integration into distributed tracing systems following the semantic conventions of OpenTelemetry.
+
+For example, in a ProductService that exposes a RESTful endpoint, automatic instrumentation ensures that incoming and outgoing HTTP requests are traced with minimal configuration, without requiring any additional code changes.
+
+By default, MicroProfile Telemetry tracing is disabled. To activate it, set the following property in `microprofile-config.properties` or as an environment variable:
+
+[source,properties]
+----
+otel.sdk.disabled=false
+----
+
+This ensures that OpenTelemetry's tracing capabilities are enabled for the application.
+
+==== Automatic HTTP Server Instrumentation
+
+When enabled, MicroProfile Telemetry automatically creates spans for:
+
+* Incoming HTTP requests to Jakarta RESTful Web Services endpoints
+* Important HTTP attributes like method, URL, status code, and user agent
+* Request and response headers (following security best practices)
+* Exception information if an error occurs
+
+Example of an automatically instrumented REST endpoint:
+
+[source,java]
+----
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@Path("/products")
+@ApplicationScoped
+public class ProductResource {
+    
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<Product> getAllProducts() {
+        // This method will automatically generate a span
+        // Span name: GET /products
+        // Attributes: http.method=GET, http.route=/products, etc.
+        return productService.findAll();
+    }
+    
+    @GET
+    @Path("/{id}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Product getProduct(@PathParam("id") Long id) {
+        // Span name: GET /products/{id}
+        // Attributes include the path template, not the actual id value
+        return productService.findById(id);
+    }
+}
+----
+
+No additional code is required - spans are created automatically for each HTTP request.
+
+==== Automatic REST Client Instrumentation
+
+MicroProfile REST Client calls are also automatically instrumented:
+
+[source,java]
+----
+import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+
+@RegisterRestClient(baseUri = "http://localhost:8081/inventory")
+public interface InventoryClient {
+    
+    @GET
+    @Path("/check/{productId}")
+    int checkStock(@PathParam("productId") Long productId);
+    // This call will automatically create a span
+    // Context will be propagated to the inventory service
+}
+----
+
+When this client is used, outgoing HTTP requests are automatically traced and context is propagated to the downstream service.
+
+=== Custom Span Creation
+
+While automatic instrumentation handles most common scenarios, you often need to create custom spans to track specific business operations or add custom instrumentation to your code.
+
+==== Using the @WithSpan Annotation
+
+The `@WithSpan` annotation provides a simple way to create custom spans within a trace. By annotating a method with `@WithSpan`, a new span is automatically generated whenever the method is invoked.
+
+[source,java]
+----
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class PaymentService {
+
+    @WithSpan
+    public void processPayment(String orderId) {
+        // A span named "PaymentService.processPayment" is automatically created
+        // Business logic here
+    }
+}
+----
+
+Every time `processPayment` is called, a new span is created. The span is automatically linked to the current trace context. No need for explicit span creation or lifecycle management.
+
+You can customize the span name by providing a value to the annotation:
+
+[source,java]
+----
+@WithSpan("payment.process")
+public void processPayment(String orderId, double amount) {
+    // Span name will be "payment.process" instead of the default
+    // Business logic here
+}
+----
+
+You can use `@WithSpan` for tracing key business operations, such as order processing, payment handling, or API requests.
+
+==== Using Tracer and SpanBuilder APIs
+
+For greater flexibility, developers can manually create spans using the OpenTelemetry API. The `Tracer` can be injected using CDI, and the `SpanBuilder` class provides the ability to define custom span names, attributes, and lifecycle management.
+
+===== Step 1: Inject the Tracer
+
+[source,java]
+----
+import io.opentelemetry.api.trace.Tracer;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class PaymentService {
+
+    @Inject
+    Tracer tracer;
+    
+    // Methods using the tracer...
+}
+----
+
+===== Step 2: Create and Manage Spans
+
+[source,java]
+----
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.StatusCode;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+
+@ApplicationScoped
+public class PaymentService {
+
+    @Inject
+    Tracer tracer;
+
+    public void processPayment(String orderId, double amount) {
+        // Create a custom span for tracing the payment process
+        Span span = tracer.spanBuilder("payment.process").startSpan();
+        
+        try {
+            // Make the span active in the current context
+            try (var scope = span.makeCurrent()) {
+                // Add attributes to enrich the trace
+                span.setAttribute("order.id", orderId);
+                span.setAttribute("payment.amount", amount);
+                span.setAttribute("payment.status", "IN_PROGRESS");
+
+                // Business logic for processing the payment
+                executePayment(orderId, amount);
+
+                // Update span attribute on successful completion
+                span.setAttribute("payment.status", "SUCCESS");
+                span.setStatus(StatusCode.OK);
+            }
+        } catch (Exception e) {
+            // Capture error in tracing
+            span.setAttribute("payment.status", "FAILED");
+            span.setStatus(StatusCode.ERROR, "Payment processing failed");
+            span.recordException(e);
+            throw e;
+        } finally {
+            // End the span to complete the tracing
+            span.end();
+        }
+    }
+
+    private void executePayment(String orderId, double amount) {
+        System.out.println("Processing payment for Order ID: " + orderId + ", Amount: " + amount);
+    }
+}
+----
+
+This implementation:
+
+1. Injects a `Tracer`, which enables manual span creation and precise trace management
+2. Creates a custom span (`payment.process`) to capture detailed telemetry data
+3. Makes the span the active span in the current context using `makeCurrent()`
+4. Attaches custom attributes such as `order.id`, `payment.amount`, and `payment.status`
+5. Includes exception handling to record failures in the trace
+6. Explicitly ends the span to mark completion
+
+This setup ensures that each payment transaction is fully traceable, allowing developers to monitor execution flow, debug issues, and optimize application performance effectively.
+
+===== Step 3: Add Span Attributes
+
+Attributes enhance trace context by attaching key-value pairs to a span, providing additional metadata that helps filter and analyze traces in observability tools:
+
+[source,java]
+----
+span.setAttribute("http.method", "GET");
+span.setAttribute("http.url", "/products/12345");
+span.setAttribute("user.id", "98765");
+span.setAttribute("payment.currency", "USD");
+span.setAttribute("order.items.count", 3);
+----
+
+=== Context Propagation Across Services
+
+Context propagation is automatic in MicroProfile Telemetry 2.1 when using Jakarta RESTful Web Services and MicroProfile REST Client. The trace context (trace ID and span ID) is automatically propagated via HTTP headers according to the W3C Trace Context specification.
+
+==== How Context Propagation Works
+
+1. *Service A* receives a request and creates a root span
+2. *Service A* calls *Service B* using MicroProfile REST Client
+3. The trace context is automatically injected into HTTP headers (`traceparent`, `tracestate`)
+4. *Service B* receives the request and extracts the trace context from headers
+5. *Service B* creates child spans that are linked to the original trace
+
+==== Example: Order Service Calling Payment Service
+
+*Order Service:*
+
+[source,java]
+----
+import org.eclipse.microprofile.rest.client.inject.RestClient;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@Path("/orders")
+@ApplicationScoped
+public class OrderResource {
+    
+    @Inject
+    @RestClient
+    PaymentClient paymentClient;
+    
+    @POST
+    public Order createOrder(Order order) {
+        // This creates a span: POST /orders
+        // Process order logic...
+        
+        // Call payment service - trace context is automatically propagated
+        PaymentResponse payment = paymentClient.processPayment(order.getPaymentInfo());
+        
+        // The payment span will be a child of the order span
+        return order;
+    }
+}
+----
+
+*Payment Service:*
+
+[source,java]
+----
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@Path("/payments")
+@ApplicationScoped
+public class PaymentResource {
+    
+    @POST
+    public PaymentResponse processPayment(PaymentInfo info) {
+        // This automatically creates a span: POST /payments
+        // The span is automatically linked to the parent span from OrderResource
+        // No manual context propagation needed!
+        
+        return new PaymentResponse("SUCCESS");
+    }
+}
+----
+
+The trace context is automatically propagated, and all spans are linked in a single trace tree.
+
+=== Nested and Parent-Child Span Relationships
+
+MicroProfile Telemetry 2.1 automatically maintains parent-child relationships between spans. Understanding these relationships is crucial for analyzing traces.
+
+==== Automatic Nesting
+
+When a method annotated with `@WithSpan` calls another method also annotated with `@WithSpan`, the spans are automatically nested:
+
+[source,java]
+----
+@ApplicationScoped
+public class OrderService {
+    
+    @WithSpan("order.create")
+    public Order createOrder(Order order) {
+        validateOrder(order);  // Child span
+        calculateTotal(order); // Child span
+        saveOrder(order);      // Child span
+        return order;
+    }
+    
+    @WithSpan("order.validate")
+    private void validateOrder(Order order) {
+        // This span will be a child of "order.create"
+    }
+    
+    @WithSpan("order.calculateTotal")
+    private void calculateTotal(Order order) {
+        // This span will be a child of "order.create"
+    }
+    
+    @WithSpan("order.save")
+    private void saveOrder(Order order) {
+        // This span will be a child of "order.create"
+    }
+}
+----
+
+The resulting trace structure:
+
+```
+order.create (parent)
+├── order.validate (child)
+├── order.calculateTotal (child)
+└── order.save (child)
+```
+
+==== Manual Parent-Child Relationships
+
+You can also explicitly create parent-child relationships when using the Tracer API:
+
+[source,java]
+----
+@ApplicationScoped
+public class ComplexOperationService {
+    
+    @Inject
+    Tracer tracer;
+    
+    public void performComplexOperation() {
+        // Create parent span
+        Span parentSpan = tracer.spanBuilder("complex.operation").startSpan();
+        
+        try (var parentScope = parentSpan.makeCurrent()) {
+            // Child spans automatically use the current span as parent
+            performStep1();
+            performStep2();
+            performStep3();
+        } finally {
+            parentSpan.end();
+        }
+    }
+    
+    private void performStep1() {
+        Span span = tracer.spanBuilder("complex.operation.step1").startSpan();
+        try (var scope = span.makeCurrent()) {
+            // Work...
+        } finally {
+            span.end();
+        }
+    }
+    
+    private void performStep2() {
+        Span span = tracer.spanBuilder("complex.operation.step2").startSpan();
+        try (var scope = span.makeCurrent()) {
+            // Work...
+        } finally {
+            span.end();
+        }
+    }
+    
+    private void performStep3() {
+        Span span = tracer.spanBuilder("complex.operation.step3").startSpan();
+        try (var scope = span.makeCurrent()) {
+            // Work...
+        } finally {
+            span.end();
+        }
+    }
+}
+----
+
+The key is using `makeCurrent()` to set the active span in the context. Any new spans created while a span is current will automatically become children of that span.
+
+== Metrics Collection
+
+MicroProfile Telemetry 2.1 provides comprehensive metrics support through the OpenTelemetry Metrics API. This section covers how to define, register, and export metrics in your applications.
+
+=== Overview of Metrics API in OpenTelemetry
+
+The OpenTelemetry Metrics API provides a unified way to collect and export metrics from your application. Unlike traces which focus on individual requests, metrics provide aggregated measurements over time.
+
+==== Key Features
+
+* *Standard Instruments*: Counter, Histogram, and Observable Gauge
+* *Semantic Conventions*: Follow OpenTelemetry semantic conventions for consistency
+* *Flexible Exporters*: Export to Prometheus, OTLP, or other backends
+* *Low Overhead*: Designed for high-performance metric collection
+* *Integration with Traces*: Metrics can be correlated with traces using exemplars
+
+==== Metrics vs Traces
+
+While both are important observability signals, they serve different purposes:
+
+[cols="1,2,2"]
+|===
+|Aspect |Metrics |Traces
+
+|Purpose
+|Aggregate measurements over time
+|Individual request flows
+
+|Granularity
+|System-level or service-level
+|Request-level
+
+|Use Case
+|Monitoring, alerting, capacity planning
+|Debugging, performance analysis
+
+|Examples
+|Request rate, error rate, latency percentiles
+|Request path, timing breakdown, error details
+|===
+
+Both metrics and traces work together to provide comprehensive observability.
+
+=== Support for Metrics Instruments: Counter, Histogram, Observable Gauge
+
+MicroProfile Telemetry 2.1 supports all three primary OpenTelemetry metric instruments.
+
+==== Counter
+
+A Counter is a monotonic instrument that only increases. Use counters for:
+
+* Total number of requests processed
+* Total number of errors
+* Total bytes sent/received
+* Total number of transactions
+
+*Example: HTTP Request Counter*
+
+[source,java]
+----
+import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.api.metrics.Meter;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class MetricsService {
+    
+    private final LongCounter httpRequestCounter;
+    
+    @Inject
+    public MetricsService(Meter meter) {
+        this.httpRequestCounter = meter
+            .counterBuilder("http.server.requests")
+            .setDescription("Total number of HTTP requests")
+            .setUnit("requests")
+            .build();
+    }
+    
+    public void recordRequest(String method, String path, int statusCode) {
+        httpRequestCounter.add(1,
+            Attributes.builder()
+                .put("http.method", method)
+                .put("http.route", path)
+                .put("http.status_code", statusCode)
+                .build());
+    }
+}
+----
+
+==== Histogram
+
+A Histogram records the distribution of values. Use histograms for:
+
+* Request latencies
+* Request/response sizes
+* Processing durations
+* Queue depths
+
+*Example: HTTP Request Duration Histogram*
+
+[source,java]
+----
+import io.opentelemetry.api.metrics.DoubleHistogram;
+import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.api.common.Attributes;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class LatencyMetrics {
+    
+    private final DoubleHistogram requestDurationHistogram;
+    
+    @Inject
+    public LatencyMetrics(Meter meter) {
+        this.requestDurationHistogram = meter
+            .histogramBuilder("http.server.duration")
+            .setDescription("HTTP request duration in seconds")
+            .setUnit("s")
+            .build();
+    }
+    
+    public void recordDuration(double durationSeconds, String method, String route) {
+        requestDurationHistogram.record(durationSeconds,
+            Attributes.builder()
+                .put("http.method", method)
+                .put("http.route", route)
+                .build());
+    }
+}
+----
+
+==== Observable Gauge
+
+An Observable Gauge represents a current value that can increase or decrease. Unlike counters and histograms which are updated synchronously, gauges are registered with a callback that is invoked when metrics are collected.
+
+Use observable gauges for:
+
+* Current memory usage
+* Number of active connections
+* Queue size
+* Thread pool size
+* Cache size
+
+*Example: JVM Memory Usage Gauge*
+
+[source,java]
+----
+import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.api.common.Attributes;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.annotation.PostConstruct;
+
+@ApplicationScoped
+public class JvmMetrics {
+    
+    @Inject
+    Meter meter;
+    
+    @PostConstruct
+    public void init() {
+        // Register an observable gauge for heap memory usage
+        meter.gaugeBuilder("jvm.memory.used")
+            .setDescription("Current heap memory usage")
+            .setUnit("bytes")
+            .buildWithCallback(measurement -> {
+                Runtime runtime = Runtime.getRuntime();
+                long usedMemory = runtime.totalMemory() - runtime.freeMemory();
+                measurement.record(usedMemory,
+                    Attributes.builder()
+                        .put("memory.type", "heap")
+                        .build());
+            });
+        
+        // Register an observable gauge for thread count
+        meter.gaugeBuilder("jvm.threads.count")
+            .setDescription("Current thread count")
+            .setUnit("threads")
+            .ofLongs()
+            .buildWithCallback(measurement -> {
+                measurement.record(Thread.activeCount());
+            });
+    }
+}
+----
+
+The callback function is invoked periodically (based on the metric exporter's collection interval) to obtain the current value.
+
+=== Defining and Registering Metrics
+
+Metrics are defined and registered using the `Meter` interface, which can be injected using CDI.
+
+==== Step 1: Inject the Meter
+
+[source,java]
+----
+import io.opentelemetry.api.metrics.Meter;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class BusinessMetrics {
+    
+    @Inject
+    Meter meter;
+    
+    // Define metrics...
+}
+----
+
+==== Step 2: Define Metrics in Constructor or @PostConstruct
+
+It's recommended to define metrics during bean initialization:
+
+[source,java]
+----
+import io.opentelemetry.api.metrics.*;
+import io.opentelemetry.api.common.Attributes;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class EcommerceMetrics {
+    
+    private final LongCounter orderCounter;
+    private final LongCounter errorCounter;
+    private final DoubleHistogram orderValueHistogram;
+    
+    @Inject
+    public EcommerceMetrics(Meter meter) {
+        // Counter for total orders
+        this.orderCounter = meter
+            .counterBuilder("ecommerce.orders.total")
+            .setDescription("Total number of orders placed")
+            .setUnit("orders")
+            .build();
+        
+        // Counter for errors
+        this.errorCounter = meter
+            .counterBuilder("ecommerce.errors.total")
+            .setDescription("Total number of errors")
+            .setUnit("errors")
+            .build();
+        
+        // Histogram for order values
+        this.orderValueHistogram = meter
+            .histogramBuilder("ecommerce.order.value")
+            .setDescription("Order value distribution")
+            .setUnit("USD")
+            .build();
+    }
+    
+    public void recordOrder(String customerId, double orderValue) {
+        orderCounter.add(1,
+            Attributes.builder()
+                .put("customer.id", customerId)
+                .build());
+        
+        orderValueHistogram.record(orderValue);
+    }
+    
+    public void recordError(String errorType) {
+        errorCounter.add(1,
+            Attributes.builder()
+                .put("error.type", errorType)
+                .build());
+    }
+}
+----
+
+==== Step 3: Use Metrics in Your Application
+
+[source,java]
+----
+import jakarta.inject.Inject;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@Path("/orders")
+@ApplicationScoped
+public class OrderResource {
+    
+    @Inject
+    EcommerceMetrics metrics;
+    
+    @POST
+    public Order createOrder(Order order) {
+        try {
+            // Business logic...
+            
+            // Record metrics
+            metrics.recordOrder(order.getCustomerId(), order.getTotalValue());
+            
+            return order;
+        } catch (Exception e) {
+            metrics.recordError(e.getClass().getSimpleName());
+            throw e;
+        }
+    }
+}
+----
+
+=== Exporting Metrics
+
+To export metrics, you need to configure the exporter type and endpoint in the configuration.
+
+==== OTLP Exporter Configuration
+
+For using OTLP (OpenTelemetry Protocol) export, add the following configuration in `src/main/resources/META-INF/microprofile-config.properties`:
+
+[source,properties]
+----
+# Enable OpenTelemetry SDK
+otel.sdk.disabled=false
+
+# Configure OTLP exporter for metrics
+otel.metrics.exporter=otlp
+otel.exporter.otlp.endpoint=http://localhost:4317
+
+# Service name
+otel.service.name=ecommerce-service
+
+# Metric export interval (default is 60000ms = 1 minute)
+otel.metric.export.interval=30000
+----
+
+==== Prometheus Exporter Configuration
+
+For Prometheus, you need to configure the Prometheus exporter (if supported by your runtime):
+
+[source,properties]
+----
+# Enable OpenTelemetry SDK
+otel.sdk.disabled=false
+
+# Configure Prometheus exporter
+otel.metrics.exporter=prometheus
+
+# Service name
+otel.service.name=ecommerce-service
+
+# Prometheus endpoint (default: /metrics)
+otel.exporter.prometheus.host=0.0.0.0
+otel.exporter.prometheus.port=9464
+----
+
+With this configuration, metrics will be available at `http://localhost:9464/metrics` in Prometheus format.
+
+==== Multiple Exporters
+
+You can configure multiple exporters simultaneously:
+
+[source,properties]
+----
+# Enable both OTLP and Prometheus
+otel.metrics.exporter=otlp,prometheus
+
+# OTLP configuration
+otel.exporter.otlp.endpoint=http://localhost:4317
+
+# Prometheus configuration
+otel.exporter.prometheus.port=9464
+----
+
+== Integration with Other MicroProfile Specifications
+
+MicroProfile Telemetry 2.1 is designed to work seamlessly with other MicroProfile specifications, providing comprehensive observability across your application stack.
+
+=== Integration with MicroProfile Config
+
+MicroProfile Config is the primary mechanism for configuring MicroProfile Telemetry. All OpenTelemetry configuration properties can be set using MicroProfile Config sources.
+
+==== Configuration Sources
+
+Configuration can come from multiple sources (in order of priority):
+
+1. System properties
+2. Environment variables
+3. `microprofile-config.properties` file
+4. Custom config sources
+
+*Example: microprofile-config.properties*
+
+[source,properties]
+----
+# Enable telemetry
+otel.sdk.disabled=false
+
+# Service identification
+otel.service.name=${SERVICE_NAME:my-service}
+otel.service.version=1.0.0
+
+# Exporter configuration
+otel.traces.exporter=otlp
+otel.metrics.exporter=otlp
+otel.exporter.otlp.endpoint=${OTEL_ENDPOINT:http://localhost:4317}
+
+# Sampling
+otel.traces.sampler=parentbased_traceidratio
+otel.traces.sampler.arg=0.1
+----
+
+==== Using @ConfigProperty
+
+You can inject configuration values into your beans:
+
+[source,java]
+----
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class TelemetryConfig {
+    
+    @Inject
+    @ConfigProperty(name = "otel.service.name", defaultValue = "unknown-service")
+    String serviceName;
+    
+    @Inject
+    @ConfigProperty(name = "otel.sdk.disabled", defaultValue = "true")
+    boolean telemetryDisabled;
+    
+    public String getServiceName() {
+        return serviceName;
+    }
+    
+    public boolean isTelemetryEnabled() {
+        return !telemetryDisabled;
+    }
+}
+----
+
+=== Integration with MicroProfile OpenAPI
+
+MicroProfile Telemetry automatically instruments Jakarta RESTful Web Services endpoints, and this works seamlessly with MicroProfile OpenAPI.
+
+==== Adding Telemetry Context to OpenAPI
+
+You can document telemetry-related headers in your OpenAPI specification:
+
+[source,java]
+----
+import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
+import org.eclipse.microprofile.openapi.annotations.enums.ParameterIn;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.HeaderParam;
+
+@Path("/products")
+public class ProductResource {
+    
+    @GET
+    @Operation(
+        summary = "Get all products",
+        description = "Returns a list of all products. Automatically traced by MicroProfile Telemetry."
+    )
+    @Parameter(
+        name = "traceparent",
+        in = ParameterIn.HEADER,
+        description = "W3C Trace Context traceparent header for distributed tracing",
+        required = false
+    )
+    public List<Product> getAllProducts(
+        @HeaderParam("traceparent") String traceparent) {
+        // Automatic tracing - no manual code needed
+        return productService.findAll();
+    }
+}
+----
+
+The OpenAPI documentation will include information about trace context headers, making it clear to API consumers that the service supports distributed tracing.
+
+=== Integration with MicroProfile Health
+
+MicroProfile Telemetry can be integrated with health checks to provide observability into the health status of telemetry exporters.
+
+==== Health Check for Telemetry
+
+[source,java]
+----
+import org.eclipse.microprofile.health.HealthCheck;
+import org.eclipse.microprofile.health.HealthCheckResponse;
+import org.eclipse.microprofile.health.Liveness;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+
+@Liveness
+@ApplicationScoped
+public class TelemetryHealthCheck implements HealthCheck {
+    
+    @Inject
+    @ConfigProperty(name = "otel.sdk.disabled", defaultValue = "true")
+    boolean telemetryDisabled;
+    
+    @Inject
+    @ConfigProperty(name = "otel.exporter.otlp.endpoint")
+    String exporterEndpoint;
+    
+    @Override
+    public HealthCheckResponse call() {
+        if (telemetryDisabled) {
+            return HealthCheckResponse
+                .named("telemetry")
+                .up()
+                .withData("status", "disabled")
+                .build();
+        }
+        
+        // Check if exporter endpoint is configured
+        if (exporterEndpoint == null || exporterEndpoint.isEmpty()) {
+            return HealthCheckResponse
+                .named("telemetry")
+                .down()
+                .withData("status", "exporter not configured")
+                .build();
+        }
+        
+        return HealthCheckResponse
+            .named("telemetry")
+            .up()
+            .withData("status", "enabled")
+            .withData("exporter", exporterEndpoint)
+            .build();
+    }
+}
+----
+
+==== Tracing Health Check Endpoints
+
+Health check endpoints are also automatically traced:
+
+[source,properties]
+----
+# You can disable tracing for health endpoints if desired
+otel.instrumentation.jakarta-rs.exclude-health-endpoints=true
+----
+
+=== Integration with MicroProfile Fault Tolerance
+
+MicroProfile Telemetry automatically creates spans for methods annotated with Fault Tolerance annotations, providing visibility into retries, timeouts, circuit breakers, and bulkheads.
+
+==== Automatic Fault Tolerance Tracing
+
+[source,java]
+----
+import org.eclipse.microprofile.faulttolerance.*;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class ResilientService {
+    
+    @Retry(maxRetries = 3, delay = 1000)
+    @Timeout(value = 5000)
+    @CircuitBreaker(requestVolumeThreshold = 4, failureRatio = 0.5, delay = 2000)
+    @WithSpan("resilient.operation")
+    public String performOperation() {
+        // Telemetry automatically captures:
+        // - Number of retry attempts
+        // - Timeout events
+        // - Circuit breaker state changes
+        // - Total duration including retries
+        
+        return callExternalService();
+    }
+    
+    @Fallback(fallbackMethod = "fallbackResponse")
+    @WithSpan("external.call")
+    private String callExternalService() {
+        // This operation is traced
+        // If it fails, fallback is also traced
+        return "response";
+    }
+    
+    private String fallbackResponse() {
+        // Fallback method is also automatically traced
+        return "fallback response";
+    }
+}
+----
+
+The trace will show:
+
+* The main span for `resilient.operation`
+* Child spans for each retry attempt
+* Timeout events if the operation exceeds the timeout
+* Circuit breaker state in span attributes
+* Fallback execution if the operation fails
+
+==== Viewing Fault Tolerance Metrics with Telemetry
+
+Fault Tolerance also provides metrics that can be combined with Telemetry metrics:
+
+[source,java]
+----
+import org.eclipse.microprofile.metrics.annotation.Counted;
+import org.eclipse.microprofile.faulttolerance.Retry;
+import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.api.metrics.Meter;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class CombinedMetricsService {
+    
+    private final LongCounter operationCounter;
+    
+    @Inject
+    public CombinedMetricsService(Meter meter) {
+        this.operationCounter = meter
+            .counterBuilder("custom.operation.total")
+            .build();
+    }
+    
+    @Retry(maxRetries = 3)
+    @Counted(name = "operation_invocations", absolute = true)
+    public String performOperation() {
+        // Metrics from both Fault Tolerance and Telemetry
+        operationCounter.add(1);
+        return "result";
+    }
+}
+----
+
+This provides comprehensive observability combining traces, custom metrics, and Fault Tolerance metrics.
+
+== Configuration
+
+MicroProfile Telemetry 2.1 provides extensive configuration options through MicroProfile Config. This section covers the key configuration properties and how to enable exporters.
+
+=== Using microprofile.telemetry.* Properties
+
+While most configuration uses the standard OpenTelemetry `otel.*` properties, MicroProfile Telemetry also defines some MicroProfile-specific properties.
+
+==== Core Configuration Properties
+
+[cols="2,3,1"]
+|===
+|Property |Description |Default
+
+|`otel.sdk.disabled`
+|Enables or disables the OpenTelemetry SDK
+|`true`
+
+|`otel.service.name`
+|Name of the service for telemetry
+|Application name
+
+|`otel.service.version`
+|Version of the service
+|Not set
+
+|`otel.resource.attributes`
+|Additional resource attributes (key=value pairs)
+|Not set
+|===
+
+==== Trace Configuration
+
+[cols="2,3,1"]
+|===
+|Property |Description |Default
+
+|`otel.traces.exporter`
+|Trace exporter type (otlp, jaeger, zipkin, none)
+|`otlp`
+
+|`otel.traces.sampler`
+|Sampling strategy (always_on, always_off, traceidratio, parentbased_always_on, etc.)
+|`parentbased_always_on`
+
+|`otel.traces.sampler.arg`
+|Argument for the sampler (e.g., ratio for traceidratio)
+|Depends on sampler
+
+|`otel.propagators`
+|Context propagators (tracecontext, baggage, b3, etc.)
+|`tracecontext,baggage`
+|===
+
+==== Metrics Configuration
+
+[cols="2,3,1"]
+|===
+|Property |Description |Default
+
+|`otel.metrics.exporter`
+|Metrics exporter type (otlp, prometheus, none)
+|`otlp`
+
+|`otel.metric.export.interval`
+|Interval for exporting metrics (milliseconds)
+|`60000`
+
+|`otel.exporter.prometheus.port`
+|Port for Prometheus metrics endpoint
+|`9464`
+
+|`otel.exporter.prometheus.host`
+|Host for Prometheus metrics endpoint
+|`0.0.0.0`
+|===
+
+==== Example Configuration File
+
+*src/main/resources/META-INF/microprofile-config.properties:*
+
+[source,properties]
+----
+# Enable OpenTelemetry
+otel.sdk.disabled=false
+
+# Service identification
+otel.service.name=ecommerce-api
+otel.service.version=1.0.0
+otel.resource.attributes=deployment.environment=production,service.namespace=ecommerce
+
+# Trace configuration
+otel.traces.exporter=otlp
+otel.traces.sampler=parentbased_traceidratio
+otel.traces.sampler.arg=0.1
+
+# Metrics configuration
+otel.metrics.exporter=prometheus
+otel.metric.export.interval=30000
+otel.exporter.prometheus.port=9464
+
+# Propagation
+otel.propagators=tracecontext,baggage
+
+# Logging (optional)
+otel.logs.exporter=none
+----
+
+=== Enabling Exporters
+
+MicroProfile Telemetry 2.1 supports multiple exporters for traces and metrics. This section covers the most common exporters and their configuration.
+
+==== OTLP Exporter
+
+The OTLP (OpenTelemetry Protocol) exporter is the recommended exporter for both traces and metrics.
+
+*Configuration:*
+
+[source,properties]
+----
+# Enable OTLP for both traces and metrics
+otel.traces.exporter=otlp
+otel.metrics.exporter=otlp
+
+# OTLP endpoint (gRPC)
+otel.exporter.otlp.endpoint=http://localhost:4317
+
+# Or use HTTP/protobuf
+# otel.exporter.otlp.protocol=http/protobuf
+# otel.exporter.otlp.endpoint=http://localhost:4318
+
+# Optional: Configure headers for authentication
+# otel.exporter.otlp.headers=authorization=Bearer <token>
+
+# Optional: Configure timeout
+# otel.exporter.otlp.timeout=10000
+
+# Optional: Configure compression
+# otel.exporter.otlp.compression=gzip
+----
+
+*Environment Variables:*
+
+[source,bash]
+----
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+export OTEL_TRACES_EXPORTER=otlp
+export OTEL_METRICS_EXPORTER=otlp
+----
+
+==== Jaeger Exporter
+
+For Jaeger-specific configuration:
+
+[source,properties]
+----
+# Enable Jaeger exporter
+otel.traces.exporter=jaeger
+
+# Jaeger endpoint
+otel.exporter.jaeger.endpoint=http://localhost:14250
+
+# Optional: Jaeger timeout
+# otel.exporter.jaeger.timeout=10000
+----
+
+==== Zipkin Exporter
+
+For Zipkin:
+
+[source,properties]
+----
+# Enable Zipkin exporter
+otel.traces.exporter=zipkin
+
+# Zipkin endpoint
+otel.exporter.zipkin.endpoint=http://localhost:9411/api/v2/spans
+----
+
+==== Prometheus Exporter
+
+For Prometheus metrics:
+
+[source,properties]
+----
+# Enable Prometheus exporter
+otel.metrics.exporter=prometheus
+
+# Prometheus endpoint configuration
+otel.exporter.prometheus.host=0.0.0.0
+otel.exporter.prometheus.port=9464
+
+# Metrics will be available at http://localhost:9464/metrics
+----
+
+Prometheus can then scrape metrics from this endpoint:
+
+*prometheus.yml:*
+
+[source,yaml]
+----
+scrape_configs:
+  - job_name: 'ecommerce-api'
+    static_configs:
+      - targets: ['localhost:9464']
+    scrape_interval: 30s
+----
+
+==== Console Exporter (Development)
+
+For development and debugging, you can use the console exporter:
+
+[source,properties]
+----
+# Export traces and metrics to console/logs
+otel.traces.exporter=logging
+otel.metrics.exporter=logging
+
+# This will print telemetry data to the application logs
+----
+
+==== Multiple Exporters
+
+You can configure multiple exporters simultaneously:
+
+[source,properties]
+----
+# Send traces to both OTLP and Jaeger
+otel.traces.exporter=otlp,jaeger
+
+# Send metrics to both OTLP and Prometheus
+otel.metrics.exporter=otlp,prometheus
+
+# OTLP configuration
+otel.exporter.otlp.endpoint=http://localhost:4317
+
+# Jaeger configuration
+otel.exporter.jaeger.endpoint=http://localhost:14250
+
+# Prometheus configuration
+otel.exporter.prometheus.port=9464
+----
+
+==== Runtime-Specific Configuration
+
+Some runtimes may require additional configuration. For example, Open Liberty:
+
+*server.xml:*
+
+[source,xml]
+----
+<featureManager>
+    <feature>microProfile-7.1</feature>
+    <!-- Or specifically: -->
+    <feature>mpTelemetry-2.1</feature>
+</featureManager>
+
+<!-- Optional: Configure telemetry -->
+<mpTelemetry
+    serviceName="my-service"
+    enabled="true"/>
+----
+
+== Advanced Features
+
+MicroProfile Telemetry 2.1 provides advanced APIs for fine-grained control over telemetry data collection.
+
+=== Using Tracer, SpanBuilder, and Span APIs
+
+While automatic instrumentation handles most cases, the OpenTelemetry API provides powerful capabilities for advanced scenarios.
+
+==== Advanced Tracer Usage
+
+The `Tracer` interface provides methods for creating spans and managing trace context:
+
+[source,java]
+----
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanKind;
+import io.opentelemetry.context.Context;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class AdvancedTracingService {
+    
+    @Inject
+    Tracer tracer;
+    
+    public void performAdvancedOperation() {
+        // Create a span with specific kind
+        Span span = tracer.spanBuilder("advanced.operation")
+            .setSpanKind(SpanKind.INTERNAL)
+            .setParent(Context.current())
+            .startSpan();
+        
+        try (var scope = span.makeCurrent()) {
+            // Work...
+        } finally {
+            span.end();
+        }
+    }
+}
+----
+
+==== SpanBuilder Options
+
+The `SpanBuilder` provides many configuration options:
+
+[source,java]
+----
+import io.opentelemetry.api.trace.*;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import jakarta.inject.Inject;
+
+@ApplicationScoped
+public class DetailedTracingService {
+    
+    @Inject
+    Tracer tracer;
+    
+    public void performDetailedOperation() {
+        Span span = tracer.spanBuilder("detailed.operation")
+            // Set the span kind (CLIENT, SERVER, PRODUCER, CONSUMER, INTERNAL)
+            .setSpanKind(SpanKind.INTERNAL)
+            
+            // Set parent explicitly (optional, defaults to current context)
+            .setParent(Context.current())
+            
+            // Set start timestamp explicitly (optional, defaults to now)
+            .setStartTimestamp(System.nanoTime())
+            
+            // Set initial attributes
+            .setAttribute("operation.type", "batch")
+            .setAttribute("batch.size", 100)
+            
+            // Start the span
+            .startSpan();
+        
+        try (var scope = span.makeCurrent()) {
+            // Add more attributes during execution
+            span.setAttribute("progress", "started");
+            
+            // Add events
+            span.addEvent("Processing batch",
+                Attributes.builder()
+                    .put("batch.id", "12345")
+                    .build());
+            
+            // Simulate work
+            performWork();
+            
+            span.setAttribute("progress", "completed");
+            
+            // Set status
+            span.setStatus(StatusCode.OK);
+            
+        } catch (Exception e) {
+            // Record exception
+            span.setStatus(StatusCode.ERROR, "Operation failed");
+            span.recordException(e,
+                Attributes.builder()
+                    .put("exception.handled", true)
+                    .build());
+            throw e;
+        } finally {
+            // End span with explicit timestamp (optional)
+            span.end(System.nanoTime());
+        }
+    }
+    
+    private void performWork() {
+        // Business logic
+    }
+}
+----
+
+==== Span Events and Links
+
+Spans can contain events and links to other spans:
+
+[source,java]
+----
+import io.opentelemetry.api.trace.*;
+import io.opentelemetry.api.common.Attributes;
+import jakarta.inject.Inject;
+
+@ApplicationScoped
+public class EventAndLinkService {
+    
+    @Inject
+    Tracer tracer;
+    
+    public void processWithEvents() {
+        Span span = tracer.spanBuilder("process.items").startSpan();
+        
+        try (var scope = span.makeCurrent()) {
+            // Add events to track important moments
+            span.addEvent("Processing started");
+            
+            for (int i = 0; i < 10; i++) {
+                processItem(i);
+                
+                // Add event with attributes
+                span.addEvent("Item processed",
+                    Attributes.builder()
+                        .put("item.index", i)
+                        .put("item.status", "success")
+                        .build());
+            }
+            
+            span.addEvent("Processing completed");
+            
+        } finally {
+            span.end();
+        }
+    }
+    
+    public void processWithLinks(SpanContext relatedSpan) {
+        // Create a span linked to another span
+        Span span = tracer.spanBuilder("linked.operation")
+            .addLink(relatedSpan)
+            .startSpan();
+        
+        try (var scope = span.makeCurrent()) {
+            // Work...
+        } finally {
+            span.end();
+        }
+    }
+    
+    private void processItem(int index) {
+        // Business logic
+    }
+}
+----
+
+==== Context Manipulation
+
+Advanced context manipulation for complex scenarios:
+
+[source,java]
+----
+import io.opentelemetry.api.trace.*;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.Scope;
+import jakarta.inject.Inject;
+
+@ApplicationScoped
+public class ContextManipulationService {
+    
+    @Inject
+    Tracer tracer;
+    
+    public void explicitContextManagement() {
+        // Get current context
+        Context currentContext = Context.current();
+        
+        // Create a span
+        Span span = tracer.spanBuilder("operation").startSpan();
+        
+        // Create a new context with this span
+        Context contextWithSpan = currentContext.with(span);
+        
+        // Make the span current
+        try (Scope scope = contextWithSpan.makeCurrent()) {
+            // Within this scope, span is the current span
+            performWork();
+            
+            // You can also temporarily switch contexts
+            detachedWork();
+            
+        } finally {
+            span.end();
+        }
+    }
+    
+    private void performWork() {
+        // This work is traced under the current span
+        Span childSpan = tracer.spanBuilder("child").startSpan();
+        try (var scope = childSpan.makeCurrent()) {
+            // Work...
+        } finally {
+            childSpan.end();
+        }
+    }
+    
+    private void detachedWork() {
+        // Save current context
+        Context saved = Context.current();
+        
+        // Run something in root context (detached from current trace)
+        try (Scope scope = Context.root().makeCurrent()) {
+            // This creates a new trace, not connected to the parent
+            Span detachedSpan = tracer.spanBuilder("detached").startSpan();
+            try (var detachedScope = detachedSpan.makeCurrent()) {
+                // Work...
+            } finally {
+                detachedSpan.end();
+            }
+        }
+        
+        // Restore previous context
+        try (Scope scope = saved.makeCurrent()) {
+            // Back to normal tracing
+        }
+    }
+}
+----
+
+==== Baggage
+
+Baggage allows you to propagate key-value pairs across span boundaries:
+
+[source,java]
+----
+import io.opentelemetry.api.baggage.Baggage;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.context.Context;
+import jakarta.inject.Inject;
+import io.opentelemetry.api.trace.Tracer;
+
+@ApplicationScoped
+public class BaggageService {
+    
+    @Inject
+    Tracer tracer;
+    
+    public void operationWithBaggage() {
+        // Create baggage
+        Baggage baggage = Baggage.builder()
+            .put("user.id", "12345")
+            .put("request.id", "abc-def-ghi")
+            .put("tenant.id", "tenant-001")
+            .build();
+        
+        // Create context with baggage
+        Context contextWithBaggage = Context.current().with(baggage);
+        
+        try (var scope = contextWithBaggage.makeCurrent()) {
+            performOperation();
+            callAnotherService();
+        }
+    }
+    
+    private void performOperation() {
+        // Access baggage
+        Baggage baggage = Baggage.current();
+        String userId = baggage.getEntryValue("user.id");
+        
+        // Add baggage value to current span
+        Span.current().setAttribute("user.id", userId);
+        
+        // Baggage is automatically propagated to downstream services
+    }
+    
+    private void callAnotherService() {
+        // Baggage is automatically included in outgoing requests
+        // The receiving service can access the same baggage values
+    }
+}
+----
+
+Baggage is automatically propagated across service boundaries when using MicroProfile REST Client.
+
+== Deployment and Visualization
+
+This section covers tools for analyzing traces and metrics, and how to visualize telemetry data.
+
+=== Tools for Trace Analysis
 
 [source, java]
 ----
