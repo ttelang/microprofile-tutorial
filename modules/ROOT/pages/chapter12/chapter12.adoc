@@ -4,7 +4,7 @@
 
 == Introduction
 
-GraphQL is a modern query language and runtime for APIs that provides a powerful alternative to traditional REST APIs. This chapter explores MicroProfile GraphQL 2.0, a specification that brings GraphQL capabilities to Jakarta EE and MicroProfile applications. You'll learn how to build flexible, efficient GraphQL APIs that allow clients to request exactly the data they need.
+GraphQL is a modern query language and runtime for APIs that provides a powerful alternative to traditional REST APIs. This chapter explores MicroProfile GraphQL 2.0, a specification that brings GraphQL capabilities to Jakarta EE and MicroProfile applications. You will learn how to build flexible, efficient GraphQL APIs that allow clients to request exactly the data they need.
 
 For detailed information about MicroProfile GraphQL 2.0, refer to the official specification at https://download.eclipse.org/microprofile/microprofile-graphql-2.0/microprofile-graphql-spec-2.0.html[MicroProfile GraphQL 2.0 Specification].
 
@@ -94,7 +94,7 @@ query {
 
 *REST*: HTTP caching is well-established and straightforward to implement at the HTTP level.
 
-*GraphQL*: Caching is more complex due to the flexible nature of queries but can be implemented at the application level or using specialized tools.
+*GraphQL*: Caching is more complex due to the flexible nature of queries but can be implemented at the application level or using specialised tools.
 
 == Overview of MicroProfile GraphQL 2.0
 
@@ -277,7 +277,7 @@ public class ProductApi {
 
 === Dynamic Configuration
 
-You can also use dynamic configuration to adjust behavior at runtime:
+You can also use dynamic configuration to adjust behaviour at runtime:
 
 [source, java]
 ----
@@ -1245,7 +1245,7 @@ public List<Product> getProducts() {
 }
 ----
 
-*5. Don't Expose Sensitive Information*:
+*5. Do Not Expose Sensitive Information*:
 
 [source, java]
 ----
@@ -1398,7 +1398,7 @@ public class CachedProductService {
 }
 ----
 
-=== Optimizing Complex Nested Queries Using @Batch
+=== Optimising Complex Nested Queries Using @Batch
 
 Use batch loading for efficient nested queries:
 
@@ -1431,7 +1431,7 @@ public class OrderApi {
 }
 ----
 
-=== Performance Optimization
+=== Performance Optimisation
 
 *1. Limit Query Depth*:
 
@@ -1500,12 +1500,12 @@ public class ProductDataLoader {
 }
 ----
 
-*4. Optimize Database Queries*:
+*4. Optimise Database Queries*:
 
 [source, java]
 ----
 @ApplicationScoped
-public class OptimizedProductService {
+public class OptimisedProductService {
     
     @PersistenceContext
     EntityManager em;
@@ -1534,7 +1534,7 @@ public class OptimizedProductService {
 
 *1. Keep Schema Focused*:
 
-Don't expose internal implementation details:
+Do not expose internal implementation details:
 
 [source, java]
 ----
@@ -1745,7 +1745,7 @@ In this chapter, you learned about MicroProfile GraphQL 2.0, a powerful specific
 * Solving the N+1 query problem with batch loading
 * Handling errors gracefully with custom exception handlers and returning partial results
 * Integrating with MicroProfile Config for externalized configuration
-* Optimizing performance with caching, batching, and efficient query patterns
+* Optimising performance with caching, batching, and efficient query patterns
 * Best practices for schema design, pagination, and reducing payload sizes
 
 MicroProfile GraphQL 2.0 provides a robust foundation for building modern APIs that give clients the flexibility to request exactly the data they need while maintaining strong typing and excellent developer experience. By following the best practices outlined in this chapter, you can build efficient, maintainable, and performant GraphQL services.
