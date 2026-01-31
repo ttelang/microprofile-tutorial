@@ -371,8 +371,15 @@ public class ConfigurableProcessor {
     
     @Incoming("items")
     @Outgoing("batches")
-    public Publisher<List<Item>> batchItems(Publisher<Item> items) {
-        // Use batchSize for processing
+    public PublisherBuilder<List<Item>> batchItems(PublisherBuilder<Item> items) {
+        // Batch items using configured batchSize
+        return items.collect(
+            () -> new ArrayList<Item>(),
+            (list, item) -> {
+                list.add(item);
+                return list.size() < batchSize;
+            }
+        );
     }
 }
 ----
@@ -1704,13 +1711,28 @@ public class OrderSerializer implements Serializer<Order> {
 
 *Avro Serialization*:
 
-Use Apache Avro with schema registry for versioned, efficient serialization:
+Use Apache Avro with schema registry for versioned, efficient serialization.
+
+NOTE: This example uses Confluent's Kafka Avro serializer. Add the following dependency to your project:
+
+[source,xml]
+----
+<dependency>
+    <groupId>io.confluent</groupId>
+    <artifactId>kafka-avro-serializer</artifactId>
+    <version>7.5.0</version>
+</dependency>
+----
+
+Configuration:
 
 [source,properties]
 ----
 mp.messaging.incoming.orders.value.deserializer=io.confluent.kafka.serializers.KafkaAvroDeserializer
 mp.messaging.incoming.orders.schema.registry.url=http://localhost:8081
 ----
+
+Alternatively, you can use Apache Avro's standard serializer with a custom implementation for schema management.
 
 *Protocol Buffers*:
 
