@@ -172,7 +172,7 @@ For Gradle-based projects, add the following dependency to your build.gradle fil
 ----
 dependencies {
     implementation 'org.eclipse.microprofile.rest.client:microprofile-rest-client-api:4.0'
-    compileOnly 'org.eclipse.microprofile:microprofile:7.0'
+    compileOnly 'org.eclipse.microprofile:microprofile:7.1'
 }
 ----
 

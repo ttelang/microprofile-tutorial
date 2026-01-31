@@ -7,7 +7,7 @@ A Jakarta EE and MicroProfile-based REST service for order management in the Lib
 - Provides CRUD operations for order management
 - Tracks orders with order_id, user_id, total_price, and status
 - Manages order items with order_item_id, order_id, product_id, quantity, and price_at_order
-- Uses Jakarta EE 10.0 and MicroProfile 6.1
+- Uses Jakarta EE 10.0 and MicroProfile 7.1
 - Runs on Open Liberty runtime
 
 ## Running the Application

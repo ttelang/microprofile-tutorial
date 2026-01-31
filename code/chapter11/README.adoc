@@ -50,7 +50,7 @@ The application is split into the following microservices:
 == Technology Stack
 
 * *Jakarta EE 10.0*: For enterprise Java standardization
-* *MicroProfile 7.0*: For cloud-native APIs
+* *MicroProfile 7.1*: For cloud-native APIs
 * *MicroProfile Rest Client 4.0*: Type-safe REST service consumption
 * *Open Liberty*: Lightweight, flexible runtime for Java microservices
 * *Maven*: For project management and builds
