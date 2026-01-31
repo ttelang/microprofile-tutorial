@@ -15,7 +15,7 @@ The Shipment Service is responsible for:
 
 The Shipment Service is built using:
 - Jakarta EE 10
-- MicroProfile 6.1
+- MicroProfile 7.1
 - Open Liberty
 - Java 17
 
