@@ -1,9 +1,10 @@
 package io.microprofile.tutorial.store.payment.service;
 
 import io.microprofile.tutorial.store.payment.exception.PaymentProcessingException;
-import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.microprofile.tutorial.store.payment.entity.PaymentDetails;
 import io.microprofile.tutorial.store.payment.exception.CriticalPaymentException;
 
@@ -14,8 +15,7 @@ import org.eclipse.microprofile.faulttolerance.Retry;
 import org.eclipse.microprofile.faulttolerance.Timeout;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.annotation.PostConstruct;
-
+import jakarta.inject.Inject;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -26,18 +26,12 @@ public class PaymentService {
 
     private static final Logger logger = Logger.getLogger(PaymentService.class.getName());
 
-    private Tracer tracer;   // Injected tracer for OpenTelemetry
-
-    @PostConstruct
-    public void init() {
-        // Programmatic tracer access - the correct approach
-        this.tracer = GlobalOpenTelemetry.getTracer("payment-service", "1.0.0");
-        logger.info("Tracer initialized successfully");
-    }
+    @Inject
+    Tracer tracer;   // CDI-injected tracer for MicroProfile Telemetry 2.1
 
     /**
-     * Process the payment request with automatic tracing via MicroProfile Telemetry.
-     * The mpTelemetry feature automatically creates spans for this method.
+     * Process the payment request with automatic tracing via MicroProfile Telemetry 2.1.
+     * The mpTelemetry-2.1 feature automatically creates spans for this method.
      *
      * @param paymentDetails details of the payment
      * @return response message indicating success or failure
@@ -48,16 +42,17 @@ public class PaymentService {
     @Retry(maxRetries = 3, delay = 2000, jitter = 500, retryOn = PaymentProcessingException.class, abortOn = CriticalPaymentException.class)
     @Fallback(fallbackMethod = "fallbackProcessPayment")
     @Bulkhead(value=5)
+    @WithSpan("payment.process")  // MicroProfile Telemetry 2.1 - automatic span creation
     public CompletionStage<String> processPayment(PaymentDetails paymentDetails) throws PaymentProcessingException {
-        // Create explicit span for payment processing to help with debugging
-        Span span = tracer.spanBuilder("payment.process")
+        // Create explicit span for additional payment processing details
+        Span span = tracer.spanBuilder("payment.process.detailed")
             .setAttribute("payment.amount", paymentDetails.getAmount().toString())
             .setAttribute("payment.method", "credit_card")
             .setAttribute("payment.service", "payment-service") 
             .startSpan();
         
-        try (io.opentelemetry.context.Scope scope = span.makeCurrent()) {
-            // MicroProfile Telemetry automatically traces this method
+        try (var scope = span.makeCurrent()) {
+            // MicroProfile Telemetry 2.1 automatically traces this method
             String maskedCardNumber = maskCardNumber(paymentDetails.getCardNumber());
             
             logger.info(String.format("Processing payment - Amount: %s, Card: %s", 
@@ -68,17 +63,21 @@ public class PaymentService {
 
             // Simulating a transient failure
             if (Math.random() > 0.7) {
-                span.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, "Payment processing failed");
+                span.setStatus(StatusCode.ERROR, "Payment processing failed");
                 span.addEvent("Payment processing failed due to transient error");
                 logger.warning("Payment processing failed due to transient error");
                 throw new PaymentProcessingException("Temporary payment processing failure");
             }
 
             // Simulating successful processing
-            span.setStatus(io.opentelemetry.api.trace.StatusCode.OK);
+            span.setStatus(StatusCode.OK);
             span.addEvent("Payment processed successfully");
             logger.info("Payment processed successfully");
             return CompletableFuture.completedFuture("{\"status\":\"success\", \"message\":\"Payment processed successfully.\"}");
+        } catch (PaymentProcessingException e) {
+            span.setStatus(StatusCode.ERROR, e.getMessage());
+            span.recordException(e);
+            throw e;
         } finally {
             span.end();
         }
@@ -86,11 +85,12 @@ public class PaymentService {
 
     /**
      * Fallback method when payment processing fails.
-     * Automatically traced by MicroProfile Telemetry.
+     * Automatically traced by MicroProfile Telemetry 2.1.
      *
      * @param paymentDetails details of the payment
      * @return response message for fallback
      */
+    @WithSpan("payment.fallback")
     public CompletionStage<String> fallbackProcessPayment(PaymentDetails paymentDetails) {
         logger.warning(() -> String.format("Fallback invoked for payment - Amount: %s", 
                 paymentDetails.getAmount()));
@@ -123,7 +123,7 @@ public class PaymentService {
 
     /**
      * Simulate a delay in processing to demonstrate timeout.
-     * This method will be automatically traced by MicroProfile Telemetry.
+     * This method will be automatically traced by MicroProfile Telemetry 2.1.
      */
     private void simulateDelay() {
         try {
@@ -139,7 +139,7 @@ public class PaymentService {
 
     /**
      * Processes a comprehensive payment verification with multiple steps.
-     * Each method call will be automatically traced by MicroProfile Telemetry.
+     * Each method call will be automatically traced by MicroProfile Telemetry 2.1.
      *
      * @param paymentDetails The payment details to verify
      * @param transactionId The unique transaction ID
@@ -147,10 +147,15 @@ public class PaymentService {
      * @throws PaymentProcessingException if verification fails
      */
     @Asynchronous
+    @WithSpan("payment.verify")
     public CompletionStage<String> verifyPaymentWithTelemetry(PaymentDetails paymentDetails, String transactionId) 
             throws PaymentProcessingException {
         
         logger.info(() -> String.format("Starting payment verification - Transaction ID: %s", transactionId));
+        
+        Span currentSpan = Span.current();
+        currentSpan.setAttribute("transaction.id", transactionId);
+        currentSpan.setAttribute("verification.type", "comprehensive");
         
         try {
             // Step 1: Validate payment details
@@ -165,19 +170,23 @@ public class PaymentService {
             // Step 4: Record transaction
             recordTransaction(paymentDetails, transactionId);
             
+            currentSpan.setStatus(StatusCode.OK);
             logger.info("Payment verification completed successfully");
             return CompletableFuture.completedFuture(
                     String.format("{\"status\":\"verified\", \"transaction_id\":\"%s\", \"message\":\"Payment verification complete.\"}", 
                             transactionId));
         } catch (Exception e) {
+            currentSpan.setStatus(StatusCode.ERROR, e.getMessage());
+            currentSpan.recordException(e);
             logger.severe(() -> String.format("Payment verification failed: %s", e.getMessage()));
             throw e;
         }
     }
     
     /**
-     * Validates payment details - automatically traced
+     * Validates payment details - automatically traced with @WithSpan
      */
+    @WithSpan("payment.validate")
     private void validatePaymentDetails(PaymentDetails details) throws PaymentProcessingException {
         logger.info("Validating payment details");
         
@@ -196,10 +205,14 @@ public class PaymentService {
     }
     
     /**
-     * Performs fraud check - automatically traced
+     * Performs fraud check - automatically traced with @WithSpan
      */
+    @WithSpan("payment.fraud_check")
     private void performFraudCheck(PaymentDetails details, String transactionId) throws PaymentProcessingException {
         logger.info(() -> String.format("Performing fraud check for transaction: %s", transactionId));
+        
+        Span currentSpan = Span.current();
+        currentSpan.setAttribute("fraud_check.transaction_id", transactionId);
         
         // Simulate external service call
         simulateNetworkCall(300);
@@ -208,18 +221,24 @@ public class PaymentService {
         boolean isSafe = !details.getCardNumber().endsWith("0000");
         
         if (!isSafe) {
+            currentSpan.setAttribute("fraud_check.result", "flagged");
             logger.warning("Potential fraud detected");
             throw new PaymentProcessingException("Fraud check failed");
         }
         
+        currentSpan.setAttribute("fraud_check.result", "passed");
         logger.info("Fraud check passed");
     }
     
     /**
-     * Verifies funds availability - automatically traced
+     * Verifies funds availability - automatically traced with @WithSpan
      */
+    @WithSpan("payment.verify_funds")
     private void verifyFundsAvailability(PaymentDetails details) throws PaymentProcessingException {
         logger.info(() -> String.format("Verifying funds availability - Amount: %s", details.getAmount()));
+        
+        Span currentSpan = Span.current();
+        currentSpan.setAttribute("funds_check.amount", details.getAmount().toString());
         
         // Simulate banking service call
         simulateNetworkCall(500);
@@ -228,22 +247,30 @@ public class PaymentService {
         boolean hasFunds = details.getAmount().doubleValue() <= 1000;
         
         if (!hasFunds) {
+            currentSpan.setAttribute("funds_check.result", "insufficient");
             logger.warning("Insufficient funds detected");
             throw new PaymentProcessingException("Insufficient funds");
         }
         
+        currentSpan.setAttribute("funds_check.result", "sufficient");
         logger.info("Sufficient funds verified");
     }
     
     /**
-     * Records transaction - automatically traced
+     * Records transaction - automatically traced with @WithSpan
      */
+    @WithSpan("payment.record_transaction")
     private void recordTransaction(PaymentDetails details, String transactionId) {
         logger.info(() -> String.format("Recording transaction: %s", transactionId));
+        
+        Span currentSpan = Span.current();
+        currentSpan.setAttribute("transaction.id", transactionId);
+        currentSpan.setAttribute("transaction.amount", details.getAmount().toString());
         
         // Simulate database operation
         simulateNetworkCall(200);
         
+        currentSpan.addEvent("Transaction recorded in database");
         logger.info("Transaction recorded successfully");
     }
     
