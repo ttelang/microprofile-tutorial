@@ -10,7 +10,7 @@
         <feature>mpOpenAPI</feature>
         <feature>mpHealth</feature>
         <feature>mpMetrics</feature>
-        <feature>mpTelemetry-2.1</feature>
+        <feature>mpTelemetry</feature>
         <feature>mpFaultTolerance</feature>
     </featureManager>
 
