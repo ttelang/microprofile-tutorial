@@ -7,7 +7,7 @@
 
 toc::[]
 
-This microservice is part of the Jakarta EE 10 and MicroProfile 6.1-based e-commerce application. It handles payment processing and transaction management.
+This microservice is part of the Jakarta EE 10 and MicroProfile 7.1-based e-commerce application. It demonstrates payment processing with comprehensive observability using MicroProfile Telemetry 2.1.
 
 == Features
 
@@ -16,11 +16,108 @@ This microservice is part of the Jakarta EE 10 and MicroProfile 6.1-based e-comm
 * RESTful API endpoints with JSON support
 * Custom ConfigSource implementation
 * OpenAPI documentation
+* **MicroProfile Telemetry 2.1 with Distributed Tracing**
+* **Automatic and Manual Span Creation**
+* **@WithSpan Annotation for Method-Level Tracing**
+* **Context Propagation and Correlation**
 * **MicroProfile Fault Tolerance with Retry Policies**
 * **Circuit Breaker protection for external services**
 * **Fallback mechanisms for service resilience**
 * **Bulkhead pattern for concurrency control**
 * **Timeout protection for long-running operations**
+
+== MicroProfile Telemetry 2.1 Implementation
+
+The Payment Service showcases MicroProfile Telemetry 2.1 features for comprehensive observability:
+
+=== CDI-Based Tracer Injection
+
+MicroProfile Telemetry 2.1 supports CDI injection of the Tracer:
+
+[source,java]
+----
+@ApplicationScoped
+public class PaymentService {
+    
+    @Inject
+    Tracer tracer;  // CDI-injected tracer
+    
+    // Use tracer to create custom spans
+}
+----
+
+=== Automatic Span Creation with @WithSpan
+
+Methods annotated with `@WithSpan` are automatically traced:
+
+[source,java]
+----
+@WithSpan("payment.process")
+public CompletionStage<String> processPayment(PaymentDetails paymentDetails) {
+    // Automatically creates a span named "payment.process"
+}
+
+@WithSpan("payment.validate")
+private void validatePaymentDetails(PaymentDetails details) {
+    // Creates nested span for validation
+}
+----
+
+=== Manual Span Creation and Attributes
+
+For fine-grained control, create spans manually:
+
+[source,java]
+----
+Span span = tracer.spanBuilder("payment.process.detailed")
+    .setAttribute("payment.amount", paymentDetails.getAmount().toString())
+    .setAttribute("payment.method", "credit_card")
+    .setAttribute("payment.service", "payment-service")
+    .startSpan();
+
+try (var scope = span.makeCurrent()) {
+    // Business logic
+    span.addEvent("Starting payment processing");
+    
+    // Process payment
+    
+    span.setStatus(StatusCode.OK);
+    span.addEvent("Payment processed successfully");
+} catch (Exception e) {
+    span.setStatus(StatusCode.ERROR, e.getMessage());
+    span.recordException(e);
+    throw e;
+} finally {
+    span.end();
+}
+----
+
+=== Context Propagation
+
+Span context is automatically propagated across:
+
+* Method calls within the service
+* Asynchronous operations
+* REST client calls to other services
+* Database operations
+
+=== Integration with Fault Tolerance
+
+Telemetry 2.1 automatically traces Fault Tolerance patterns:
+
+[source,java]
+----
+@Retry(maxRetries = 3, delay = 2000, jitter = 500)
+@Timeout(3000)
+@Fallback(fallbackMethod = "fallbackProcessPayment")
+@Bulkhead(value=5)
+@WithSpan("payment.process")
+public CompletionStage<String> processPayment(PaymentDetails paymentDetails) {
+    // Retries, timeouts, and fallbacks are automatically traced
+    // Each retry attempt creates a span
+    // Timeout events are recorded
+}
+----
 
 == MicroProfile Fault Tolerance Implementation
 
@@ -120,6 +217,98 @@ All critical operations have fallback methods that provide graceful degradation:
 * Example: `POST http://localhost:9080/payment/api/payment-config/process-example`
 * Request body: `{"cardNumber":"4111111111111111", "cardHolderName":"Test User", "expiryDate":"12/25", "securityCode":"123", "amount":100.00}`
 * Response: `{"amount":100.00,"message":"Payment processed successfully","status":"success","configUsed":{"gatewayEndpoint":"https://new-api.paymentgateway.com"}}`
+
+== MicroProfile Telemetry 2.1 Configuration
+
+The Payment Service uses MicroProfile Telemetry 2.1 for distributed tracing and observability.
+
+=== Telemetry Configuration Properties
+
+The following properties are configured in `microprofile-config.properties`:
+
+[cols="1,2,1", options="header"]
+|===
+|Property
+|Description
+|Value
+
+|otel.service.name
+|Service name for telemetry
+|payment-service
+
+|otel.service.version
+|Service version
+|1.0.0
+
+|otel.sdk.disabled
+|Enable/disable OpenTelemetry SDK
+|false
+
+|otel.traces.exporter
+|Trace exporter type
+|otlp
+
+|otel.metrics.exporter
+|Metrics exporter type
+|none
+
+|otel.traces.sampler
+|Sampling strategy
+|parentbased_always_on
+
+|otel.resource.attributes
+|Additional resource attributes
+|deployment.environment=development,service.namespace=ecommerce
+|===
+
+=== Connecting to Jaeger
+
+To visualize traces, run Jaeger with Docker:
+
+[source,bash]
+----
+docker run -d --name jaeger \
+  -e COLLECTOR_OTLP_ENABLED=true \
+  -p 16686:16686 \
+  -p 4317:4317 \
+  jaegertracing/all-in-one:latest
+----
+
+Then update the configuration to export traces:
+
+[source,properties]
+----
+otel.exporter.otlp.endpoint=http://localhost:4317
+----
+
+Access the Jaeger UI at: http://localhost:16686
+
+=== Viewing Traces
+
+After running the payment service and making requests:
+
+1. Open Jaeger UI at http://localhost:16686
+2. Select "payment-service" from the Service dropdown
+3. Click "Find Traces" to see all traces
+4. Click on a trace to view detailed span information
+5. Observe nested spans for:
+   - Payment processing
+   - Validation steps
+   - Fraud checks
+   - Funds verification
+   - Transaction recording
+
+=== Trace Attributes
+
+The service adds custom attributes to spans:
+
+* `payment.amount` - Payment amount
+* `payment.method` - Payment method (e.g., credit_card)
+* `payment.service` - Service name
+* `transaction.id` - Unique transaction identifier
+* `fraud_check.result` - Fraud check outcome
+* `funds_check.amount` - Amount checked for availability
+* `funds_check.result` - Funds availability result
 
 == Building and Running the Service
 
