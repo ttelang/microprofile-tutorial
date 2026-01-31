@@ -16,10 +16,10 @@ The examples in this chapter demonstrate how to build event-driven microservices
 
 == Prerequisites
 
-* JDK 17 or later
+* JDK 21 or later
 * Maven 3.8+
 * Apache Kafka (for connector examples)
-* MicroProfile 6.1 compatible runtime (Quarkus, Open Liberty, etc.)
+* MicroProfile 7.1 compatible runtime (Quarkus, Open Liberty, etc.)
 
 == Running the Examples
 

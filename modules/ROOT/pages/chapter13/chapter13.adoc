@@ -6,6 +6,8 @@ In modern cloud-native applications, the need to handle high-volume, real-time d
 
 This chapter introduces MicroProfile Reactive Messaging 3.0, a specification designed to simplify the development of asynchronous, message-driven applications. This chapter explores how Reactive Messaging enables developers to build reactive systems that can handle backpressure, process continuous data streams, and integrate seamlessly with message brokers like Apache Kafka and AMQP. By leveraging reactive streams and CDI beans, developers can create scalable, resilient microservices that embrace event-driven architecture patterns.
 
+NOTE: This chapter covers MicroProfile Reactive Messaging 3.0 as part of MicroProfile 7.1. All examples and code in this chapter require JDK 21 or later and a MicroProfile 7.1 compatible runtime (such as Open Liberty, Quarkus, or Payara).
+
 == Topics to be Covered
 
 * Event-Driven Architecture (EDA) Overview
