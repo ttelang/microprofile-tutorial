@@ -713,12 +713,12 @@ components:
           description: Optional product description
           type: 
             - string
-            - "null"
+            - null
         category:
           description: Optional product category
           type:
             - string
-            - "null"
+            - null
         price:
           description: Product price
           type: number

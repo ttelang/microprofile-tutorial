@@ -50,13 +50,17 @@ See `SecuredProductApplication.java` - comprehensive example of documenting mult
 
 ## Building and Running
 
-Since this project requires Java 21, ensure you have Java 21 installed:
+This project is configured to use Java 21 as specified in the pom.xml. However, the MicroProfile OpenAPI 4.1 features demonstrated here work with Java 17+ (which includes support for Java Records).
+
+If you have Java 21 installed:
 
 ```bash
 java -version  # Should show version 21
 mvn clean package
 mvn liberty:dev
 ```
+
+If you only have Java 17, you can modify the pom.xml to use Java 17 instead (Java Records are supported since Java 16 and finalized in Java 17).
 
 ## Viewing the OpenAPI Documentation
 
