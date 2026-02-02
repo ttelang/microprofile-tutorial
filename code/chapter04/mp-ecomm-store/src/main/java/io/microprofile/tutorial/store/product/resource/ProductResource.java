@@ -1,9 +1,10 @@
 package io.microprofile.tutorial.store.product.resource;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
+
+import io.microprofile.tutorial.store.product.entity.Product;
 
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
@@ -14,16 +15,12 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
-import io.microprofile.tutorial.store.product.entity.Product;
-import io.microprofile.tutorial.store.product.service.ProductService;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
+import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DefaultValue;
-import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
-import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
@@ -32,9 +29,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
 /**
- * ProductResource demonstrating MicroProfile OpenAPI 4.1 and OpenAPI v3.1 features.
- * 
- * This resource showcases JSON Schema 2020-12 alignment through:
+ * ProductResource demonstrating MicroProfile OpenAPI 4.1 and OpenAPI v3.1 features:
  * - Rich parameter validation with patterns, formats, and constraints
  * - Detailed response schemas with examples
  * - Array schemas with minItems/maxItems
@@ -42,18 +37,53 @@ import jakarta.ws.rs.core.Response;
  * - Enumeration support
  * - Format specifications
  */
-@ApplicationScoped
 @Path("/products")
+@ApplicationScoped
 @Tag(
     name = "Products",
-    description = "Product catalog operations demonstrating OpenAPI v3.1 JSON Schema 2020-12 features"
+    description = "Product catalog operations"
 )
 public class ProductResource {
+    private List<Product> products;
 
-    private static final Logger LOGGER = Logger.getLogger(ProductResource.class.getName());
+    public ProductResource() {
+        products = new ArrayList<>();
 
-    @Inject
-    private ProductService productService;
+        // Create sample products with all fields
+        Product p1 = new Product();
+        p1.setId(1L);
+        p1.setName("iPhone 15 Pro");
+        p1.setDescription("Apple iPhone 15 Pro with 256GB storage");
+        p1.setPrice(999.99);
+        p1.setSku("APL-IPH15P-256");
+        p1.setCategory("ELECTRONICS");
+        p1.setStockQuantity(50);
+        p1.setInStock(true);
+        
+        Product p2 = new Product();
+        p2.setId(2L);
+        p2.setName("MacBook Air M3");
+        p2.setDescription("Apple MacBook Air with M3 chip, 13-inch display");
+        p2.setPrice(1299.99);
+        p2.setSku("APL-MBA-M3-13");
+        p2.setCategory("ELECTRONICS");
+        p2.setStockQuantity(25);
+        p2.setInStock(true);
+        
+        Product p3 = new Product();
+        p3.setId(3L);
+        p3.setName("Samsung Galaxy S24");
+        p3.setDescription("Samsung Galaxy S24 Ultra with 512GB storage");
+        p3.setPrice(1199.99);
+        p3.setSku("SAM-GAL-S24-512");
+        p3.setCategory("ELECTRONICS");
+        p3.setStockQuantity(30);
+        p3.setInStock(true);
+
+        products.add(p1);
+        products.add(p2);
+        products.add(p3);
+    }
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
@@ -66,8 +96,8 @@ public class ProductResource {
     )
     @APIResponses({
         @APIResponse(
-            responseCode = "200", 
-            description = "Successfully retrieved product list", 
+            responseCode = "200",
+            description = "Successfully retrieved product list",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
                 schema = @Schema(
@@ -78,32 +108,10 @@ public class ProductResource {
                     description = "Array of product objects with full validation"
                 )
             )
-        ),
-        @APIResponse(
-            responseCode = "404",
-            description = "No products found in the catalog",
-            content = @Content(mediaType = MediaType.APPLICATION_JSON)
-        ),
-        @APIResponse(
-            responseCode = "503",
-            description = "Service is under maintenance",
-            content = @Content(mediaType = MediaType.APPLICATION_JSON)
         )
     })
-    public Response getAllProducts() {
-        LOGGER.log(Level.INFO, "REST: Fetching all products");
-        List<Product> products = productService.findAllProducts();
-
-        if (products != null && !products.isEmpty()) {
-            return Response
-                    .status(Response.Status.OK)
-                    .entity(products).build();
-        } else {
-            return Response
-                    .status(Response.Status.NOT_FOUND)
-                    .entity("No products found")
-                    .build();
-        }
+    public List<Product> getProducts() {
+        return products;
     }
 
     @GET
@@ -144,66 +152,53 @@ public class ProductResource {
         )
         @PathParam("id") Long id
     ) {
-        LOGGER.log(Level.INFO, "REST: Fetching product with id: {0}", id);
-
-        Product product = productService.findProductById(id);
-        if (product != null) {
-            return Response.ok(product).build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
-        }
+        return products.stream()
+            .filter(p -> p.getId().equals(id))
+            .findFirst()
+            .map(p -> Response.ok(p).build())
+            .orElse(Response.status(Response.Status.NOT_FOUND).build());
     }
 
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "Create a new product", description = "Creates a new product")
+    @Operation(
+        summary = "Create a new product",
+        description = "Creates a new product with full schema validation"
+    )
     @APIResponses({
-        @APIResponse(responseCode = "201", description = "Product created", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Product.class)))
+        @APIResponse(
+            responseCode = "201",
+            description = "Product created successfully",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                schema = @Schema(implementation = Product.class)
+            )
+        ),
+        @APIResponse(
+            responseCode = "400",
+            description = "Invalid product data"
+        )
     })
-    public Response createProduct(Product product) {
-        LOGGER.info("REST: Creating product: " + product);
-        Product createdProduct = productService.createProduct(product);
-        return Response.status(Response.Status.CREATED).entity(createdProduct).build();
+    public Response createProduct(
+        @Valid
+        @Parameter(
+            description = "Product to create",
+            required = true,
+            schema = @Schema(implementation = Product.class)
+        )
+        Product product
+    ) {
+        // Generate new ID
+        Long newId = products.stream()
+            .mapToLong(Product::getId)
+            .max()
+            .orElse(0L) + 1;
+        product.setId(newId);
+        products.add(product);
+        return Response.status(Response.Status.CREATED).entity(product).build();
     }
 
-    @PUT
-    @Path("/{id}")
-    @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "Update a product", description = "Updates an existing product by its ID")
-    @APIResponses({
-        @APIResponse(responseCode = "200", description = "Product updated", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Product.class))),
-        @APIResponse(responseCode = "404", description = "Product not found")
-    })
-    public Response updateProduct(@PathParam("id") Long id, Product updatedProduct) {
-        LOGGER.info("REST: Updating product with id: " + id);
-        Product updated = productService.updateProduct(id, updatedProduct);
-        if (updated != null) {
-            return Response.ok(updated).build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
-        }
-    }
-
-@DELETE
-    @Path("/{id}")
-    @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "Delete a product", description = "Deletes a product by its ID")
-    @APIResponses({
-        @APIResponse(responseCode = "204", description = "Product deleted"),
-        @APIResponse(responseCode = "404", description = "Product not found")
-    })
-    public Response deleteProduct(@PathParam("id") Long id) {
-        LOGGER.info("REST: Deleting product with id: " + id);
-        boolean deleted = productService.deleteProduct(id);
-        if (deleted) {
-            return Response.noContent().build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
-        }
-    }
-    
     @GET
     @Path("/search")
     @Produces(MediaType.APPLICATION_JSON)
@@ -250,17 +245,6 @@ public class ProductResource {
             )
         )
         @QueryParam("name") String name,
-        
-        @Parameter(
-            description = "Description search term",
-            schema = @Schema(
-                type = SchemaType.STRING,
-                maxLength = 500,
-                nullable = true,
-                example = "Apple"
-            )
-        )
-        @QueryParam("description") String description,
         
         @Parameter(
             description = "Minimum price (exclusive) - must be greater than $0.00",
@@ -327,17 +311,12 @@ public class ProductResource {
         )
         @QueryParam("size") @DefaultValue("20") Integer size
     ) {
-        LOGGER.info("REST: Searching products with criteria - name: " + name + 
-                   ", category: " + category + ", price range: " + minPrice + "-" + maxPrice);
-        
-        List<Product> results = productService.searchProducts(name, description, minPrice, maxPrice);
-        
-        // Apply category filter if specified
-        if (category != null && !category.isEmpty()) {
-            results = results.stream()
-                .filter(p -> category.equals(p.getCategory()))
-                .collect(Collectors.toList());
-        }
+        List<Product> results = products.stream()
+            .filter(p -> name == null || p.getName().toLowerCase().contains(name.toLowerCase()))
+            .filter(p -> minPrice == null || p.getPrice() > minPrice)
+            .filter(p -> maxPrice == null || p.getPrice() <= maxPrice)
+            .filter(p -> category == null || category.equals(p.getCategory()))
+            .collect(Collectors.toList());
         
         // Apply pagination
         int start = page * size;

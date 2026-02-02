@@ -19,18 +19,15 @@ import jakarta.ws.rs.core.Application;
  * 2. Improved nullable handling (native JSON Schema support)
  * 3. Better numeric constraints (exclusiveMinimum as numeric value)
  * 4. Enhanced pattern validation with full regex support
- * 5. Support for webhooks (event-driven APIs)
- * 6. Richer metadata and documentation capabilities
- * 7. Better security scheme definitions
- * 8. Support for multiple examples per schema
+ * 5. Richer metadata and documentation capabilities
  */
 @ApplicationPath("/api")
 @OpenAPIDefinition(
     info = @Info(
-        title = "MicroProfile Catalog Service API",
+        title = "MicroProfile E-Commerce Store API",
         version = "3.1.0",
         description = """
-            ## Catalog Service API - OpenAPI v3.1 Demonstration
+            ## E-Commerce Store API - OpenAPI v3.1 Demonstration
             
             This API demonstrates **MicroProfile OpenAPI 4.1** alignment with **OpenAPI v3.1** 
             and **JSON Schema 2020-12**.
@@ -41,29 +38,28 @@ import jakarta.ws.rs.core.Application;
             - **Pattern Validation**: Regex-based string validation (SKU format: `^[A-Z]{3}-[A-Z0-9]+-[A-Z0-9]+$`)
             - **Numeric Constraints**: 
               - `minimum` and `maximum` (inclusive bounds)
-              - `exclusiveMinimum` and `exclusiveMaximum` (exclusive bounds)
-              - `multipleOf` for decimal precision (e.g., price rounded to $0.01)
+              - `exclusiveMinimum` (exclusive bounds - price > $0.01)
+              - `multipleOf` for decimal precision (prices rounded to $0.01)
             - **String Constraints**: `minLength`, `maxLength`, `pattern`
-            - **Array Constraints**: `minItems`, `maxItems`, `uniqueItems`
+            - **Array Constraints**: `minItems`, `maxItems`
             
             #### 2. Format Specifications
             Standardized formats for validation:
-            - Numeric: `double`, `float`, `int32`, `int64`
-            - Date/Time: `date-time`, `date`, `time`
-            - Other: `email`, `uri`, `uuid`, `binary`, `byte`
+            - Numeric: `double`, `int32`, `int64`
+            - Strings with format validation
             
             #### 3. Enhanced Schema Features
             - **Nullable**: Proper handling of null values (aligned with JSON Schema)
             - **Enumeration**: Type-safe enum values (e.g., product categories)
-            - **Default Values**: Schema-level defaults (e.g., `active: true`, `stockQuantity: 0`)
-            - **Read-only**: Properties that cannot be modified (e.g., `id`, timestamps)
+            - **Default Values**: Schema-level defaults (e.g., `inStock: true`, `stockQuantity: 0`)
+            - **Read-only**: Properties that cannot be modified (e.g., `id`)
             - **Examples**: Rich examples for better documentation
             
-            #### 4. Advanced API Operations
-            - Full CRUD operations with detailed response schemas
-            - Search and filter with validated query parameters
-            - Pagination with constraint validation
-            - Bulk operations demonstrating array schemas
+            #### 4. API Operations
+            - Get all products with array schema constraints
+            - Get product by ID with validated path parameter
+            - Create new product with full schema validation
+            - Search with multiple filters and pagination
             
             ### Benefits of OpenAPI v3.1
             - **Single Source of Truth**: Same schema for OpenAPI docs and JSON validation
@@ -88,8 +84,8 @@ import jakarta.ws.rs.core.Application;
     ),
     servers = {
         @Server(
-            url = "/catalog",
-            description = "Catalog API server (works with localhost, Codespaces, and production)"
+            url = "/mp-ecomm-store",
+            description = "E-Commerce Store API server (works with localhost, Codespaces, and production)"
         )
     },
     tags = {
@@ -108,5 +104,5 @@ import jakarta.ws.rs.core.Application;
     )
 )
 public class ProductRestApplication extends Application {
-    // JAX-RS application class with comprehensive OpenAPI definition
+    // Rest application class with comprehensive OpenAPI definition
 }
