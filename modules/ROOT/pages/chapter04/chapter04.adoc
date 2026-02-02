@@ -9,19 +9,23 @@ This chapter will explore the primary features of MicroProfile OpenAPI, demonstr
 
 
 == Topics to be covered:
+- OpenAPI Specification
 - Introduction to MicroProfile OpenAPI
-- API Specification using MicroProfile Open API
-- Generating API Documentation
-- Documenting Authentication and Authorization Requirements
-- Exploring the APIs using Swagger UI
+- Capabilities of MicroProfile OpenAPI Specification
+- OpenAPI v3.1 and JSON Schema 2020-12 Alignment
+- Generating OpenAPI Documents
+- Using MicroProfile OpenAPI in Your Project
+- Viewing the Generated Documentation
+- Exploring APIs using Swagger UI
+- MicroProfile OpenAPI Annotations
 
 == OpenAPI Specification
 
-The Open API Specification (OAS), formerly Swagger specification, is a technical specification that allows REST API providers to describe and publish their APIs using a format that various tools can consume. It defines a standard, language-agnostic interface to RESTful APIs, making it easy for third-party tools to generate documentation, client SDKs, and a range of tools that promote the seamless consumption of RESTful APIs.
+The Open API Specification (OAS), formerly the Swagger specification, is a technical specification that allows REST API providers to describe and publish their APIs using a format that various tools can consume. It defines a standard, language-agnostic interface to RESTful APIs, making it easy for third-party tools to generate documentation, client SDKs, and a range of tools that promote the seamless consumption of RESTful APIs.
 
 NOTE: The OpenAPI Initiative, a consortium of industry experts committed to standardizing how to describe REST APIs, maintains the OpenAPI Specification. It is a community-driven initiative, and many large organizations use it, including Google, Microsoft, and Amazon.
 
-The OpenAPI specification enables creation of a well-defined, clear and comprehensive API contract. It provides a standardized way to describe the API's structure, expected requests and responses, and authentication mechanisms, making it easier to develop, test, and maintain RESTful APIs.
+The OpenAPI specification enables the creation of a well-defined, clear, and comprehensive API contract. It provides a standardized way to describe the API's structure, expected requests and responses, and authentication mechanisms, making it easier to develop, test, and maintain RESTful APIs.
 
 == Introduction to MicroProfile OpenAPI
 
@@ -42,7 +46,124 @@ The OpenAPI Specification fuels a rich ecosystem of tools that automate and supp
 * *API Testing*: Testing frameworks can leverage the specification to design robust tests.
 * *API Mocking*: Simplifies mocking APIs for testing and development purposes.
 
-== Generating OpenAPI documents
+== OpenAPI v3.1 and JSON Schema 2020-12 Alignment
+
+MicroProfile OpenAPI 4.0 aligns with the OpenAPI v3.1 specification. OpenAPI v3.1 fully embraces JSON Schema 2020-12, providing more powerful and precise validation capabilities to developers.
+
+=== Key Features of OpenAPI v3.1
+
+==== Pattern Validation
+
+OpenAPI v3.1 supports full regular expression pattern validation for string fields. This enables precise format validation for structured strings like SKU codes, email addresses, and custom identifiers.
+
+[source, java]
+----
+@Schema(
+    description = "Stock Keeping Unit - unique product identifier",
+    pattern = "^[A-Z]{3}-[A-Z0-9]+-[A-Z0-9]+$",
+    example = "ELC-MS001-BLK"
+)
+private String sku;
+----
+
+This pattern ensures the SKU follows the format: three uppercase letters, a dash, alphanumeric characters, another dash, and more alphanumeric characters (e.g., `ELC-MS001-BLK`, `CLO-TSH123-RED`).
+
+==== Exclusive Numeric Bounds
+
+OpenAPI v3.1 introduces improved numeric constraint handling with `exclusiveMinimum` and `exclusiveMaximum`. It allows developers to work with minimum/maximum values for precise bounds.
+
+[source, java]
+----
+@Schema(
+    description = "Product price in USD",
+    minimum = "0.01",
+    exclusiveMinimum = true,  // Price must be > 0.01, not >= 0.01
+    multipleOf = 0.01,
+    format = "double",
+    example = "29.99"
+)
+private Double price;
+----
+
+This ensures prices are greater than $0.01 (not equal to) and rounded to 2 decimal places using `multipleOf`.
+
+==== Format Specifications
+
+OpenAPI v3.1 provides standardized format validation for common data types, improving type safety and validation:
+
+[source, java]
+----
+@Schema(
+    description = "Product ID",
+    format = "int64",  // Specifies 64-bit integer
+    minimum = "1",
+    example = "1"
+)
+private Long id;
+
+@Schema(
+    description = "Stock quantity",
+    format = "int32",  // Specifies 32-bit integer
+    minimum = "0",
+    example = "100"
+)
+private Integer stockQuantity;
+
+@Schema(
+    description = "Creation timestamp",
+    format = "date-time",  // ISO 8601 date-time format
+    example = "2024-01-15T10:30:00Z"
+)
+private LocalDateTime createdAt;
+----
+
+==== Nullable Properties
+
+OpenAPI v3.1 provides native JSON Schema support for nullable fields, making it clearer which properties can be null:
+
+[source, java]
+----
+@Schema(
+    description = "Product description",
+    nullable = true,  // Explicitly allows null values
+    maxLength = 500,
+    example = "High-quality wireless mouse"
+)
+private String description;
+----
+
+==== Enumeration Support
+
+Type-safe enumeration values ensure only predefined values are accepted:
+
+[source, java]
+----
+@Schema(
+    description = "Product category",
+    enumeration = {"ELECTRONICS", "CLOTHING", "BOOKS", "HOME", "SPORTS"},
+    example = "ELECTRONICS"
+)
+private String category;
+----
+
+==== Array Constraints
+
+OpenAPI v3.1 allows precise control over array sizes and content:
+
+[source, java]
+----
+@Schema(
+    implementation = Product.class,
+    type = SchemaType.ARRAY,
+    minItems = 0,   // Minimum array size
+    maxItems = 1000 // Maximum array size
+)
+public List<Product> getProducts() {
+    // Method implementation
+}
+----
+
+== Generating MicroProfile OpenAPI documents
 
 There are multiple ways in which you can generate OpenAPI documents. The most common way is to use annotations. This only requires augmenting your Jakarta Restful Web Services annotations with OpenAPI annotations. 
 
@@ -67,16 +188,10 @@ Below is an illustrative example of how you might annotate a method in the `Prod
 
 [source, java]
 ----
-import org.eclipse.microprofile.openapi.annotations.Operation;
-import org.eclipse.microprofile.openapi.annotations.media.Content;
-import org.eclipse.microprofile.openapi.annotations.media.Schema;
-import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
-import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
+import org.eclipse.microprofile.openapi.annotations.*;
 
 import jakarta.ws.rs.GET;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.core.MediaType;
+//...
 
 @ApplicationScoped
 @Path("/products")
@@ -136,14 +251,14 @@ To view the generated documentation, we can use the OpenAPI UI tool. The Open AP
 The OpenAPI UI tool can be accessed at the following URL:
 
 ----
-http://localhost:<port>/openapi/
+http://<server-host>:<port>/openapi/
 ----
 
-Replace `<port>` with the actual port used by your runtime, for e.g. 9080 which is the default port at Open Liberty server. 
+Replace `<server-host>` and `<port>` with the actual server host name and port used by your runtime, for e.g. `http://localhost:5050/openapi`.
 
 The `/openapi` endpoint is used to get information about the OpenAPI specification generated from the comments in the source code annotations. It returns information in YAML format.
 
-When we access the `http://localhost:5050/openapi` URL, we should see the API documentation that was generated by MicroProfile OpenAPI:
+When we access the URL, we should see the API documentation that was generated by MicroProfile OpenAPI:
 
 [source, yaml]
 ----
@@ -152,7 +267,7 @@ info:
   title: Generated API
   version: "1.0"
 servers:
-- url: http://localhost:9080/catalog
+- url: /catalog
 paths:
   /api/products:
     get:
