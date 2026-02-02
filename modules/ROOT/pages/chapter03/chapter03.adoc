@@ -472,6 +472,7 @@ $ curl http://localhost:9080/mp-ecomm-store/api/products
 ----
 @DELETE
 @Path("products/{id}")
+@Transactional
 public Response deleteProduct(@PathParam("id") Long id) {
      // Delete a product
      Response response;
