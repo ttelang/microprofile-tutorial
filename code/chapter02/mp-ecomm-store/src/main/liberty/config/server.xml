@@ -1,7 +1,7 @@
 <server description="MicroProfile Tutorial Liberty Server">
     <featureManager>
-        <platform>microProfile-7.1</platform>
-        <platform>jakartaEE-10.0</platform>
+        <platform>microProfile-7.0</platform>
+        <platform>jakartaee-10.0</platform>
         <feature>restfulWS</feature>
         <feature>jsonb</feature>
     </featureManager>
