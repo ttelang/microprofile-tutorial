@@ -371,8 +371,6 @@ OpenAPI v3.1 provides improved support for `oneOf`, `anyOf`, and `allOf` keyword
 
 === Support for Java Records
 
-=== Support for Java Records
-
 Java Records (introduced in Java 14/16) provide a concise way to declare immutable data carriers with several advantages:
 
 * *Concise syntax*: Requires less boilerplate code compared to traditional POJOs (Plain Old Java Objects)
@@ -449,114 +447,185 @@ components:
           examples:
           - 1
 ----
-Use `@NotNull` validation annotations or `@Schema(required = true)` to explicitly mark components as required in the generated specification. In this example, `@NotNull` annotations mark `id`, `name`, and `displayOrder` as required, while `parentId` remains optional for root categories.
 
-==== Optional Components
+Use `@NotNull` validation annotations or `@Schema(required = true)` to explicitly mark components as required in the generated specification. For nullable components, you can either use `@Schema(nullable = true)` or wrap the type in `Optional<T>` to indicate they can accept null values. In this example, `@NotNull` annotations mark `id`, `name`, and `displayOrder` as required, while `parentId` is marked as nullable for root categories that have no parent.
 
-If you need nullable components, use `Optional<T>`:
+=== Enhanced Annotation Type Safety
 
+MicroProfile OpenAPI 4.1 improves type safety by adding explicit `@Target` meta-annotations to several OpenAPI annotations. This enhancement works behind the scenes to help IDEs and build tools provide better warnings when annotations are used in inappropriate locations.
+
+==== What This Means for Developers
+
+The `@Target` meta-annotation defines where an annotation can be applied (classes, methods, fields, parameters, etc.). Prior to MicroProfile OpenAPI 4.1, some annotations lacked explicit `@Target` definitions, making it harder for development tools to validate annotation usage.
+
+With MicroProfile OpenAPI 4.1, annotations like `@Schema`, `@SchemaProperty`, and others now have explicit `@Target` constraints that:
+
+* Provide warnings for incorrect annotation usage
+* Help build tools detect potential issues during compilation
+* Make the API more predictable and self-documenting
+* Improve code completion accuracy in modern IDEs
+
+==== Example: Compile-Time Warnings for Incorrect Usage
+
+You would get a compile time warning about improper annotation placement:
+
+*Incorrect usage:*
 [source, java]
 ----
-@Schema(name = "CategoryRecord", description = "Product category information")
-public record CategoryRecord(
-    @Schema(description = "Category ID", example = "1")
-    Long id,
-    
-    @Schema(description = "Category name", example = "Electronics")
-    String name,
-    
-    @Schema(description = "Parent category ID for hierarchical structure")
-    Optional<Long> parentId,  // Optional for root categories
-    
-    @Schema(description = "Display order", example = "1")
-    Integer displayOrder
-) {}
+@Schema(description = "Product resource")  // warning: unusual location for @Schema
+@Path("/products")
+public class ProductResource {
+    // While this compiles, the @Schema annotation on the resource class itself
+    // may not have the intended effect
+}
 ----
 
-*Generated schema with optional parentId:*
+*Recommended usage:*
+[source, java]
+----
+@Path("/products")
+public class ProductResource {
+    
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Get all products")
+    @APIResponse(
+        responseCode = "200",
+        content = @Content(schema = @Schema(implementation = Product.class))
+    )
+    public List<Product> getAllProducts() {
+        return productService.findAll();
+    }
+}
+----
+
+==== Working with Flexible Schema Types
+
+The enhanced type safety works seamlessly with flexible schema definitions:
+
+*Example: Product with dynamic attributes*
+[source, java]
+----
+package io.microprofile.tutorial.store.product.entity;
+
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
+import java.util.Map;
+import java.util.List;
+import lombok.Data;
+
+@Data
+@Schema(
+    description = "Product with flexible custom attributes",
+    properties = {
+        @SchemaProperty(name = "tags")
+    }
+)   // Valid on TYPE
+public class FlexibleProduct {
+    
+    @Schema(description = "Product ID", example = "1")  // Valid on FIELD
+    private Long id;
+    
+    @Schema(description = "Product name", example = "Wireless Mouse")
+    private String name;
+    
+    @Schema(description = "Product price", example = "29.99")
+    private Double price;
+    
+    @Schema(
+        description = "Product specifications (e.g., color, material, size)",
+        type = SchemaType.OBJECT,
+        example = "{\"color\": \"black\", \"material\": \"plastic\", \"weight\": \"100g\"}"
+    )
+    private Map<String, Object> specifications;
+    
+    @Schema(
+        description = "Product tags for categorization and search",
+        type = SchemaType.ARRAY,
+        implementation = String.class,
+        example = "[\"wireless\", \"electronics\", \"accessories\"]"
+    )
+    private List<String> tags;
+}
+----
+
+The `@SchemaProperty` annotation allows you to reference properties at the class level, particularly useful when combined with field-level `@Schema` annotations.
+
+*Generated OpenAPI schema:*
 [source, yaml]
 ----
-openapi: 3.1.0
-components:
-  schemas:
-    CategoryRecord:
-      description: Product category information
-      type: object
-      required:
-      - id
-      - name
-      - displayOrder
+FlexibleProduct:
+      description: Product with flexible custom attributes
       properties:
+        tags:
+          description: Product tags for categorization and search
+          type: array
+          examples:
+          - - wireless
+            - electronics
+            - accessories
+          items:
+            type: string
         id:
           type: integer
           format: int64
-          description: Category ID
+          description: Product ID
           examples:
           - 1
         name:
           type: string
-          description: Category name
+          description: Product name
           examples:
-          - Electronics
-        parentId:
-          type:
-          - integer
-          - "null"
-          format: int64
-          description: Parent category ID for hierarchical structure
-        displayOrder:
-          type: integer
-          format: int32
-          description: Display order
+          - Wireless Mouse
+        price:
+          type: number
+          format: double
+          description: Product price
           examples:
-          - 1
+          - 29.99
+        specifications:
+          type: object
+          additionalProperties: {}
+          description: "Product specifications (e.g., color, material, size)"
+          examples:
+          - color: black
+            material: plastic
+            weight: 100g
+      type: object
 ----
 
-Use `@NotNull` or `@Schema(required = true)` to mark required components. For nullable components, use `@Schema(nullable = true)` or wrap the type in `Optional<T>`. In this example, `id`, `name`, and `displayOrder` are required, while `parentId` is nullable for root categories.
+==== Benefits of Enhanced Type Safety
 
-=== @Target Annotation Enhancement
+The addition of explicit `@Target` annotations provides:
 
-MicroProfile OpenAPI 4.1 adds proper `@Target` annotations to several schema-related annotations, improving type safety and IDE support. The annotations `@DependentRequired`, `@DependentSchema`, and `@SchemaProperty` now have explicit target definitions.
-
-Example: Using @DependentRequired and @DependentSchema
-
-[source, java]
-----
-import org.eclipse.microprofile.openapi.annotations.media.Schema;
-import org.eclipse.microprofile.openapi.annotations.media.DependentRequired;
-import org.eclipse.microprofile.openapi.annotations.media.DependentSchema;
-import org.eclipse.microprofile.openapi.annotations.media.SchemaProperty;
-
-@Schema(
-    description = "Product with conditional validation",
-    dependentRequired = {
-        @DependentRequired(
-            name = "discount",
-            requires = {"discountReason"}
-        )
-    }
-)
-public class ConditionalProduct {
-    private Long id;
-    private String name;
-    private Double price;
-    private Double discount;
-    private String discountReason;
-    
-    // Getters and setters
-}
-----
-
-This ensures that if a `discount` field is provided, the `discountReason` field must also be included in the request.
+* *Early error detection*: Misused annotations are caught at compile time, not runtime
+* *Better IDE experience*: Code completion only suggests annotations valid for the current context
+* *Self-documenting API*: Annotation definitions clearly communicate their intended use
+* *Reduced debugging time*: Fewer runtime errors related to incorrect annotation placement
+* *More maintainable code*: Clear constraints make it easier for teams to use annotations correctly
 
 === JSON Schema Dialect Support
 
-MicroProfile OpenAPI 4.1 introduces the `jsonSchemaDialect` property, which allows you to specify which JSON Schema dialect is used in your OpenAPI document. This is particularly useful when working with tools that require specific JSON Schema versions.
+MicroProfile OpenAPI 4.1 introduces the `jsonSchemaDialect` property, which allows you to specify which JSON Schema dialect is used in your OpenAPI document. This property is part of OpenAPI 3.1's alignment with JSON Schema standards.
 
-Example: Using jsonSchemaDialect programmatically
+==== Understanding JSON Schema Dialects
+
+A JSON Schema dialect defines which version and vocabulary of JSON Schema is being used. OpenAPI 3.1 supports multiple dialects:
+
+* *Default dialect*: `https://spec.openapis.org/oas/3.1/dialect/base` - The standard OpenAPI 3.1 JSON Schema dialect
+* *Full JSON Schema*: `https://json-schema.org/draft/2020-12/schema` - Complete JSON Schema 2020-12 specification
+* *Custom dialects*: Organization-specific or tool-specific schema vocabularies
+
+Setting the dialect explicitly ensures compatibility with tools and validators that support specific JSON Schema versions.
+
+==== Specifying the Dialect Programmatically
+
+You can set the JSON Schema dialect using the `OASModelReader` interface:
 
 [source, java]
 ----
+package io.microprofile.tutorial.store.config;
+
 import org.eclipse.microprofile.openapi.OASFactory;
 import org.eclipse.microprofile.openapi.OASModelReader;
 import org.eclipse.microprofile.openapi.models.OpenAPI;
@@ -567,26 +636,110 @@ public class CustomModelReader implements OASModelReader {
     public OpenAPI buildModel() {
         return OASFactory.createOpenAPI()
             .openapi("3.1.0")
+            // Use default OpenAPI 3.1 dialect (recommended for most use cases)
             .jsonSchemaDialect("https://spec.openapis.org/oas/3.1/dialect/base")
+            
+            // Alternative: Use full JSON Schema 2020-12 dialect for advanced features
+            // .jsonSchemaDialect("https://json-schema.org/draft/2020-12/schema")
+            
             .info(OASFactory.createInfo()
-                .title("Product API")
+                .title("Product Catalog API")
                 .version("1.0.0")
-                .description("API for managing products"));
+                .description("API for managing products in the e-commerce store"));
     }
 }
 ----
 
-The resulting OpenAPI document will include:
+The full JSON Schema 2020-12 dialect enables advanced features like:
 
-[source, yaml]
+* `prefixItems` for tuple validation
+* `$dynamicRef` and `$dynamicAnchor` for dynamic schema references
+* `unevaluatedProperties` and `unevaluatedItems` for strict validation
+* Enhanced pattern properties and additional vocabulary extensions
+
+==== Activating the Model Reader
+
+Configure the model reader in `microprofile-config.properties`:
+
+[source, properties]
 ----
-openapi: 3.1.0
-jsonSchemaDialect: https://spec.openapis.org/oas/3.1/dialect/base
-info:
-  title: Product API
-  version: 1.0.0
-  description: API for managing products
+mp.openapi.model.reader=io.microprofile.tutorial.store.config.CustomModelReader
 ----
+
+==== Dialect Usage
+
+While you can set the `jsonSchemaDialect` programmatically through the OpenAPI model, the dialect property controls how JSON Schema validation and processing occurs internally. The dialect setting ensures that:
+
+* Schema validation follows the specified JSON Schema version rules
+* Type definitions are interpreted according to the dialect's vocabulary
+* Schema composition keywords (`oneOf`, `anyOf`, `allOf`) behave according to the dialect specification
+* Nullable types use the appropriate representation for the dialect
+* Advanced JSON Schema features are available when using the full 2020-12 dialect
+
+==== When to Specify the Dialect
+
+You should explicitly set the `jsonSchemaDialect` when:
+
+* *Using advanced JSON Schema features*: `prefixItems`, `$dynamicRef`, `unevaluatedProperties`
+* *Integrating with external validators*: Tools that require JSON Schema 2020-12 compliance
+* *Strict schema validation*: Need features like `unevaluatedProperties` for comprehensive validation
+* *Tool compatibility*: Working with schema generators or validators that expect specific dialects
+* *Custom vocabularies*: Using organization-specific schema extensions
+
+For most applications using standard MicroProfile OpenAPI features, the default dialect (`https://spec.openapis.org/oas/3.1/dialect/base`) is used automatically and doesn't need to be explicitly set.
+
+==== Comparison of Dialects
+
+.JSON Schema Dialect Feature Comparison
+[options="header"]
+|===
+|Feature | Description | OpenAPI 3.1 Base Dialect |Full JSON Schema 2020-12
+
+|*Basic Validation*
+|Basic type validation (`string`, `number`, `boolean`, etc.)
+|✓ Supported
+|✓ Supported
+
+|*Schema Composition*
+|Combining schemas using `oneOf`, `anyOf`, `allOf`
+|✓ Supported
+|✓ Supported
+
+|*Nullable Types*
+|Representing values that can be `null`
+|✓ Supported with type arrays
+|✓ Supported with type arrays
+
+|*Tuple Validation (`prefixItems`)*
+|Validate arrays with different types per position (e.g., [`string`, `number`, `boolean`])
+|✗ Not available
+|✓ Supported
+
+|*Dynamic References (`$dynamicRef`)*
+|Advanced schema composition with runtime-resolved references
+|✗ Not available
+|✓ Supported
+
+|*Strict Validation (`unevaluatedProperties`)*
+|Reject additional properties not covered by schema
+|✗ Not available
+|✓ Supported
+
+|*Custom Vocabularies (`$vocabulary`)*
+|Define and use custom validation keywords
+|✗ Not available
+|✓ Supported
+
+|*Primary Use Case*
+|
+|Standard REST API documentation and validation
+|Advanced schema validation, tooling integration, strict compliance
+
+|*Recommended For*
+|
+|Most microservices and REST APIs
+|Complex validation requirements, schema tooling, external validators
+|===
 
 === Extensible Interface Methods
 
