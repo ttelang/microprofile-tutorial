@@ -7,6 +7,16 @@ import org.eclipse.microprofile.openapi.annotations.info.License;
 import org.eclipse.microprofile.openapi.annotations.servers.Server;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.eclipse.microprofile.openapi.annotations.ExternalDocumentation;
+import org.eclipse.microprofile.openapi.annotations.security.SecurityScheme;
+import org.eclipse.microprofile.openapi.annotations.security.SecuritySchemes;
+import org.eclipse.microprofile.openapi.annotations.enums.SecuritySchemeType;
+import org.eclipse.microprofile.openapi.annotations.enums.SecuritySchemeIn;
+import org.eclipse.microprofile.openapi.annotations.security.OAuthFlows;
+import org.eclipse.microprofile.openapi.annotations.security.OAuthFlow;
+import org.eclipse.microprofile.openapi.annotations.security.OAuthScope;
+import org.eclipse.microprofile.openapi.annotations.info.Info;
+import jakarta.ws.rs.ApplicationPath;
+import jakarta.ws.rs.core.Application;
 
 import jakarta.ws.rs.ApplicationPath;
 import jakarta.ws.rs.core.Application;
@@ -103,6 +113,37 @@ import jakarta.ws.rs.core.Application;
         url = "https://github.com/eclipse/microprofile-open-api"
     )
 )
+@SecuritySchemes({
+    @SecurityScheme(
+        securitySchemeName = "apiKey",
+        type = SecuritySchemeType.APIKEY,
+        description = "API Key authentication",
+        in = SecuritySchemeIn.HEADER,
+        apiKeyName = "X-API-Key"
+    ),
+    @SecurityScheme(
+        securitySchemeName = "bearerAuth",
+        type = SecuritySchemeType.HTTP,
+        description = "JWT Bearer token authentication",
+        scheme = "bearer",
+        bearerFormat = "JWT"
+    ),
+    @SecurityScheme(
+        securitySchemeName = "oauth2",
+        type = SecuritySchemeType.OAUTH2,
+        description = "OAuth2 authentication",
+        flows = @OAuthFlows(
+            authorizationCode = @OAuthFlow(
+                authorizationUrl = "https://example.com/oauth/authorize",
+                tokenUrl = "https://example.com/oauth/token",
+                scopes = {
+                    @OAuthScope(name = "read:products", description = "Read product information"),
+                    @OAuthScope(name = "write:products", description = "Modify product information")
+                }
+            )
+        )
+    )
+})
 public class ProductRestApplication extends Application {
     // Rest application class with comprehensive OpenAPI definition
 }

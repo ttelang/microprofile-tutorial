@@ -16,6 +16,7 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.eclipse.microprofile.openapi.annotations.extensions.Extension;
+import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.validation.Valid;
@@ -124,6 +125,7 @@ public class ProductResource {
             @Extension(name = "x-cache-ttl", value = "300")
         }
     )
+    @SecurityRequirement(name = "bearerAuth")
     @APIResponses({
         @APIResponse(
             responseCode = "200",
@@ -133,6 +135,7 @@ public class ProductResource {
                 schema = @Schema(implementation = Product.class)
             )
         ),
+        @APIResponse(responseCode = "401", description = "Unauthorized"),
         @APIResponse(
             responseCode = "404",
             description = "Product not found"
@@ -172,6 +175,7 @@ public class ProductResource {
             @Extension(name = "x-audit-log", value = "true")
         }
     )
+    @SecurityRequirement(name = "oauth2", scopes = {"write:products"})
     @APIResponses({
         @APIResponse(
             responseCode = "201",
@@ -184,7 +188,9 @@ public class ProductResource {
         @APIResponse(
             responseCode = "400",
             description = "Invalid product data"
-        )
+        ),
+        @APIResponse(responseCode = "401", description = "Unauthorized"),
+        @APIResponse(responseCode = "403", description = "Forbidden - insufficient scopes")
     })
     public Response createProduct(
         @Valid
