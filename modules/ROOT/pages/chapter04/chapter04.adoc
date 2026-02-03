@@ -743,37 +743,28 @@ For most applications using standard MicroProfile OpenAPI features, the default 
 
 === Extensible Interface Methods
 
-MicroProfile OpenAPI 4.1 adds two new methods to the `Extensible` interface: `getExtension(String)` and `hasExtension(String)`. These methods provide a more convenient way to work with vendor extensions in your OpenAPI model.
+MicroProfile OpenAPI 4.1 adds two new methods to the `Extensible` interface: `getExtension(String)` and `hasExtension(String)`. These methods provide a more convenient way to work with vendor extensions (custom properties prefixed with `x-`) in your OpenAPI model.
 
-Example: Using the new Extensible interface methods
+==== Understanding Vendor Extensions
 
-[source, java]
-----
-import org.eclipse.microprofile.openapi.OASFactory;
-import org.eclipse.microprofile.openapi.OASFilter;
-import org.eclipse.microprofile.openapi.models.OpenAPI;
-import org.eclipse.microprofile.openapi.models.Operation;
+Vendor extensions allow you to add custom metadata to your OpenAPI specification beyond the standard properties. Extensions must be prefixed with `x-` and can contain any valid JSON value. Common use cases include:
 
-public class ExtensionFilter implements OASFilter {
-    
-    @Override
-    public Operation filterOperation(Operation operation) {
-        // Check if a custom extension exists
-        if (operation.hasExtension("x-custom-timeout")) {
-            Object timeout = operation.getExtension("x-custom-timeout");
-            System.out.println("Custom timeout found: " + timeout);
-            
-            // Modify based on the extension
-            if (timeout != null && (Integer) timeout > 30) {
-                operation.addExtension("x-requires-approval", true);
-            }
-        }
-        return operation;
-    }
-}
-----
+* Custom timeout or rate limit configurations
+* Internal routing or gateway metadata
+* Documentation generation hints
+* Tool-specific processing instructions
+* Security or compliance annotations
 
-Adding extensions to an operation:
+==== New Convenience Methods
+
+Prior to MicroProfile OpenAPI 4.1, checking for and retrieving extensions required working directly with the extensions map. The new methods simplify this:
+
+* `hasExtension(String name)` - Returns `true` if the extension exists
+* `getExtension(String name)` - Returns the extension value or `null` if not found
+
+==== Adding Extensions to Operations
+
+You can add vendor extensions to operations using the `@Extension` annotation:
 
 [source, java]
 ----
@@ -784,13 +775,140 @@ Adding extensions to an operation:
     summary = "Get product by ID",
     extensions = {
         @Extension(name = "x-custom-timeout", value = "60"),
-        @Extension(name = "x-rate-limit", value = "100")
+        @Extension(name = "x-rate-limit", value = "100"),
+        @Extension(name = "x-cache-ttl", value = "300")
     }
 )
 public Response getProductById(@PathParam("id") Long id) {
     // Method implementation
 }
 ----
+
+*Generated OpenAPI specification with extensions:*
+[source, yaml]
+----
+paths:
+  /api/products/{id}:
+    get:
+      summary: Get product by ID
+      description: Retrieves detailed product information
+      x-custom-timeout: 60
+      x-rate-limit: 100
+      x-cache-ttl: 300
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Product found
+----
+
+==== Using Extensible Interface Methods in Filters
+
+OAS filters execute during OpenAPI document generation and allow you to programmatically modify the OpenAPI model before it's served. Filters are useful when you need to add, modify, or remove content from the OpenAPI specification based on logic that can't be expressed through annotations alone.
+
+An `OASFilter` allows you to:
+
+* *Read existing extensions* from your annotated code and make decisions based on their values
+* *Add new extensions dynamically* based on business logic or computed values
+* *Modify the OpenAPI document* programmatically at runtime
+* *Enforce policies* across all operations (e.g., ensure all operations have certain metadata)
+* *Integrate with external systems* by reading configuration and adding appropriate extensions
+
+For example, the filter below reads the `x-custom-timeout` extension that was defined in the `@Operation` annotation and uses it to dynamically add another extension (`x-requires-approval`) if the timeout exceeds a threshold.
+
+[source, java]
+----
+package io.microprofile.tutorial.store.product.config;
+
+import org.eclipse.microprofile.openapi.models.Operation;
+import org.eclipse.microprofile.openapi.OASFilter;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+public class ExtensionFilter implements OASFilter {
+    
+    @Override
+    public Operation filterOperation(Operation operation) {
+        if (operation == null) {
+            return operation;
+        }
+        
+        try {
+            // Get existing extensions (or create new map if null)
+            Map<String, Object> existingExtensions = operation.getExtensions();
+            if (existingExtensions == null) {
+                return operation; // No extensions to process
+            }
+            
+            // Create a new map with existing extensions
+            Map<String, Object> newExtensions = new LinkedHashMap<>(existingExtensions);
+            
+            // Check if a custom timeout extension exists
+            if (newExtensions.containsKey("x-custom-timeout")) {
+                Object timeout = newExtensions.get("x-custom-timeout");
+                if (timeout != null) {
+                    int timeoutValue = Integer.parseInt(timeout.toString());
+                    if (timeoutValue > 30) {
+                        newExtensions.put("x-requires-approval", "true");
+                    }
+                }
+            }
+            
+            // Check for rate limiting configuration
+            if (newExtensions.containsKey("x-rate-limit")) {
+                Object rateLimit = newExtensions.get("x-rate-limit");
+                if (rateLimit != null) {
+                    int rateLimitValue = Integer.parseInt(rateLimit.toString());
+                    if (rateLimitValue > 500) {
+                        newExtensions.put("x-high-volume", "true");
+                    }
+                }
+            }
+            
+            // Check for authentication requirements
+            if (newExtensions.containsKey("x-requires-auth")) {
+                Object authLevel = newExtensions.get("x-requires-auth");
+                if (authLevel != null && "admin".equals(authLevel.toString())) {
+                    newExtensions.put("x-security-notice", 
+                        "This operation requires administrator privileges");
+                }
+            }
+            
+            // Set the modified extensions map back
+            operation.setExtensions(newExtensions);
+            
+        } catch (Exception e) {
+            System.err.println("Error in ExtensionFilter: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        return operation;
+    }
+}
+----
+
+Configure the filter in `microprofile-config.properties`:
+
+[source, properties]
+----
+mp.openapi.filter=io.microprofile.tutorial.store.product.config.ExtensionFilter
+----
+
+==== Practical Use Cases for Filters
+
+Filters are useful for:
+
+* *Dynamic documentation enrichment*: Add computed metadata based on existing extensions
+* *Validation*: Log warnings for operations missing required extensions
+* *Policy enforcement*: Ensure all admin operations have proper security annotations
+* *Metrics*: Count operations by type or collect extension statistics
+* *Gateway configuration*: Generate routing or rate-limiting rules for API gateways
+* *Code generation*: Add hints for client SDK generators
+* *Custom tooling*: Process the OpenAPI document programmatically for custom tools
 
 === Using @Operation for Async Methods
 
