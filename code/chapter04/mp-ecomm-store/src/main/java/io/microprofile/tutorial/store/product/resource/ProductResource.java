@@ -3,6 +3,7 @@ package io.microprofile.tutorial.store.product.resource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.Optional;
 
 import io.microprofile.tutorial.store.product.entity.Product;
 
@@ -14,6 +15,7 @@ import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import org.eclipse.microprofile.openapi.annotations.extensions.Extension;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.validation.Valid;
@@ -39,6 +41,7 @@ import jakarta.ws.rs.core.Response;
  */
 @Path("/products")
 @ApplicationScoped
+@Schema(description = "Product resource")
 @Tag(
     name = "Products",
     description = "Product catalog operations"
@@ -88,26 +91,21 @@ public class ProductResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(
-        summary = "Get all products",
-        description = """
-            Retrieves a list of all products in the catalog.
-            Demonstrates array schema with type constraints and JSON Schema 2020-12 features.
-            """
+        summary = "List all products",
+        description = "Retrieves a complete list of products in the catalog."
     )
-    @APIResponses({
+    @APIResponses(value = {
         @APIResponse(
             responseCode = "200",
             description = "Successfully retrieved product list",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
-                schema = @Schema(
-                    type = SchemaType.ARRAY,
-                    implementation = Product.class,
-                    minItems = 0,
-                    maxItems = 10000,
-                    description = "Array of product objects with full validation"
-                )
+                schema = @Schema(implementation = Product.class)
             )
+        ),
+        @APIResponse(
+            responseCode = "500",
+            description = "Internal server error"
         )
     })
     public List<Product> getProducts() {
@@ -119,7 +117,12 @@ public class ProductResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(
         summary = "Get product by ID",
-        description = "Retrieves a single product by its unique identifier with full schema validation"
+        description = "Retrieves a single product by its unique identifier",
+        extensions = {
+            @Extension(name = "x-custom-timeout", value = "60"),
+            @Extension(name = "x-rate-limit", value = "100"),
+            @Extension(name = "x-cache-ttl", value = "300")
+        }
     )
     @APIResponses({
         @APIResponse(
@@ -164,7 +167,10 @@ public class ProductResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(
         summary = "Create a new product",
-        description = "Creates a new product with full schema validation"
+        extensions = {
+            @Extension(name = "x-requires-auth", value = "admin"),
+            @Extension(name = "x-audit-log", value = "true")
+        }
     )
     @APIResponses({
         @APIResponse(
