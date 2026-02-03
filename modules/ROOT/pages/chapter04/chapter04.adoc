@@ -6,7 +6,7 @@
 
 In the previous chapters, you built RESTful APIs that various clients can use to access your web services regardless of programming language or platform. However, clients need a clear and comprehensive contract that describes available endpoints, expected parameters, and response formats to integrate seamlessly with these web services. This need for a well-defined API contract has led to the adoption of the OpenAPI specification.
 
-This chapter introduces MicroProfile OpenAPI and shows you how to document your RESTful services using OpenAPI annotations. You'll learn to generate comprehensive API documentation that follows the OpenAPI specification, then visualize and interact with your documented APIs using OpenAPI UI (also known as the Swagger UI), a browser-based interface that makes your API contract immediately accessible to developers and stakeholders.
+This chapter introduces MicroProfile OpenAPI and shows you how to document your RESTful services using OpenAPI annotations. You'll learn to generate comprehensive API documentation that follows the OpenAPI specification, then visualize and interact with your documented APIs using Swagger UI (aka Open UI tool), a browser-based interface that makes your API contract immediately accessible to developers and stakeholders.
 
 == Topics to be covered:
 - Introduction to MicroProfile OpenAPI
@@ -14,7 +14,8 @@ This chapter introduces MicroProfile OpenAPI and shows you how to document your 
 - Generating API Documentation
 - Documenting Authentication and Authorization Requirements
 - Exploring the APIs using Swagger UI
-- New Features in MicroProfile OpenAPI 4.1:
+
+=== New Features in MicroProfile OpenAPI 4.1:
   * OpenAPI v3.1 compatibility
   * Java Records support
   * @Target annotation enhancements
@@ -26,40 +27,71 @@ This chapter introduces MicroProfile OpenAPI and shows you how to document your 
 
 == OpenAPI Specification
 
-The Open API Specification (OAS), formerly Swagger specification, is a technical specification that allows REST API providers to describe and publish their APIs using a format that various tools can consume. It defines a standard, language-agnostic interface to RESTful APIs, making it easy for third-party tools to generate documentation, client SDKs, and a range of tools that promote the seamless consumption of RESTful APIs.
+The Open API Specification (OAS), formerly known as Swagger, defines a standard format for describing and publishing REST APIs. It provides a language-agnostic interface to RESTful APIs. API providers use OAS to create machine-readable documents that describe their endpoints, request/response schemas, authentication requirements, and other API characteristics. This standardization enables powerful tooling: IDEs can generate client code automatically, testing frameworks can validate your API against its specification, and documentation tools can create interactive API explorers from a single OpenAPI document.
 
-NOTE: The OpenAPI Initiative, a consortium of industry experts committed to standardizing how to describe REST APIs, maintains the OpenAPI Specification. It is a community-driven initiative, and many large organizations use it, including Google, Microsoft, and Amazon.
+[NOTE]
+====
+The OpenAPI Initiative, a Linux Foundation collaborative project, maintains the specification. Industry leaders including Google, Microsoft, and Amazon contribute to this community-driven standard, ensuring it meets enterprise requirements while remaining vendor-neutral.
+====
 
-The OpenAPI specification enables creation of a well-defined, clear and comprehensive API contract. It provides a standardized way to describe the API's structure, expected requests and responses, and authentication mechanisms, making it easier to develop, test, and maintain RESTful APIs.
+By adopting OpenAPI, you create a single source of truth that serves as both human-readable documentation and a machine-parsable contract, simplifying API development, testing, and long-term maintenance while making your API more accessible to consumers.
 
 == Introduction to MicroProfile OpenAPI
 
-The MicroProfile OpenAPI specification builds upon the widely recognized OpenAPI Specification (OAS) and leverages annotations from the Jakarta Restful Web Services specification. The primary focus of MicroProfile OpenAPI is on defining REST APIs that utilize JSON within the context of HTTP.
+The MicroProfile OpenAPI specification integrates OpenAPI Specification (OAS) with Jakarta Restful Web Services, providing Java annotations that automatically generate OpenAPI documentation from your Java code. This annotation-driven approach offers several advantages:
 
-The specification aims to provide a uniform way of describing APIs so that they are both human-readable and machine-readable.  It facilitates the creation of APIs that are consistent, well-documented, and easily consumable by both humans and machines. 
+* Documentation stays synchronized with code
+* No need to maintain separate specification files  
+* OpenAPI output is generated automatically when your application deploys
+* Standard Jakarta REST endpoints work without modification
+
+MicroProfile OpenAPI 4.0 supports OpenAPI Specification 3.1, ensuring your APIs are consistent, well-documented, and easily consumable across different development tools, testing frameworks, and API consumers.
 
 == Capabilities of MicroProfile OpenAPI Specification
 
-MicroProfile OpenAPI provides a suite of Java APIs that allows developers to define and generate API specifications that adhere to OpenAPI v3.1 standards. As a result, it simplifies the process of designing, documenting, and publishing RESTful APIs for developers. 
+MicroProfile OpenAPI provides a set of annotations and APIs that allow you to generate OpenAPI 3.1-compliant specifications directly from your Jakarta REST code. Instead of manually writing YAML or JSON specification files, you document your API using Java annotations, and MicroProfile OpenAPI generates the complete specification automatically.
 
-Developers can quickly generate documentation for their microservices using MicroProfile OpenAPI. The documentation includes information on what services are provided, how to invoke them, and what data types are used. It generates comprehensive metadata about services, ensuring interoperability across diverse platforms and tools. Also, documentation can generate client code to access the web services.
+The specification supports the full range of OpenAPI features:
 
-The OpenAPI Specification fuels a rich ecosystem of tools that automate and support. This specification streamlines the creation of OpenAPI documentation for RESTful services using a unified approach. It generates comprehensive metadata about services, ensuring interoperability across diverse platforms and tools:
+* *Endpoint Documentation*: Describe operations, parameters, request/response schemas, and examples
+* *Data Models*: Define reusable schemas for your domain objects
+* *Authentication*: Document security requirements and schemes
+* *API Metadata*: Specify versioning, contact information, license details, and servers
+* *Response Definitions*: Describe success and error responses with status codes
 
-* *API Documentation Generation*: Intuitive interactive documentation portals emerge directly from the specification.
-* *Client SDK Creation*: Client libraries in various languages can be automatically generated.
-* *API Testing*: Testing frameworks can leverage the specification to design robust tests.
-* *API Mocking*: Simplifies mocking APIs for testing and development purposes.
+Once generated, your OpenAPI specification enables a rich ecosystem of tools. Documentation portals like Swagger UI create interactive API explorers. Code generators produce client libraries in multiple languages. Testing frameworks validate requests and responses against your specification. Mock servers simulate your API for development and testing.
+
+MicroProfile OpenAPI ensures your documentation stays synchronized with your implementation, eliminating the common problem of outdated API specifications.
 
 == Generating OpenAPI documents
 
-There are multiple ways in which you can generate OpenAPI documents. The most common way is to use annotations. This only requires augmenting your Jakarta Restful Web Services annotations with OpenAPI annotations. 
+MicroProfile OpenAPI generates documentation primarily through annotations you add to your Jakarta REST resources. This annotation-driven approach keeps your documentation synchronized with your code. When you update an endpoint, you update its documentation at the same time.
 
-Besides annotations, a predefined OpenAPI document may be provided in either YAML or JSON format. This so-called static model will be merged with the model generated by scanning for Jakarta REST endpoints and the combined result will be made available to clients. However, the annotation-based approach is recommended as it is more maintainable and easier to understand. Finally, you can filter out the resources you do not want to document using configuration.
+=== Annotation-Based Generation
+
+The recommended approach is to annotate your Jakarta REST classes and methods with OpenAPI annotations. MicroProfile OpenAPI scans your application at build time, discovers annotated endpoints, and generates a complete OpenAPI specification automatically.
+
+This approach offers several benefits:
+* Documentation lives alongside the code it describes
+* IDE support for autocomplete and validation
+* Compile-time checking ensures annotations are valid
+* No separate specification files to maintain
+
+=== Static OpenAPI Files (Optional)
+
+You can also provide a static OpenAPI document in YAML or JSON format at `META-INF/openapi.yaml` or `META-INF/openapi.json`. MicroProfile OpenAPI will merge this static content with the generated specification, allowing you to:
+
+* Add API-level metadata (title, version, contact info)
+* Define reusable schemas or security schemes
+* Override generated documentation for specific endpoints
+
+However, for most applications, annotations alone are sufficient.
+
+=== Selective Documentation
+
+Use the `mp.openapi.scan.exclude.packages` and `mp.openapi.scan.exclude.classes` configuration properties to exclude specific resources from documentation. This is useful for internal or administrative endpoints you don't want to expose in your public API specification.
 
 == Using MicroProfile Open API in your project
-
-To document Jakarta RESTful Web Services using MicroProfile OpenAPI, we need to annotate the resource classes and methods with the OpenAPI annotation. 
 
 To use MicroProfile OpenAPI in your project, you need to add the following maven coordinates to your project:
 
@@ -69,45 +101,44 @@ To use MicroProfile OpenAPI in your project, you need to add the following maven
   <groupId>org.eclipse.microprofile.openapi</groupId>
   <artifactId>microprofile-openapi-api</artifactId>
   <version>4.1</version>
+  <scope>provided</scope>
 </dependency>
 ----
 
-Below is an illustrative example of how you might annotate a method in the `ProductResource` class to achieve this documentation using MicroProfile OpenAPI annotations:
+NOTE: Use `<scope>provided</scope>` since your MicroProfile runtime already includes the implementation.
+
+== Basic Annotation Example 
+
+let's enhance our `ProductResource` class with OpenAPI annotations to generate comprehensive documentation:
 
 [source, java]
 ----
-import org.eclipse.microprofile.openapi.annotations.Operation;
-import org.eclipse.microprofile.openapi.annotations.media.Content;
-import org.eclipse.microprofile.openapi.annotations.media.Schema;
-import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
-import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
-
-import jakarta.ws.rs.GET;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.core.MediaType;
+//... 
 
 @ApplicationScoped
 @Path("/products")
-@Tag(name = "Product Resource", description = "CRUD operations for products")
+@Tag(name = "Products", description = "Product catalog operations")
 public class ProductResource {
 
     //...
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "List all products", description = "Retrieves a list of all available products")
+    @Operation(
+       summary = "List all products", 
+       description = "Retrieves a complete list of products in the catalog")
     @APIResponses(value = {
         @APIResponse(
             responseCode = "200",
-            description = "Successful, list of products found",
-            content = @Content(mediaType = "application/json",
-                    schema = @Schema(implementation = Product.class))
+            description = "Successful retrieved product list",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = Product.class)
+            )
         ),
         @APIResponse(
-            responseCode = "400",
-            description = "Unsuccessful, no products found",
-            content = @Content(mediaType = "application/json")
+            responseCode = "500",
+            description = "Internal server error"
         )
     })
     public List<Product> getAllProducts() {
@@ -118,15 +149,14 @@ public class ProductResource {
 
 Explanation: 
 
-* `@Operation`: Provides a summary and description for the `getProducts()` method.
-
-* `@APIResponse`: Describes the possible responses from the `getProducts()` operation. In this case, a successful response (HTTP 200) is described, indicating that the method returns an array of Product entities.
-
-* `@Schema`: Specifies the schema of the response content. Here, it is used to indicate that the method returns an array of Product objects.
+* `@Tag`: Groups related endpoints together in the documentation
+* `@Operation`: Provides a summary and description for the `getProducts()` method and is used for descripting what the endpoint does.
+* `@APIResponses`: Describes the possible HTTP responses from the `getProducts()` operation. There are two possible responses – a successful response containing a list of produdts with a 200 status code, and an unsuccessful response with a 500 status code, in case of internal server error.
+* `@APIResponse`: Defines a specific response with status code and content. In this case, a successful response (HTTP 200) is described, indicating that the method returns an array of Product entities. The `responseCode` field is used to specify the status code of the response, and the `description` field is used to provide a brief description of the response. 
+* *@Content*: Specifies the response media type and structure. In this example, the response content is a list of `Product`s.
+* `@Schema`: References the data model returned (in this case, `Product.class`)
 
 These annotations enrich the `ProductResource` class with metadata necessary for generating comprehensive and descriptive OpenAPI documentation automatically.
-
-We have also annotated the `getProducts()` method with the @APIResponse annotation to document the successful response from the operation. The `responseCode` field is used to specify the status code of the response, and the `description` field is used to provide a brief description of the response. There are two possible responses – a successful response containing a list of produdts with a 200 status code, and an unsuccessful response with a 400 status code, if no products are found. The content field is used to specify the schema of the response content. In this example, the response content is a list of `Product`s.
 
 Finally, we need to add the following property to the src/main/resources/META-INF/microprofile-config.properties file:
 
@@ -152,7 +182,7 @@ Replace `<port>` with the actual port used by your runtime, for e.g. 9080 which 
 
 The `/openapi` endpoint is used to get information about the OpenAPI specification generated from the comments in the source code annotations. It returns information in YAML format.
 
-When we access the `http://localhost:5050/openapi` URL, we should see the API documentation that was generated by MicroProfile OpenAPI:
+When we access the `http://localhost:9080/openapi` URL, we should see the API documentation that was generated by MicroProfile OpenAPI:
 
 [source, yaml]
 ----
@@ -241,9 +271,17 @@ components:
           type: number
 ----
 
-As we can see, MicroProfile OpenAPI has generated API documentation for our resource class. We can use this documentation to learn about the API and how to use it. 
+As we can see, MicroProfile OpenAPI has generated API documentation for our resource class. We can use this documentation to learn about the API and how to use it. This documentation includes the following information:
+
+* The `/products` endpoint description
+* The GET operation summary and details  
+* Expected response codes (200, 500)
+* The JSON structure of the Product response
+* Grouping under the "Products" tag
 
 MicroProfile OpenAPI allows developers to produce these specifications directly from their codebase, leveraging annotations and/or providing OpenAPI documents statically. This direct generation ensures that the API documentation is always up to date with the code.
+
+This specification can then be visualized in Swagger UI, consumed by client generators, or used by testing frameworks.
 
 == Exploring the APIs using Swagger UI
 
