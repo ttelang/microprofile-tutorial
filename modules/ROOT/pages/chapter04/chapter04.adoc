@@ -4,9 +4,9 @@
 
 == Introduction 
 
-In the previous chapter, we saw how RESTful APIs facilitate language-agnostic access to web services from diverse environments. However, a clear and comprehensive contract is required to ensure seamless integration between clients and services. This need for a well-defined API contract has led to the adoption of the OpenAPI specification.
-This chapter will explore the primary features of MicroProfile OpenAPI, demonstrate how to integrate it into your MicroProfile applications, and show you how to annotate your RESTful services to produce rich documentation that adheres to the OpenAPI specification. Furthermore, we will introduce the OpenAPI UI, a visual interface allowing developers and stakeholders to interact with and visualize the documented APIs, enhancing understanding and facilitating integration.
+In the previous chapters, you built RESTful APIs that various clients can use to access your web services regardless of programming language or platform. However, clients need a clear and comprehensive contract that describes available endpoints, expected parameters, and response formats to integrate seamlessly with these web services. This need for a well-defined API contract has led to the adoption of the OpenAPI specification.
 
+This chapter introduces MicroProfile OpenAPI and shows you how to document your RESTful services using OpenAPI annotations. You'll learn to generate comprehensive API documentation that follows the OpenAPI specification, then visualize and interact with your documented APIs using OpenAPI UI (also known as the Swagger UI), a browser-based interface that makes your API contract immediately accessible to developers and stakeholders.
 
 == Topics to be covered:
 - Introduction to MicroProfile OpenAPI
