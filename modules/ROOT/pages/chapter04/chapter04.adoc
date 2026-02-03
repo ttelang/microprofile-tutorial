@@ -371,27 +371,42 @@ OpenAPI v3.1 provides improved support for `oneOf`, `anyOf`, and `allOf` keyword
 
 === Support for Java Records
 
-Java Records, introduced in Java 14 and finalized in Java 16, provide a concise way to declare immutable data carriers. MicroProfile OpenAPI 4.1 provides enhanced support for Java Records, automatically generating appropriate schema definitions for record types.
+=== Support for Java Records
 
-Example: Using Java Records with MicroProfile OpenAPI
+Java Records (introduced in Java 14/16) provide a concise way to declare immutable data carriers with several advantages:
 
+* *Concise syntax*: Requires less boilerplate code compared to traditional POJOs (Plain Old Java Objects)
+* *Immutability*: Records are inherently immutable, hence promoting safer API contracts
+* *Type safety*: Records provides compile-time guarantees for your data models
+* *Clarity of intent*: Records signal that the type is a simple data carrier
+
+MicroProfile OpenAPI 4.1 provides native support for Java Records, automatically generating schema definitions from record components.
+
+==== Basic Record Schema Generation
+
+MicroProfile OpenAPI automatically discovers record components and generates corresponding OpenAPI schemas. Here's an example using a category record for organizing products:
+
+*Java Record definition:*
 [source, java]
 ----
-import org.eclipse.microprofile.openapi.annotations.media.Schema;
+// ... 
 
-@Schema(name = "ProductRecord", description = "Product information as a Java Record")
-public record ProductRecord(
-    @Schema(description = "Product ID", example = "1")
+@Schema(name = "CategoryRecord", description = "Product category information")
+public record CategoryRecord(
+    @NotNull
+    @Schema(description = "Category ID", example = "1")
     Long id,
     
-    @Schema(description = "Product name", example = "Laptop", required = true)
+    @NotNull
+    @Schema(description = "Category name", example = "Electronics")
     String name,
     
-    @Schema(description = "Product description", example = "High-performance laptop")
-    String description,
+    @Schema(description = "Parent category ID for hierarchical structure", nullable = true)
+    Long parentId,
     
-    @Schema(description = "Product price", example = "999.99", required = true)
-    Double price
+    @NotNull
+    @Schema(description = "Display order", example = "1")
+    Integer displayOrder
 ) {}
 ----
 
@@ -402,36 +417,102 @@ The generated OpenAPI schema for the record:
 openapi: 3.1.0
 components:
   schemas:
-    ProductRecord:
-      description: Product information as a Java Record
+    CategoryRecord:
+      description: Product category information
       type: object
+      required:
+      - id
+      - name
+      - displayOrder
       properties:
         id:
           type: integer
           format: int64
-          description: Product ID
+          description: Category ID
           examples:
           - 1
         name:
           type: string
-          description: Product name
+          description: Category name
           examples:
-          - Laptop
-        description:
-          type: string
-          description: Product description
+          - Electronics
+        parentId:
+          type:
+          - integer
+          - "null"
+          format: int64
+          description: Parent category ID for hierarchical structure
+        displayOrder:
+          type: integer
+          format: int32
+          description: Display order
           examples:
-          - High-performance laptop
-        price:
-          type: number
-          format: double
-          description: Product price
-          examples:
-          - 999.99
-    required:
-      - name
-      - price
+          - 1
 ----
+Use `@NotNull` validation annotations or `@Schema(required = true)` to explicitly mark components as required in the generated specification. In this example, `@NotNull` annotations mark `id`, `name`, and `displayOrder` as required, while `parentId` remains optional for root categories.
+
+==== Optional Components
+
+If you need nullable components, use `Optional<T>`:
+
+[source, java]
+----
+@Schema(name = "CategoryRecord", description = "Product category information")
+public record CategoryRecord(
+    @Schema(description = "Category ID", example = "1")
+    Long id,
+    
+    @Schema(description = "Category name", example = "Electronics")
+    String name,
+    
+    @Schema(description = "Parent category ID for hierarchical structure")
+    Optional<Long> parentId,  // Optional for root categories
+    
+    @Schema(description = "Display order", example = "1")
+    Integer displayOrder
+) {}
+----
+
+*Generated schema with optional parentId:*
+[source, yaml]
+----
+openapi: 3.1.0
+components:
+  schemas:
+    CategoryRecord:
+      description: Product category information
+      type: object
+      required:
+      - id
+      - name
+      - displayOrder
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Category ID
+          examples:
+          - 1
+        name:
+          type: string
+          description: Category name
+          examples:
+          - Electronics
+        parentId:
+          type:
+          - integer
+          - "null"
+          format: int64
+          description: Parent category ID for hierarchical structure
+        displayOrder:
+          type: integer
+          format: int32
+          description: Display order
+          examples:
+          - 1
+----
+
+Use `@NotNull` or `@Schema(required = true)` to mark required components. For nullable components, use `@Schema(nullable = true)` or wrap the type in `Optional<T>`. In this example, `id`, `name`, and `displayOrder` are required, while `parentId` is nullable for root categories.
 
 === @Target Annotation Enhancement
 
