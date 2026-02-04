@@ -1586,27 +1586,27 @@ You learned to document asynchronous operations using the `@Callback` annotation
 
 You explored how to document multiple security schemes including API Keys, JWT Bearer tokens, and OAuth2 with authorization flows. You learned to apply security requirements at both the operation and resource class levels, and how to specify required OAuth2 scopes for fine-grained access control.
 
-=== Practical skills acquired
+=== What you have learned
 
-By completing this chapter, you can now:
+Having finished this chapter, you can now:
 
-* Generate OpenAPI 3.1 specifications automatically from Jakarta REST code
-* Document endpoints with `@Operation`, `@APIResponse`, and `@Tag` annotations
-* Create type-safe schemas using Java records and `@Schema`
-* Work with flexible schemas for dynamic attributes
+* Automatically generate OpenAPI 3.1 specifications from Jakarta REST code
+* Document endpoints using `@Operation`, `@APIResponse`, and `@Tag` annotations
+* Construct type-safe schemas using Java records and `@Schema`
+* Handle flexible schemas for dynamic attributes
 * Document asynchronous operations with callbacks
 * Configure multiple security schemes
-* Use OAS filters for dynamic documentation
-* Test APIs interactively with Swagger UI
+* Add OAS filters for dynamic documentation
+* Interactively Test APIs interactively with Swagger UI
 
-MicroProfile OpenAPI 4.1's alignment with OpenAPI v3.1 ensures your API documentation uses the latest standards in the API ecosystem. The annotation-driven approach means documentation stays synchronized with your implementation, which eliminates the common problem of outdated specifications. Generated OpenAPI documents enable:
+MicroProfile OpenAPI 4.1's alignment with OpenAPI v3.1 guarentees your API documentation ahdres to the latest standards in the API landscape. This annotation-driven approach keeps documentation in sync with your implementation, thereby avoiding the common problem of outdated specifications. The generated OpenAPI documents facilities:
 
-* Automatic client SDK generation in multiple programming languages
-* Interactive API exploration through Swagger UI
+* Automatic client SDK generation across multiple programming languages
+* Interactive API exploration via Swagger UI
 * Integration with API gateways for routing, rate limiting, and security policies
 * Contract testing and validation frameworks
 * API discovery and cataloging in enterprise environments
 
-This specification transforms API documentation from a manual, error-prone task into an automatic, reliable process that evolves seamlessly with your code.
+This specification streamlines API documentation, transforming it from a manual, error-prone chore into an automated, reliable process that evolves in tandem with your code.
 
-Your APIs are now well-documented, and discoverable.
+With these learnings, your APIs should be now well-documented, and discoverable.
