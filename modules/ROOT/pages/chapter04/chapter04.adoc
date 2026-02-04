@@ -34,7 +34,7 @@ MicroProfile OpenAPI 4.1 introduces the following enhancements:
 
 == OpenAPI Specification
 
-The OpenAPI Specification (OAS), formerly known as Swagger, defines a standard format for describing and publishing REST APIs. It provides a language-agnostic interface to RESTful APIs. API providers use OAS to create machine-readable documents that describe their endpoints, request and response schemas, authentication requirements, and other API characteristics. This standardization enables powerful tooling: IDEs can generate client code automatically, testing frameworks can validate your API against its specification, and documentation tools can create interactive API explorers from a single OpenAPI document.
+The OpenAPI Specification (OAS), formerly known as Swagger, defines a standard format for describing and publishing REST APIs. It provides a language-agnostic interface to RESTful APIs. API providers use OAS to create machine-readable documents that describe their endpoints, request and response schemas, authentication requirements, and other API characteristics. This standardization enables powerful tooling: Integrated Development Environments (IDEs) can automatically generate client code. Testing frameworks can then verify your API's functionality against its specification. Furthermore, Documentation tools can build interactive API explorers, all stemming from a single OpenAPI document.
 
 [NOTE]
 ====
@@ -76,15 +76,14 @@ Add annotations to your Jakarta REST resources to generate documentation with Mi
 
 === Annotation-based generation
 
-Annotate your Jakarta REST classes and methods with OpenAPI annotations. MicroProfile OpenAPI scans your application at build time, discovers annotated endpoints, and generates a complete OpenAPI specification automatically.
+You can use OpenAPI annotations to mark up your Jakarta REST classes and methods. MicroProfile OpenAPI then scans your application during the build time, automatically discovering the annotated endpoints, and producing a full OpenAPI specification.
 
-This approach offers several benefits:
+This approach has several advantages:
 
 * Documentation lives alongside the code it describes
-* IDE (Integrated Development Environment) support for autocomplete and validation
+* IDEs can provide support for autocomplete and validation features.
 * Compile-time checking ensures annotations remain valid
 * No separate specification files to maintain
-
 
 == Generating OpenAPI documents
 
