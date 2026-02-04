@@ -45,14 +45,14 @@ When you adopt OpenAPI, you create a single source of truth that serves as both 
 
 == Introduction to MicroProfile OpenAPI
 
-The MicroProfile OpenAPI specification integrates the OpenAPI Specification (OAS) with Jakarta RESTful Web Services (formerly JAX-RS), providing Java annotations that automatically generate OpenAPI documentation from your Java code. This annotation-driven approach offers several advantages:
+The MicroProfile OpenAPI specification integrates the OpenAPI Specification (OAS) with Jakarta RESTful Web Services, previously known as JAX-RS. It provides Java annotations that automatically generate OpenAPI documentation directly from your Java code. This annotation-driven approach offers several advantages:
 
-* Documentation stays synchronized with code
-* No need to maintain separate specification files  
-* OpenAPI output generates automatically when your application deploys
-* Standard Jakarta REST endpoints work without modification
+* Your documentation stays always synchronized with your codebase
+* You do not need to maintain and juggle between separate specification files  
+* The OpenAPI output is generated automatically when your application is deployed
+* The standard Jakarta REST endpoints work without any modifications
 
-MicroProfile OpenAPI 4.0 supports OpenAPI Specification 3.1, which ensures your APIs remain consistent, well-documented, and easily consumable across different development tools, testing frameworks, and API consumers.
+MicroProfile OpenAPI 4.0 supports OpenAPI Specification 3.1. This ensures your APIs are consistent, well-documented, and easily usable across a variety of development tools, testing frameworks, and API consumers.
 
 == Capabilities of MicroProfile OpenAPI
 
