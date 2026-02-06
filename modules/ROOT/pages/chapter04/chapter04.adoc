@@ -120,17 +120,6 @@ To use MicroProfile OpenAPI in your project, add the following Maven coordinates
 Use `<scope>provided</scope>` because your MicroProfile runtime already includes the implementation.
 ====
 
-=== Configuring annotation scanning
-
-Add the following property to the `src/main/resources/META-INF/microprofile-config.properties` file:
-
-[source, properties]
-----
-mp.openapi.scan=true
-----
-
-This property tells MicroProfile OpenAPI to scan your classes for annotations and generate API documentation for them. 
-
 == Basic annotation example
 
 To document Jakarta RESTful Web Services using MicroProfile OpenAPI, annotate your resource classes and methods with OpenAPI annotations. The following example shows how to annotate a method in the `ProductResource` class:
@@ -178,6 +167,11 @@ The annotations provide the following documentation:
 * `@Schema`: References the data model returned (in this case, `Product.class`)
 
 These annotations enrich the `ProductResource` class with metadata necessary for generating comprehensive OpenAPI documentation automatically.
+
+[NOTE]
+====
+Annotation scanning is enabled by default. If you need to disable it, you can set `mp.openapi.scan.disabled=true` in your `microprofile-config.properties` file.
+====
 
 Build and run your application after configuring MicroProfile OpenAPI.
 
