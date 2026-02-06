@@ -907,13 +907,20 @@ mp.openapi.filter=io.microprofile.tutorial.store.product.config.ExtensionFilter
 
 Filters prove useful for:
 
-* Dynamic documentation enrichment: Add computed metadata based on existing extensions
-* Validation: Log warnings for operations missing required extensions
-* Policy enforcement: Ensure all admin operations have proper security annotations
-* Metrics: Count operations by type or collect extension statistics
-* Gateway configuration: Generate routing or rate-limiting rules for API gateways
-* Code generation: Add hints for client SDK generators
-* Custom tooling: Process the OpenAPI document programmatically for custom tools
+* *Dynamic documentation enrichment*: Add computed metadata based on businness logic (as demonstrated in the example, we added `x-requires-approval` to flag high timeout values)
+* *Validation*: Log warnings for operations missing required metadata
+* *Policy enforcement*: Ensure operations comply with organizational standards (for example, verify admin endpoints have appropriate security requirements).
+* *Metrics*: Collect statistics about API structure during document generation
+* *Tool integration*: Add vendor extensions that can be consumed by external tools, for example:
+  - API gateways: `x-rate-limit`, `x-timeout`
+  - Code generators: `x-client-name`, `x-operation-id`
+  - Monitoring: `x-monitoring-level`, `x-alert-threshold`
+  - Testing: `x-test-priority`, `x-mock-data`
+
+[NOTE]
+====
+Filters modify the OpenAPI document before it is served. They do not directly generate configuration files or code. Instead, they add metadata (often as vendor extensions) that other tools consume from the generated OpenAPI specification.
+====
 
 === Documenting asynchronous operations with callbacks
 
