@@ -19,19 +19,6 @@ This chapter covers the following topics:
 * Exploring APIs using Swagger UI
 * Using new features in MicroProfile OpenAPI 4.1
 
-=== New features in MicroProfile OpenAPI 4.1
-
-MicroProfile OpenAPI 4.1 introduces the following enhancements:
-
-* OpenAPI v3.1 compatibility
-* Java records support
-* `@Target` annotation enhancements
-* JSON Schema dialect support
-* Extensible interface methods
-* Asynchronous operations with callbacks
-* `Optional<T>` nullable fields
-* Comprehensive security schemes
-
 == OpenAPI Specification
 
 The OpenAPI Specification (OAS), formerly known as Swagger, defines a standard format for describing and publishing REST APIs. It provides a language-agnostic interface to RESTful APIs. API providers use OAS to create machine-readable documents that describe their endpoints, request and response schemas, authentication requirements, and other API characteristics. This standardization enables powerful tooling: Integrated Development Environments (IDEs) can automatically generate client code. Testing frameworks can then verify your API's functionality against its specification. Furthermore, Documentation tools can build interactive API explorers, all stemming from a single OpenAPI document.
@@ -122,7 +109,9 @@ Use `<scope>provided</scope>` because your MicroProfile runtime already includes
 
 == Basic annotation example
 
-To document Jakarta RESTful Web Services using MicroProfile OpenAPI, annotate your resource classes and methods with OpenAPI annotations. The following example shows how to annotate a method in the `ProductResource` class:
+To document Jakarta RESTful Web Services using MicroProfile OpenAPI, annotate your resource classes and methods with OpenAPI annotations. 
+
+The following example shows how to annotate a method in the `ProductResource` class:
 
 [source, java]
 ----
@@ -765,6 +754,31 @@ Prior to MicroProfile OpenAPI 4.1, checking for and retrieving extensions requir
 * `hasExtension(String name)`: Returns `true` if the extension exists
 * `getExtension(String name)`: Returns the extension value or `null` if not found
 
+==== Mutable model collections
+
+Version 4.1 requires that all collection-returning methods in model interfaces return mutable collections. This ensures consistent behavior when modifying the OpenAPI model programmatically:
+
+[source, java]
+----
+@Override
+public Operation filterOperation(Operation operation) {
+    // Collections are guaranteed to be mutable in 4.1
+    List<SecurityRequirement> requirements = operation.getSecurity();
+    if (requirements == null) {
+        requirements = new ArrayList<>();
+        operation.setSecurity(requirements);
+    }
+    
+    requirements.add(
+        OASFactory.createSecurityRequirement().addScheme("apiKey")
+    );
+    
+    return operation;
+}
+----
+
+Prior to version 4.1, implementations could return immutable collections, which would cause runtime errors when attempting modifications.
+
 ==== Adding extensions to operations
 
 You can add vendor extensions to operations using the `@Extension` annotation:
@@ -894,7 +908,6 @@ public class ExtensionFilter implements OASFilter {
     }
 }
 ----
-
 
 Configure the filter in `microprofile-config.properties`:
 
@@ -1248,6 +1261,10 @@ When you document callbacks in your OpenAPI specification, you provide:
 * Validation: Schema validation ensures your callbacks send correct data
 * Code generation: Tools can generate callback handler code for clients
 
+== Documenting API features
+
+This section covers how to document common API features using MicroProfile OpenAPI annotations.
+
 === Documenting security schemes
 
 Security is a critical aspect of API documentation. MicroProfile OpenAPI 4.1 provides comprehensive support for documenting various security schemes including API keys, HTTP authentication, OAuth2, and OpenID Connect.
@@ -1418,6 +1435,137 @@ public class SecuredProductResource {
 }
 ----
 
+*Applying security to an entire resource class:*
+
+[source, java]
+----
+package io.microprofile.tutorial.store.admin.resource;
+
+import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
+import org.eclipse.microprofile.openapi.annotations.Operation;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import java.util.List;
+
+@Path("/admin/products")
+@SecurityRequirement(name = "oauth2", scopes = {"write:products", "delete:products"})
+public class AdminProductResource {
+    
+    // All operations in this class require OAuth2 with both scopes
+    
+    @PUT
+    @Path("/{id}/publish")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Publish product")
+    public Response publishProduct(@PathParam("id") Long id) {
+        productService.publish(id);
+        return Response.ok().build();
+    }
+    
+    @POST
+    @Path("/bulk-import")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Bulk import products")
+    public Response bulkImport(List<Product> products) {
+        productService.bulkImport(products);
+        return Response.accepted().build();
+    }
+}
+----
+
+==== Generated OpenAPI document
+
+The security schemes and requirements are documented in the OpenAPI specification:
+
+[source, yaml]
+----
+openapi: 3.1.0
+info:
+  title: Product Catalog API
+  version: 1.0.0
+  description: E-commerce product catalog API with multiple security schemes
+
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      description: API Key authentication for service-to-service communication
+      name: X-API-Key
+      in: header
+    
+    bearerAuth:
+      type: http
+      description: JWT Bearer token authentication for user requests
+      scheme: bearer
+      bearerFormat: JWT
+    
+    oauth2:
+      type: oauth2
+      description: OAuth2 authentication with authorization code flow
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.example.com/oauth/authorize
+          tokenUrl: https://auth.example.com/oauth/token
+          scopes:
+            read:products: Read product information
+            write:products: Create and modify product information
+            delete:products: Delete products
+
+paths:
+  /api/products/{id}:
+    get:
+      summary: Get product by ID
+      description: Retrieves detailed product information. Requires JWT authentication.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Product found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '401':
+          description: Unauthorized - Missing or invalid JWT token
+        '404':
+          description: Product not found
+  
+  /api/products:
+    post:
+      summary: Create a new product
+      description: Creates a new product in the catalog. Requires OAuth2 write:products scope.
+      security:
+        - oauth2:
+            - write:products
+      requestBody:
+        description: Product to create
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Product'
+      responses:
+        '201':
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          description: Bad request - Invalid product data
+        '401':
+          description: Unauthorized - Missing or invalid OAuth2 token
+        '403':
+          description: Forbidden - Token lacks required write:products scope
+----
+
 ==== Security in Swagger UI
 
 When you view the documented API in Swagger UI, security schemes appear in several ways:
@@ -1472,14 +1620,16 @@ You explored how to document multiple security schemes including API Keys, JWT B
 
 Having finished this chapter, you can now:
 
-* Automatically generate OpenAPI 3.1 specifications from Jakarta REST code
+* Generate OpenAPI 3.1 specifications automatically from Jakarta REST code
 * Document endpoints using `@Operation`, `@APIResponse`, and `@Tag` annotations
 * Construct type-safe schemas using Java records and `@Schema`
 * Handle flexible schemas for dynamic attributes
 * Document asynchronous operations with callbacks
 * Configure multiple security schemes
 * Add OAS filters for dynamic documentation
-* Interactively Test APIs interactively with Swagger UI
+* Test APIs interactively with Swagger UI
+
+=== Practical applications
 
 MicroProfile OpenAPI 4.1's alignment with OpenAPI v3.1 guarentees your API documentation ahdres to the latest standards in the API landscape. This annotation-driven approach keeps documentation in sync with your implementation, thereby avoiding the common problem of outdated specifications. The generated OpenAPI documents facilities:
 
