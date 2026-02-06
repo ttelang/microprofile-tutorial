@@ -138,19 +138,17 @@ public class ProductResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(summary = "List all products", description = "Retrieves a list of all available products")
-    @APIResponses(value = {
-        @APIResponse(
-            responseCode = "200",
-            description = "Successful, list of products found",
-            content = @Content(mediaType = "application/json",
-                    schema = @Schema(implementation = Product.class))
-        ),
-        @APIResponse(
-            responseCode = "400",
-            description = "Unsuccessful, no products found",
-            content = @Content(mediaType = "application/json")
-        )
-    })
+    @APIResponse(
+        responseCode = "200",
+        description = "Successful, list of products found",
+        content = @Content(mediaType = "application/json",
+        schema = @Schema(implementation = Product.class)
+    ),
+    @APIResponse(
+        responseCode = "400",
+        description = "Unsuccessful, no products found",
+        content = @Content(mediaType = "application/json")
+    )
     public List<Product> getAllProducts() {
         // Method implementation
     }
@@ -161,10 +159,14 @@ The annotations provide the following documentation:
 
 * `@Tag`: Groups related endpoints together in the documentation
 * `@Operation`: Describes what the endpoint does
-* `@APIResponses`: Documents possible HTTP responses from the operation
 * `@APIResponse`: Defines a specific response with status code and content
 * `@Content`: Specifies the response media type and structure
 * `@Schema`: References the data model returned (in this case, `Product.class`)
+
+[NOTE]
+====
+The `@APIResponse` annotation is repeatable, which means you can apply it multiple times to document different response codes. You only need the `@APIResponses` wrapper annotation when using the `extensions` field to add vendor-specific metadata to all responses.
+====
 
 These annotations enrich the `ProductResource` class with metadata necessary for generating comprehensive OpenAPI documentation automatically.
 
