@@ -319,9 +319,20 @@ You can use MicroProfile OpenAPI annotations to document any Jakarta RESTful Web
 
 All of these annotations are defined in the `org.eclipse.microprofile.openapi.annotations` package.
 
-== New features in MicroProfile OpenAPI 4.1
+== New features in MicroProfile OpenAPI 4.0
 
-MicroProfile OpenAPI 4.1 introduces several enhancements that improve developer productivity and align with the OpenAPI v3.1 specification. These features simplify API documentation, add support for modern Java language features, and provide better schema validation capabilities.
+MicroProfile OpenAPI 4.0 introduces several enhancements that improve developer productivity and align with the OpenAPI v3.1 specification. These features simplify API documentation, add support for modern Java language features, and provide better schema validation capabilities.
+
+[NOTE]
+====
+MicroProfile OpenAPI 4.0 was a major release that introduced OpenAPI v3.1 support, which brings many improvements to API documentation capabilities. The subsequent 4.1 release added clarifications to the specification, including:
+
+* Requirement that all collection-returning methods in model interfaces must return mutable collections
+* Clarifications on annotation scanning behavior for Jakarta REST subresource locators
+* Refinements to `@Schema` and `@RequestBody` annotation semantics
+
+This chapter covers features available in MicroProfile OpenAPI 4.1 and later, including the specification-level improvements that come from OpenAPI v3.1 adoption.
+====
 
 === OpenAPI v3.1 specification support
 
