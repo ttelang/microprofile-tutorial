@@ -912,7 +912,9 @@ Filters are useful for:
 
 === Documenting Asynchronous Operations with Callbacks
 
-MicroProfile OpenAPI 4.1 supports documenting asynchronous operations that use callbacks. Callbacks are useful for webhook-style APIs where your service initiates an asynchronous process and notifies the client when it completes by making an HTTP request back to a URL provided by the client.
+MicroProfile OpenAPI supports documenting asynchronous operations that use callbacks and webhooks. Support for callbacks is not new in version 4.1 or 4.0 - the `@Callback` annotation documents a callback that can be set up using an operation. Starting in version 4.0, support for webhooks was added, which document a callback that can be set up via some out-of-band mechanism (e.g., through a form on a web page). The OpenAPI document may include information on how to set the webhook up.
+
+Callbacks are useful for webhook-style APIs where your service initiates an asynchronous process and notifies the client when it completes by making an HTTP request back to a URL provided by the client.
 
 ==== Understanding Callbacks
 
