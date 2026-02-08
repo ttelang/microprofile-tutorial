@@ -106,6 +106,22 @@ import jakarta.ws.rs.core.Application;
                 description = "OpenAPI v3.1 Specification",
                 url = "https://spec.openapis.org/oas/v3.1.0"
             )
+        ),
+        @Tag(
+            name = "Webhooks",
+            description = """
+                Webhook subscription management for receiving real-time product event notifications.
+                
+                **OpenAPI 3.1 Feature**: Webhooks are a new feature in OpenAPI 3.1 that allows documenting
+                reverse APIs where the server calls the client.
+                
+                Subscribe to events like product.created, product.updated, etc. to receive notifications
+                at your specified callback URL.
+                """,
+            externalDocs = @ExternalDocumentation(
+                description = "Webhook Best Practices",
+                url = "https://docs.github.com/webhooks"
+            )
         )
     },
     externalDocs = @ExternalDocumentation(

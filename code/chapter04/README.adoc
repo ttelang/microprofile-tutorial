@@ -1,0 +1,1939 @@
+= Chapter 04 - MicroProfile OpenAPI 4.1 with OpenAPI v3.1
+:toc: left
+:toclevels: 3
+:sectnums:
+:icons: font
+:source-highlighter: highlightjs
+
+== Overview
+
+Chapter 04 demonstrates **MicroProfile OpenAPI 4.1** alignment with **OpenAPI v3.1 specification** and **JSON Schema 2020-12**, showcasing advanced schema validation, improved nullable handling, and enhanced API documentation capabilities.
+
+This chapter provides **two complete implementations** of the same OpenAPI v3.1 features:
+
+1. **catalog** - Database-backed product catalog (comprehensive, production-ready)
+2. **mp-ecomm-store** - In-memory e-commerce store (simplified, learning-focused)
+
+=== Why OpenAPI v3.1 Matters
+
+MicroProfile OpenAPI 4.1 brings full OpenAPI v3.1 support, which represents a significant evolution from OpenAPI 3.0 by fully aligning with JSON Schema 2020-12. This alignment provides:
+
+* *Single Source of Truth*: Same schema definitions work for both OpenAPI documentation and JSON Schema validation
+* *Better Validation*: More precise constraint expressions and validation rules
+* *Improved Tooling*: Leverage the entire JSON Schema ecosystem
+* *Standard Compliance*: Full compatibility with JSON Schema 2020-12 specification
+
+== Implementation Comparison
+
+[cols="1,2,2", options="header"]
+|===
+| Feature | Catalog Service | MP E-Commerce Store
+
+| *Data Storage*
+| PostgreSQL database
+| In-memory ArrayList
+
+| *JPA/Hibernate*
+| ✅ Full JPA implementation
+| ❌ No database
+
+| *Persistence*
+| ✅ Data persists across restarts
+| ❌ Data lost on restart
+
+| *Product Fields*
+| 14 fields (comprehensive)
+| 8 fields (essential)
+
+| *Lifecycle Callbacks*
+| ✅ @PrePersist, @PreUpdate
+| ❌ Not applicable
+
+| *Timestamps*
+| ✅ Automatic createdAt/updatedAt
+| ❌ No timestamps
+
+| *Complexity*
+| Advanced (production-ready)
+| Simple (learning-focused)
+
+| *Best For*
+| Production use, advanced learning
+| Quick demos, getting started
+
+| *Port*
+| 9081
+| 5050
+
+| *Base Path*
+| `/catalog`
+| `/mp-ecomm-store`
+
+| *OpenAPI URL*
+| http://localhost:9081/openapi
+| http://localhost:5050/mp-ecomm-store/openapi
+
+| *Swagger UI*
+| http://localhost:9081/openapi/ui
+| http://localhost:5050/mp-ecomm-store/openapi/ui
+|===
+
+=== Which Implementation Should You Use?
+
+==== Use *Catalog Service* if you want:
+
+* ✅ Production-ready implementation
+* ✅ Database persistence with JPA/Hibernate
+* ✅ Advanced features (lifecycle callbacks, timestamps)
+* ✅ Comprehensive 14-field validation
+* ✅ Learning database integration patterns
+
+==== Use *MP E-Commerce Store* if you want:
+
+* ✅ Quick demonstration without database setup
+* ✅ Simple, easy-to-understand code
+* ✅ Focus on OpenAPI annotations
+* ✅ Getting started with OpenAPI v3.1
+* ✅ Fast iteration and experimentation
+
+==== Use *Both* if you want:
+
+* ✅ Complete learning experience
+* ✅ Compare simple vs. complex implementations
+* ✅ See same features in different contexts
+* ✅ Understand evolution from simple to advanced
+
+== Catalog Service (Database-Backed)
+
+=== Product Entity - 14 Fields
+
+[source,java]
+----
+@Entity
+@Table(name = "products")
+public class Product {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Schema(readOnly = true, minimum = "1", format = "int64")
+    private Long id;                  // Auto-generated primary key
+    
+    @Column(nullable = false, length = 100)
+    @Schema(minLength = 1, maxLength = 100, pattern = "^[a-zA-Z0-9\\s\\-]+$")
+    private String name;              // Product name (required)
+    
+    @Column(length = 500)
+    @Schema(nullable = true, maxLength = 500)
+    private String description;       // Detailed description (nullable)
+    
+    @Column(nullable = false, precision = 10, scale = 2)
+    @Schema(minimum = "0.01", maximum = "999999.99", exclusiveMinimum = true, multipleOf = 0.01)
+    private Double price;             // Price with validation
+    
+    @Column(unique = true, length = 50)
+    @Schema(pattern = "^[A-Z]{3}-[A-Z0-9]+-[A-Z0-9]+$", minLength = 5, maxLength = 50)
+    private String sku;               // Stock Keeping Unit (pattern validated)
+    
+    @Column(length = 50)
+    @Schema(enumeration = {"ELECTRONICS", "CLOTHING", "BOOKS", "HOME_GARDEN", "SPORTS", "TOYS"})
+    private String category;          // Product category (enumerated)
+    
+    @Column(nullable = false)
+    @Schema(minimum = "0", defaultValue = "0", format = "int32")
+    private Integer stockQuantity;    // Available stock
+    
+    @Column(precision = 3, scale = 2)
+    @Schema(minimum = "0.0", maximum = "5.0", nullable = true)
+    private Double rating;            // Customer rating (0.0 - 5.0)
+    
+    @Column(precision = 10, scale = 3)
+    @Schema(minimum = "0.001", exclusiveMinimum = true, nullable = true)
+    private Double weight;            // Product weight in kg
+    
+    @Column(nullable = false)
+    @Schema(defaultValue = "true")
+    private Boolean active;           // Product availability
+    
+    @Column(length = 100)
+    @Schema(maxLength = 100, nullable = true)
+    private String manufacturer;      // Manufacturer name
+    
+    @Column
+    @Schema(minimum = "0", maximum = "120", nullable = true, format = "int32")
+    private Integer warrantyMonths;   // Warranty period
+    
+    @Column(name = "created_at", updatable = false)
+    @Schema(readOnly = true, format = "date-time")
+    private LocalDateTime createdAt;  // Auto-populated on creation
+    
+    @Column(name = "updated_at")
+    @Schema(readOnly = true, format = "date-time")
+    private LocalDateTime updatedAt;  // Auto-updated on modification
+    
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+    
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+}
+----
+
+=== Sample Product (Catalog)
+
+[source,json]
+----
+{
+  "id": 1,
+  "name": "Wireless Mouse",
+  "description": "Ergonomic wireless mouse with USB receiver",
+  "price": 29.99,
+  "sku": "ELC-MS001-BLK",
+  "category": "ELECTRONICS",
+  "stockQuantity": 150,
+  "rating": 4.5,
+  "weight": 0.125,
+  "active": true,
+  "manufacturer": "TechCorp",
+  "warrantyMonths": 12,
+  "createdAt": "2024-01-15T10:30:00",
+  "updatedAt": "2024-01-20T14:45:00"
+}
+----
+
+=== Running Catalog Service
+
+[source,bash]
+----
+cd /workspaces/microprofile-tutorial/code/chapter04/catalog
+mvn clean package
+mvn liberty:dev
+
+# Access points:
+# OpenAPI Spec: http://localhost:9081/openapi
+# Swagger UI:   http://localhost:9081/openapi/ui
+# API Base:     http://localhost:9081/api/products
+----
+
+== MP E-Commerce Store (In-Memory)
+
+=== Product Entity - 8 Fields
+
+[source,java]
+----
+public class Product {
+    @Schema(readOnly = true, minimum = "1", format = "int64")
+    private Long id;                  // Unique identifier
+    
+    @Schema(minLength = 1, maxLength = 100, pattern = "^[a-zA-Z0-9\\s\\-]+$")
+    private String name;              // Product name
+    
+    @Schema(nullable = true, minLength = 10, maxLength = 1000)
+    private String description;       // Product description (nullable)
+    
+    @Schema(minimum = "0.01", maximum = "999999.99", exclusiveMinimum = true, multipleOf = 0.01, format = "double")
+    private Double price;             // Price with validation
+    
+    @Schema(pattern = "^[A-Z]{3}-[A-Z0-9]+-[A-Z0-9]+$", example = "ELC-MS001-BLK")
+    private String sku;               // SKU (pattern validated)
+    
+    @Schema(enumeration = {"ELECTRONICS", "CLOTHING", "BOOKS", "HOME", "SPORTS"}, example = "ELECTRONICS")
+    private String category;          // Category (enumerated)
+    
+    @Schema(minimum = "0", defaultValue = "0", format = "int32")
+    private Integer stockQuantity;    // Stock level
+    
+    @Schema(defaultValue = "true")
+    private Boolean inStock;          // Availability flag
+}
+----
+
+=== Sample Product (MP E-Commerce Store)
+
+[source,json]
+----
+{
+  "id": 1,
+  "name": "Wireless Mouse",
+  "description": "Ergonomic wireless mouse with USB receiver",
+  "price": 29.99,
+  "sku": "ELC-MS001-BLK",
+  "category": "ELECTRONICS",
+  "stockQuantity": 150,
+  "inStock": true
+}
+----
+
+=== Running MP E-Commerce Store
+
+[source,bash]
+----
+cd /workspaces/microprofile-tutorial/code/chapter04/mp-ecomm-store
+mvn clean package
+mvn liberty:dev
+
+# Access points:
+# OpenAPI Spec: http://localhost:5050/mp-ecomm-store/openapi
+# Swagger UI:   http://localhost:5050/mp-ecomm-store/openapi/ui
+# API Base:     http://localhost:5050/mp-ecomm-store/api/products
+----
+
+== OpenAPI v3.1 Features Demonstrated
+
+Both implementations demonstrate the same OpenAPI v3.1 and JSON Schema 2020-12 features.
+
+=== 1. Pattern-Based String Validation
+
+==== SKU Pattern
+
+[source,java]
+----
+@Schema(
+    description = "Stock Keeping Unit - unique product identifier",
+    pattern = "^[A-Z]{3}-[A-Z0-9]+-[A-Z0-9]+$",
+    example = "APL-IPH15P-256"
+)
+private String sku;
+----
+
+*Validation Rules:*
+
+* ✅ Valid: `APL-IPH15P-256`, `SAM-GAL-S24-512`, `ELC-MS001-BLK`
+* ❌ Invalid: `apple-123` (lowercase), `APL_IPH_256` (underscores), `E-MS001-BLK` (only 1 letter before dash)
+
+==== Product Name Pattern
+
+[source,java]
+----
+@Schema(
+    description = "Product name",
+    minLength = 1,
+    maxLength = 100,
+    pattern = "^[a-zA-Z0-9\\s\\-]+$"
+)
+private String name;
+----
+
+*Validation Rules:*
+
+* ✅ Valid: `Wireless Mouse`, `iPhone-15-Pro`, `Gaming Laptop 2024`
+* ❌ Invalid: `Product@Name` (special chars), Empty string, 101+ characters
+
+=== 2. Numeric Constraints with Exclusive Bounds
+
+==== Price Validation (OpenAPI 3.1 Feature)
+
+[source,java]
+----
+@Schema(
+    description = "Product price in USD",
+    minimum = "0.01",
+    maximum = "999999.99",
+    exclusiveMinimum = true,  // OpenAPI 3.1 feature
+    multipleOf = 0.01,
+    format = "double"
+)
+private Double price;
+----
+
+*Key Difference from OpenAPI 3.0:*
+
+[cols="1,2,2", options="header"]
+|===
+| Specification | exclusiveMinimum Syntax | Meaning
+
+| OpenAPI 3.0
+| `{"minimum": 0, "exclusiveMinimum": true}`
+| Boolean flag (less intuitive)
+
+| OpenAPI 3.1
+| `{"minimum": "0.01", "exclusiveMinimum": true}`
+| Numeric value + boolean (more intuitive)
+|===
+
+*Validation Rules:*
+
+* ✅ Valid: `0.02`, `29.99`, `100.00`
+* ❌ Invalid: `0.00` (not > 0.01), `0.01` (must be exclusive, > 0.01), `29.999` (not multiple of 0.01)
+
+==== Rating Constraints
+
+[source,java]
+----
+@Schema(
+    description = "Customer rating",
+    minimum = "0.0",
+    maximum = "5.0",
+    nullable = true,
+    format = "double"
+)
+private Double rating;
+----
+
+*Validation Rules:*
+
+* ✅ Valid: `0.0`, `4.5`, `5.0`, `null`
+* ❌ Invalid: `-1.0`, `5.1`, `10.0`
+
+=== 3. Format Specifications
+
+OpenAPI v3.1 provides standardized format specifications for precise data validation.
+
+==== Numeric Formats
+
+[source,java]
+----
+// Integer formats
+@Schema(type = SchemaType.INTEGER, format = "int32")  // -2^31 to 2^31-1
+private Integer stockQuantity;
+
+@Schema(type = SchemaType.INTEGER, format = "int64")  // -2^63 to 2^63-1
+private Long id;
+
+// Decimal formats
+@Schema(type = SchemaType.NUMBER, format = "double")  // Double precision
+private Double price;
+
+@Schema(type = SchemaType.NUMBER, format = "float")   // Single precision
+private Float discount;
+----
+
+==== Date/Time Formats
+
+[source,java]
+----
+@Schema(
+    type = SchemaType.STRING,
+    format = "date-time",  // ISO 8601: 2026-02-01T14:20:00Z
+    readOnly = true
+)
+private LocalDateTime createdAt;
+
+@Schema(format = "date")  // 2026-02-01
+private LocalDate eventDate;
+
+@Schema(format = "time")  // 14:20:00
+private LocalTime eventTime;
+----
+
+*Supported Date/Time Formats:*
+
+* `date-time`: `2026-02-01T14:20:00Z`
+* `date`: `2026-02-01`
+* `time`: `14:20:00`
+
+==== Other Standard Formats
+
+* `email`: Email address validation
+* `uri` / `url`: URI/URL validation
+* `uuid`: UUID format (e.g., `123e4567-e89b-12d3-a456-426614174000`)
+* `binary`: Binary data
+* `byte`: Base64 encoded data
+
+=== 4. Enhanced Schema Features
+
+==== Nullable Handling
+
+[source,java]
+----
+@Schema(
+    description = "Product description",
+    nullable = true,  // Can be null
+    maxLength = 500
+)
+private String description;
+----
+
+*OpenAPI 3.0 vs 3.1:*
+
+* *3.0*: `nullable: true` was a custom extension
+* *3.1*: `nullable` is native JSON Schema, fully standardized
+
+==== Enumeration Support
+
+[source,java]
+----
+@Schema(
+    description = "Product category",
+    enumeration = {"ELECTRONICS", "CLOTHING", "BOOKS", "HOME_GARDEN", "SPORTS", "TOYS"},
+    example = "ELECTRONICS"
+)
+private String category;
+----
+
+*Validation Rules:*
+
+* ✅ Valid: `ELECTRONICS`, `CLOTHING`, `BOOKS`, `HOME_GARDEN`, `SPORTS`, `TOYS`
+* ❌ Invalid: `electronics` (case-sensitive), `TOYS_GAMES` (not in enum), `null` (unless nullable=true)
+
+==== Default Values
+
+[source,java]
+----
+@Schema(
+    description = "Available quantity in stock",
+    defaultValue = "0",
+    minimum = "0"
+)
+private Integer stockQuantity;
+
+@Schema(
+    description = "Product availability status",
+    defaultValue = "true"
+)
+private Boolean active;
+----
+
+==== Read-Only Properties
+
+[source,java]
+----
+@Schema(
+    description = "Unique identifier",
+    readOnly = true,  // Cannot be modified by clients
+    minimum = "1"
+)
+private Long id;
+
+@Schema(
+    description = "Creation timestamp",
+    readOnly = true,
+    format = "date-time"
+)
+private LocalDateTime createdAt;
+----
+
+=== 5. Array Schema Constraints
+
+[source,java]
+----
+@GET
+@Produces(MediaType.APPLICATION_JSON)
+@APIResponse(
+    responseCode = "200",
+    description = "List of all products",
+    content = @Content(
+        schema = @Schema(
+            type = SchemaType.ARRAY,
+            implementation = Product.class,
+            minItems = 0,
+            maxItems = 10000,
+            uniqueItems = false
+        )
+    )
+)
+public List<Product> getAllProducts() {
+    return products;
+}
+----
+
+=== 6. Advanced Parameter Validation
+
+Query parameters with full JSON Schema validation:
+
+[source,java]
+----
+@GET
+@Path("/search")
+@Produces(MediaType.APPLICATION_JSON)
+public List<Product> searchProducts(
+    @Parameter(
+        description = "Minimum price (exclusive)",
+        schema = @Schema(
+            type = SchemaType.NUMBER,
+            format = "double",
+            minimum = "0.00",
+            exclusiveMinimum = true,
+            maximum = "999999.99",
+            multipleOf = 0.01,
+            nullable = true,
+            example = "500.00"
+        )
+    )
+    @QueryParam("minPrice") Double minPrice,
+    
+    @Parameter(
+        description = "Product category filter",
+        schema = @Schema(
+            enumeration = {"ELECTRONICS", "CLOTHING", "BOOKS", "HOME_GARDEN", "SPORTS", "TOYS"},
+            nullable = true
+        )
+    )
+    @QueryParam("category") String category,
+    
+    @Parameter(
+        description = "Page number (0-based)",
+        schema = @Schema(
+            type = SchemaType.INTEGER,
+            format = "int32",
+            minimum = "0",
+            defaultValue = "0"
+        )
+    )
+    @DefaultValue("0")
+    @QueryParam("page") Integer page,
+    
+    @Parameter(
+        description = "Page size",
+        schema = @Schema(
+            type = SchemaType.INTEGER,
+            format = "int32",
+            minimum = "1",
+            maximum = "100",
+            defaultValue = "20"
+        )
+    )
+    @DefaultValue("20")
+    @QueryParam("size") Integer size
+) {
+    // Implementation
+}
+----
+
+== OpenAPI 3.0 vs OpenAPI 3.1 Comparison
+
+=== Major Differences
+
+[cols="1,2,2", options="header"]
+|===
+| Feature | OpenAPI 3.0 | OpenAPI 3.1 (JSON Schema 2020-12)
+
+| *Schema Specification*
+| JSON Schema subset (draft-05)
+| Full JSON Schema 2020-12
+
+| *Nullable*
+| `nullable: true` (custom extension)
+| Native JSON Schema support
+
+| *exclusiveMinimum*
+| Boolean flag: `{"minimum": 0, "exclusiveMinimum": true}`
+| Numeric value: `{"minimum": "0.01", "exclusiveMinimum": true}`
+
+| *exclusiveMaximum*
+| Boolean flag: `{"maximum": 100, "exclusiveMaximum": true}`
+| Numeric value: `{"maximum": "99.99", "exclusiveMaximum": true}`
+
+| *Pattern*
+| Basic regex support
+| Full regex with anchors and advanced features
+
+| *Examples*
+| Single `example` property
+| Multiple `examples` with `exampleSetFlag`
+
+| *Const*
+| Not supported
+| `const` keyword for constant values
+
+| *$schema*
+| Not allowed in schemas
+| Allowed and recommended
+
+| *Webhooks*
+| Not supported
+| Native webhook support
+
+| *Schema Composition*
+| Limited `allOf`, `anyOf`, `oneOf`
+| Full composition with better semantics
+
+| *contentMediaType*
+| Not supported
+| Supported for binary content
+
+| *contentEncoding*
+| Not supported
+| Supported (base64, etc.)
+
+| *deprecated*
+| Supported
+| Enhanced with better semantics
+
+| *Tooling Support*
+| OpenAPI-specific tools only
+| Any JSON Schema 2020-12 validator
+|===
+
+=== exclusiveMinimum/exclusiveMaximum Evolution
+
+==== OpenAPI 3.0 Syntax (Confusing)
+
+[source,json]
+----
+{
+  "price": {
+    "type": "number",
+    "minimum": 0,
+    "exclusiveMinimum": true  // Boolean flag means "minimum is exclusive"
+  }
+}
+----
+
+*Problem:* The boolean `true` doesn't clearly indicate what the exclusive boundary is.
+
+==== OpenAPI 3.1 Syntax (Intuitive)
+
+[source,json]
+----
+{
+  "price": {
+    "type": "number",
+    "minimum": "0.01",
+    "exclusiveMinimum": true  // More intuitive: minimum is 0.01 AND it's exclusive
+  }
+}
+----
+
+*Better:* The minimum value is explicit, and `exclusiveMinimum: true` clearly indicates it's exclusive.
+
+=== Benefits of OpenAPI v3.1
+
+==== 1. Single Source of Truth
+
+Use the same schema for:
+
+* API documentation (OpenAPI spec)
+* Client code generation
+* Server-side validation
+* Contract testing (Pact, Spring Cloud Contract)
+* Mock server generation
+* JSON Schema validation
+
+==== 2. Better Validation
+
+More precise constraints:
+
+* `exclusiveMinimum`/`exclusiveMaximum` as numeric values (more intuitive)
+* `multipleOf` for decimal precision (e.g., currency with 2 decimal places)
+* Full regex pattern support with anchors (`^`, `$`)
+* Strict format validation (`int32`, `int64`, `double`, `date-time`, etc.)
+
+==== 3. Improved Tooling
+
+Leverage existing JSON Schema tools:
+
+* *Validators*: Ajv (JavaScript), jsonschema (Python), json-schema-validator (Java)
+* *Code Generators*: openapi-generator, openapi-typescript, swagger-codegen
+* *Testing Frameworks*: Postman, REST Assured, Karate
+* *Documentation Generators*: Redoc, Swagger UI, RapiDoc
+
+==== 4. Standard Compliance
+
+* Full JSON Schema 2020-12 specification support
+* No proprietary extensions needed
+* Better interoperability between tools
+* Future-proof (aligned with JSON Schema evolution)
+
+==== 5. Enhanced Developer Experience
+
+* Richer API documentation with detailed constraints
+* Better IDE support (autocomplete, validation)
+* Type-safe code generation
+* Clear, actionable validation error messages
+
+== REST API Endpoints
+
+Both implementations provide the same REST API structure:
+
+[cols="1,2,3", options="header"]
+|===
+| Method | Endpoint | Description
+
+| GET
+| `/products`
+| List all products (array with minItems/maxItems constraints)
+
+| GET
+| `/products/{id}`
+| Get product by ID (path param: int64, minimum: 1)
+
+| POST
+| `/products`
+| Create new product (request body with full validation)
+
+| PUT
+| `/products/{id}`
+| Update existing product
+
+| DELETE
+| `/products/{id}`
+| Delete product (returns 204 No Content)
+
+| GET
+| `/products/search`
+| Search with filters and pagination
+|===
+
+=== Search Parameters
+
+[cols="1,1,2,2", options="header"]
+|===
+| Parameter | Type | Validation | Example
+
+| `name`
+| String
+| Pattern match
+| `?name=Mouse`
+
+| `category`
+| String
+| Enumeration
+| `?category=ELECTRONICS`
+
+| `minPrice`
+| Double
+| >= 0.01, exclusiveMinimum
+| `?minPrice=20`
+
+| `maxPrice`
+| Double
+| > minPrice
+| `?maxPrice=100`
+
+| `page`
+| Integer
+| >= 0, default: 0
+| `?page=0`
+
+| `size`
+| Integer
+| 1-100, default: 20
+| `?size=10`
+|===
+
+== Testing the APIs
+
+=== Build and Run (Catalog Service)
+
+[source,bash]
+----
+cd /workspaces/microprofile-tutorial/code/chapter04/catalog
+mvn clean package liberty:run
+
+# Or use dev mode (hot reload)
+mvn liberty:dev
+----
+
+=== Build and Run (MP E-Commerce Store)
+
+[source,bash]
+----
+cd /workspaces/microprofile-tutorial/code/chapter04/mp-ecomm-store
+mvn clean package liberty:run
+
+# Or use dev mode (hot reload)
+mvn liberty:dev
+----
+
+=== Access OpenAPI Specifications
+
+==== Catalog Service
+
+[source,bash]
+----
+# JSON format
+curl http://localhost:9081/openapi
+
+# YAML format
+curl http://localhost:9081/openapi?format=yaml
+
+# Save to file
+curl http://localhost:9081/openapi > openapi-catalog.json
+
+# Interactive Swagger UI
+open http://localhost:9081/openapi/ui
+----
+
+==== MP E-Commerce Store
+
+[source,bash]
+----
+# JSON format
+curl http://localhost:5050/mp-ecomm-store/openapi
+
+# YAML format
+curl http://localhost:5050/mp-ecomm-store/openapi?format=yaml
+
+# Save to file
+curl http://localhost:5050/mp-ecomm-store/openapi > openapi-mp-ecomm-store.json
+
+# Interactive Swagger UI
+open http://localhost:5050/mp-ecomm-store/openapi/ui
+----
+
+=== API Testing Examples
+
+==== Get All Products
+
+[source,bash]
+----
+# Catalog service
+curl http://localhost:9081/api/products
+
+# MP E-Commerce Store
+curl http://localhost:5050/mp-ecomm-store/api/products
+----
+
+==== Get Product by ID
+
+[source,bash]
+----
+# Catalog service
+curl http://localhost:9081/api/products/1
+
+# MP E-Commerce Store
+curl http://localhost:5050/mp-ecomm-store/api/products/1
+----
+
+==== Create Product
+
+[source,bash]
+----
+# MP E-Commerce Store
+curl -X POST http://localhost:5050/mp-ecomm-store/api/products \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Mechanical Keyboard",
+    "description": "RGB mechanical gaming keyboard",
+    "price": 129.99,
+    "sku": "ELC-KB001-RGB",
+    "category": "ELECTRONICS",
+    "stockQuantity": 50,
+    "inStock": true
+  }'
+
+# Catalog service (more fields)
+curl -X POST http://localhost:9081/api/products \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Samsung Galaxy S24",
+    "description": "Samsung Galaxy S24 Ultra with 512GB storage",
+    "price": 1299.99,
+    "sku": "SAM-GAL-S24-512",
+    "category": "ELECTRONICS",
+    "stockQuantity": 30,
+    "rating": 4.7,
+    "weight": 0.234,
+    "manufacturer": "Samsung Electronics",
+    "warrantyMonths": 24
+  }'
+----
+
+==== Search with Price Range
+
+[source,bash]
+----
+# Products with price > $500 and <= $2000 (MP E-Commerce Store)
+curl "http://localhost:5050/mp-ecomm-store/api/products/search?minPrice=500&maxPrice=2000"
+
+# Catalog service
+curl "http://localhost:9081/api/products/search?minPrice=500&maxPrice=2000"
+----
+
+==== Search by Category
+
+[source,bash]
+----
+# MP E-Commerce Store
+curl "http://localhost:5050/mp-ecomm-store/api/products/search?category=ELECTRONICS"
+
+# Catalog service
+curl "http://localhost:9081/api/products/search?category=ELECTRONICS"
+----
+
+==== Search with Pagination
+
+[source,bash]
+----
+# MP E-Commerce Store (page 0, size 10)
+curl "http://localhost:5050/mp-ecomm-store/api/products/search?page=0&size=10"
+
+# Catalog service (page 1, size 20)
+curl "http://localhost:9081/api/products/search?page=1&size=20"
+----
+
+==== Combined Search
+
+[source,bash]
+----
+# Search ELECTRONICS category with price range $20-$100, page 0, size 10
+curl "http://localhost:5050/mp-ecomm-store/api/products/search?category=ELECTRONICS&minPrice=20&maxPrice=100&page=0&size=10"
+----
+
+=== Run Test Scripts
+
+Both implementations include automated test scripts:
+
+[source,bash]
+----
+# Test catalog service
+cd /workspaces/microprofile-tutorial/code/chapter04/catalog
+chmod +x test-openapi-features.sh
+./test-openapi-features.sh
+
+# Test mp-ecomm-store
+cd /workspaces/microprofile-tutorial/code/chapter04/mp-ecomm-store
+chmod +x test-openapi-features.sh
+./test-openapi-features.sh
+----
+
+== Product Entity Field Summary
+
+=== Catalog Service (14 Fields)
+
+[cols="1,1,2,1,2", options="header"]
+|===
+| Field | Type | Constraints | Format | Features
+
+| `id`
+| Long
+| min: 1
+| int64
+| readOnly
+
+| `name`
+| String
+| 1-100 chars, pattern: `^[a-zA-Z0-9\\s\\-]+$`
+| -
+| required
+
+| `description`
+| String
+| max 500 chars
+| -
+| nullable
+
+| `price`
+| Double
+| 0.01-999999.99, exclusiveMin
+| double
+| multipleOf 0.01
+
+| `sku`
+| String
+| 5-50 chars, pattern: `^[A-Z]{3}-[A-Z0-9]+-[A-Z0-9]+$`
+| -
+| unique, nullable
+
+| `category`
+| String
+| enum: ELECTRONICS, CLOTHING, BOOKS, HOME_GARDEN, SPORTS, TOYS
+| -
+| nullable
+
+| `stockQuantity`
+| Integer
+| min: 0
+| int32
+| default: 0
+
+| `rating`
+| Double
+| 0.0-5.0
+| double
+| nullable
+
+| `weight`
+| Double
+| > 0.001 kg, exclusiveMin
+| double
+| nullable
+
+| `active`
+| Boolean
+| -
+| -
+| default: true
+
+| `manufacturer`
+| String
+| max 100 chars
+| -
+| nullable
+
+| `warrantyMonths`
+| Integer
+| 0-120
+| int32
+| nullable
+
+| `createdAt`
+| LocalDateTime
+| -
+| date-time
+| readOnly
+
+| `updatedAt`
+| LocalDateTime
+| -
+| date-time
+| readOnly
+|===
+
+=== MP E-Commerce Store (8 Fields)
+
+[cols="1,1,2,1,2", options="header"]
+|===
+| Field | Type | Constraints | Format | Features
+
+| `id`
+| Long
+| min: 1
+| int64
+| readOnly
+
+| `name`
+| String
+| 1-100 chars, pattern: `^[a-zA-Z0-9\\s\\-]+$`
+| -
+| required
+
+| `description`
+| String
+| 10-1000 chars
+| -
+| nullable
+
+| `price`
+| Double
+| 0.01-999999.99, exclusiveMin
+| double
+| multipleOf 0.01
+
+| `sku`
+| String
+| pattern: `^[A-Z]{3}-[A-Z0-9]+-[A-Z0-9]+$`
+| -
+| -
+
+| `category`
+| String
+| enum: ELECTRONICS, CLOTHING, BOOKS, HOME, SPORTS
+| -
+| -
+
+| `stockQuantity`
+| Integer
+| min: 0
+| int32
+| default: 0
+
+| `inStock`
+| Boolean
+| -
+| -
+| default: true
+|===
+
+== Validation Examples
+
+=== Valid Product Examples
+
+==== Minimal Valid Product (MP E-Commerce Store)
+
+[source,json]
+----
+{
+  "name": "Wireless Mouse",
+  "price": 29.99,
+  "sku": "ELC-MS001-BLK",
+  "category": "ELECTRONICS"
+}
+----
+
+==== Complete Valid Product (Catalog)
+
+[source,json]
+----
+{
+  "name": "iPhone 15 Pro",
+  "description": "Apple iPhone 15 Pro with 256GB storage",
+  "price": 999.99,
+  "sku": "APL-IPH15P-256",
+  "category": "ELECTRONICS",
+  "stockQuantity": 50,
+  "rating": 4.8,
+  "weight": 0.187,
+  "active": true,
+  "manufacturer": "Apple Inc.",
+  "warrantyMonths": 12
+}
+----
+
+=== Invalid Examples
+
+==== Invalid SKU (Fails Pattern)
+
+[source,json]
+----
+{
+  "name": "Test Product",
+  "price": 10.00,
+  "sku": "invalid-format",  // ❌ Must match ^[A-Z]{3}-[A-Z0-9]+-[A-Z0-9]+$
+  "category": "ELECTRONICS"
+}
+----
+
+*Error:* SKU must have format like `ELC-MS001-BLK` (3 uppercase letters, dash, alphanumeric, dash, alphanumeric)
+
+==== Invalid Price (Fails Minimum)
+
+[source,json]
+----
+{
+  "name": "Test Product",
+  "price": 0.00,  // ❌ Must be > 0.01 (exclusiveMinimum)
+  "sku": "ELC-TEST-001",
+  "category": "ELECTRONICS"
+}
+----
+
+*Error:* Price must be greater than 0.01 (not equal to, must be exclusive)
+
+==== Invalid Price (Not Multiple of 0.01)
+
+[source,json]
+----
+{
+  "name": "Test Product",
+  "price": 29.999,  // ❌ Not multiple of 0.01
+  "sku": "ELC-TEST-001",
+  "category": "ELECTRONICS"
+}
+----
+
+*Error:* Price must be multiple of 0.01 (e.g., 29.99 is valid, 29.999 is not)
+
+==== Invalid Category (Not in Enum)
+
+[source,json]
+----
+{
+  "name": "Test Product",
+  "price": 10.00,
+  "sku": "ELC-TEST-001",
+  "category": "INVALID"  // ❌ Must be ELECTRONICS, CLOTHING, etc.
+}
+----
+
+*Error:* Category must be one of the enumerated values
+
+==== Invalid Name (Too Long)
+
+[source,json]
+----
+{
+  "name": "A".repeat(101),  // ❌ maxLength: 100
+  "price": 10.00,
+  "sku": "ELC-TEST-001",
+  "category": "ELECTRONICS"
+}
+----
+
+*Error:* Name cannot exceed 100 characters
+
+== Code Generation Support
+
+OpenAPI v3.1 schemas generate better, type-safe client code.
+
+=== TypeScript Client (openapi-typescript)
+
+[source,typescript]
+----
+interface Product {
+  readonly id: number;  // format: int64, minimum: 1, readOnly
+  name: string;  // required, 1-100 chars, pattern: ^[a-zA-Z0-9\s\-]+$
+  description?: string | null;  // nullable, max 500 chars
+  price: number;  // 0.01-999999.99, exclusive minimum, multipleOf: 0.01
+  sku?: string;  // pattern: ^[A-Z]{3}-[A-Z0-9]+-[A-Z0-9]+$
+  category?: "ELECTRONICS" | "CLOTHING" | "BOOKS" | "HOME_GARDEN" | "SPORTS" | "TOYS";
+  stockQuantity?: number;  // default: 0, minimum: 0
+  rating?: number | null;  // 0.0-5.0
+  weight?: number | null;  // > 0.001, exclusive minimum
+  active?: boolean;  // default: true
+  manufacturer?: string | null;  // max 100 chars
+  warrantyMonths?: number | null;  // 0-120
+  readonly createdAt?: string;  // format: date-time
+  readonly updatedAt?: string;  // format: date-time
+}
+----
+
+=== Java Client (openapi-generator)
+
+[source,java]
+----
+import jakarta.validation.constraints.*;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+public class Product {
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    @Min(1)
+    private Long id;
+    
+    @NotNull
+    @Pattern(regexp = "^[a-zA-Z0-9\\s\\-]+$")
+    @Size(min = 1, max = 100)
+    private String name;
+    
+    @Size(max = 500)
+    private String description;
+    
+    @NotNull
+    @DecimalMin(value = "0.01", inclusive = false)
+    @DecimalMax("999999.99")
+    @Digits(integer = 6, fraction = 2)
+    private Double price;
+    
+    @Pattern(regexp = "^[A-Z]{3}-[A-Z0-9]+-[A-Z0-9]+$")
+    @Size(min = 5, max = 50)
+    private String sku;
+    
+    // Full Bean Validation annotations generated from OpenAPI schema
+}
+----
+
+=== Python Client (openapi-generator)
+
+[source,python]
+----
+from typing import Optional
+from pydantic import BaseModel, Field, constr, confloat, conint
+from datetime import datetime
+
+class Product(BaseModel):
+    id: Optional[int] = Field(None, ge=1, description="Unique identifier", readOnly=True)
+    name: constr(min_length=1, max_length=100, pattern=r'^[a-zA-Z0-9\s\-]+$')
+    description: Optional[constr(max_length=500)] = None
+    price: confloat(gt=0.01, le=999999.99, multiple_of=0.01)
+    sku: Optional[constr(pattern=r'^[A-Z]{3}-[A-Z0-9]+-[A-Z0-9]+$')] = None
+    category: Optional[Literal["ELECTRONICS", "CLOTHING", "BOOKS", "HOME_GARDEN", "SPORTS", "TOYS"]] = None
+    stock_quantity: conint(ge=0) = 0
+    rating: Optional[confloat(ge=0.0, le=5.0)] = None
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "name": "Wireless Mouse",
+                "price": 29.99,
+                "sku": "ELC-MS001-BLK",
+                "category": "ELECTRONICS"
+            }
+        }
+----
+
+== JSON Schema Validation Tools
+
+=== Using OpenAPI CLI Tools
+
+[source,bash]
+----
+# Install Redocly CLI
+npm install -g @redocly/cli
+
+# Lint OpenAPI specification
+redocly lint http://localhost:5050/mp-ecomm-store/openapi
+redocly lint http://localhost:9081/openapi
+
+# Bundle specification
+redocly bundle http://localhost:5050/mp-ecomm-store/openapi -o bundled-openapi.json
+----
+
+=== Using Spectral for Linting
+
+[source,bash]
+----
+# Install Spectral
+npm install -g @stoplight/spectral-cli
+
+# Lint with Spectral
+spectral lint http://localhost:5050/mp-ecomm-store/openapi
+spectral lint http://localhost:9081/openapi
+----
+
+=== Using JSON Schema Validator Libraries
+
+==== JavaScript (Ajv - supports JSON Schema 2020-12)
+
+[source,bash]
+----
+npm install ajv ajv-formats
+----
+
+[source,javascript]
+----
+const Ajv = require("ajv");
+const addFormats = require("ajv-formats");
+
+const ajv = new Ajv();
+addFormats(ajv);
+
+// Fetch OpenAPI schema
+const response = await fetch('http://localhost:5050/mp-ecomm-store/openapi');
+const openApiSpec = await response.json();
+
+// Extract Product schema
+const productSchema = openApiSpec.components.schemas.Product;
+
+// Validate product data
+const validate = ajv.compile(productSchema);
+const valid = validate(productData);
+
+if (!valid) {
+    console.error('Validation errors:', validate.errors);
+}
+----
+
+==== Python (jsonschema)
+
+[source,bash]
+----
+pip install jsonschema
+----
+
+[source,python]
+----
+import requests
+import jsonschema
+from jsonschema import validate
+
+# Fetch OpenAPI schema
+response = requests.get('http://localhost:5050/mp-ecomm-store/openapi')
+openapi_spec = response.json()
+
+# Extract Product schema
+product_schema = openapi_spec['components']['schemas']['Product']
+
+# Validate product data
+product_data = {
+    "name": "Wireless Mouse",
+    "price": 29.99,
+    "sku": "ELC-MS001-BLK",
+    "category": "ELECTRONICS"
+}
+
+try:
+    validate(instance=product_data, schema=product_schema)
+    print("Product is valid!")
+except jsonschema.ValidationError as e:
+    print(f"Validation error: {e.message}")
+----
+
+==== Java (JSON Schema Validator)
+
+[source,xml]
+----
+<dependency>
+    <groupId>com.networknt</groupId>
+    <artifactId>json-schema-validator</artifactId>
+    <version>1.0.87</version>
+</dependency>
+----
+
+[source,java]
+----
+import com.networknt.schema.JsonSchema;
+import com.networknt.schema.JsonSchemaFactory;
+import com.networknt.schema.SpecVersion;
+import com.networknt.schema.ValidationMessage;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+
+import java.net.URL;
+import java.util.Set;
+
+public class SchemaValidator {
+    public static void main(String[] args) throws Exception {
+        // Fetch OpenAPI schema
+        URL openApiUrl = new URL("http://localhost:5050/mp-ecomm-store/openapi");
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode openApiSpec = mapper.readTree(openApiUrl);
+        
+        // Extract Product schema
+        JsonNode productSchemaNode = openApiSpec.get("components").get("schemas").get("Product");
+        
+        // Create JSON Schema validator
+        JsonSchemaFactory factory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012);
+        JsonSchema schema = factory.getSchema(productSchemaNode);
+        
+        // Product data to validate
+        String productJson = """
+            {
+                "name": "Wireless Mouse",
+                "price": 29.99,
+                "sku": "ELC-MS001-BLK",
+                "category": "ELECTRONICS"
+            }
+            """;
+        JsonNode productData = mapper.readTree(productJson);
+        
+        // Validate
+        Set<ValidationMessage> errors = schema.validate(productData);
+        
+        if (errors.isEmpty()) {
+            System.out.println("Product is valid!");
+        } else {
+            System.out.println("Validation errors:");
+            errors.forEach(System.out::println);
+        }
+    }
+}
+----
+
+== Quick Reference
+
+=== Essential @Schema Annotations
+
+[source,java]
+----
+// Type and format
+@Schema(type = SchemaType.INTEGER, format = "int32")
+@Schema(type = SchemaType.INTEGER, format = "int64")
+@Schema(type = SchemaType.NUMBER, format = "double")
+@Schema(type = SchemaType.NUMBER, format = "float")
+@Schema(type = SchemaType.STRING, format = "date-time")
+@Schema(type = SchemaType.STRING, format = "date")
+@Schema(type = SchemaType.STRING, format = "email")
+@Schema(type = SchemaType.STRING, format = "uri")
+@Schema(type = SchemaType.STRING, format = "uuid")
+
+// String constraints
+@Schema(minLength = 1, maxLength = 100)
+@Schema(pattern = "^[A-Z]{3}-[A-Z0-9]+-[A-Z0-9]+$")
+
+// Numeric constraints
+@Schema(minimum = "0", maximum = "100")
+@Schema(minimum = "0.01", exclusiveMinimum = true)  // OpenAPI 3.1 feature
+@Schema(maximum = "99.99", exclusiveMaximum = true)  // OpenAPI 3.1 feature
+@Schema(multipleOf = 0.01)
+
+// Enumeration
+@Schema(enumeration = {"ELECTRONICS", "CLOTHING", "BOOKS"})
+
+// Nullable and default
+@Schema(nullable = true)
+@Schema(defaultValue = "0")
+@Schema(defaultValue = "true")
+
+// Read-only
+@Schema(readOnly = true)
+
+// Arrays
+@Schema(type = SchemaType.ARRAY, implementation = Product.class, minItems = 0, maxItems = 1000)
+
+// Required
+@Schema(required = true)
+
+// Description and examples
+@Schema(description = "Product price in USD")
+@Schema(example = "999.99")
+----
+
+=== Common Validation Patterns
+
+[source,java]
+----
+// Currency (USD cents)
+@Schema(minimum = "0.01", exclusiveMinimum = true, multipleOf = 0.01, format = "double")
+private Double price;
+
+// Percentage (0-100)
+@Schema(minimum = "0", maximum = "100", format = "double")
+private Double discountPercentage;
+
+// Rating (0.0-5.0)
+@Schema(minimum = "0.0", maximum = "5.0", format = "double")
+private Double rating;
+
+// Email
+@Schema(format = "email", maxLength = 255)
+private String email;
+
+// URL
+@Schema(format = "uri", maxLength = 2048)
+private String website;
+
+// UUID
+@Schema(format = "uuid", pattern = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+private String uuid;
+
+// SKU pattern
+@Schema(pattern = "^[A-Z]{3}-[A-Z0-9]+-[A-Z0-9]+$", minLength = 5, maxLength = 50)
+private String sku;
+
+// Phone number (US format)
+@Schema(pattern = "^\\+1[0-9]{10}$", example = "+11234567890")
+private String phoneNumber;
+
+// Timestamp (read-only)
+@Schema(readOnly = true, format = "date-time")
+private LocalDateTime createdAt;
+----
+
+== Best Practices
+
+=== 1. Always Specify Format
+
+[source,java]
+----
+// ✅ Good - Clear and specific
+@Schema(type = SchemaType.NUMBER, format = "double")
+private Double price;
+
+@Schema(type = SchemaType.INTEGER, format = "int64")
+private Long id;
+
+// ❌ Bad - Ambiguous
+@Schema(type = SchemaType.NUMBER)
+private Double price;
+----
+
+=== 2. Use Patterns for String Validation
+
+[source,java]
+----
+// ✅ Good - Precise validation
+@Schema(pattern = "^[A-Z]{3}-[A-Z0-9]+-[A-Z0-9]+$")
+private String sku;
+
+// ❌ Bad - No validation
+@Schema()
+private String sku;
+----
+
+=== 3. Document with Examples
+
+[source,java]
+----
+// ✅ Good - Shows expected format
+@Schema(
+    description = "Product price in USD",
+    example = "999.99",
+    format = "double"
+)
+private Double price;
+
+// ❌ Bad - No example
+@Schema(description = "Product price")
+private Double price;
+----
+
+=== 4. Use Read-Only for Server-Generated Fields
+
+[source,java]
+----
+// ✅ Good - Prevents client modification
+@Schema(readOnly = true)
+private Long id;
+
+@Schema(readOnly = true, format = "date-time")
+private LocalDateTime createdAt;
+
+// ❌ Bad - Clients can try to set these
+@Schema()
+private Long id;
+----
+
+=== 5. Specify Nullable Explicitly
+
+[source,java]
+----
+// ✅ Good - Clear intent
+@Schema(nullable = true)
+private String description;
+
+// ❌ Bad - Unclear if null is allowed
+@Schema()
+private String description;
+----
+
+=== 6. Use Exclusive Bounds When Appropriate
+
+[source,java]
+----
+// ✅ Good - Price must be > 0.01 (OpenAPI 3.1)
+@Schema(minimum = "0.01", exclusiveMinimum = true)
+private Double price;
+
+// ❌ Bad - Allows 0.01 which might not be intended
+@Schema(minimum = "0.01")
+private Double price;
+----
+
+=== 7. Leverage multipleOf for Decimal Precision
+
+[source,java]
+----
+// ✅ Good - Enforces 2 decimal places for currency
+@Schema(multipleOf = 0.01)
+private Double price;
+
+// ❌ Bad - Allows arbitrary precision like 29.999
+@Schema()
+private Double price;
+----
+
+== Learning Path
+
+=== Beginner
+
+. *Start with MP E-Commerce Store*
+  - Simpler code structure (no database)
+  - Focus on OpenAPI annotations
+  - 8 essential fields to learn
+
+. *Review README in mp-ecomm-store/*
+  - Understand basic setup
+  - Learn annotation patterns
+  - See validation examples
+
+. *Run the Application*
+  - `mvn liberty:dev`
+  - Explore Swagger UI at http://localhost:5050/mp-ecomm-store/openapi/ui
+  - Try creating products with valid/invalid data
+
+. *Test with Script*
+  - Run `./test-openapi-features.sh`
+  - Observe validation in action
+  - Understand error responses
+
+=== Intermediate
+
+. *Move to Catalog Service*
+  - Database integration with JPA
+  - 14 comprehensive fields
+  - Lifecycle callbacks (@PrePersist, @PreUpdate)
+
+. *Study Catalog README*
+  - Understand database configuration
+  - Learn advanced validation patterns
+  - Explore timestamp management
+
+. *Explore Advanced Features*
+  - Pattern validation (SKU format)
+  - Exclusive numeric bounds
+  - Format specifications
+  - Enumeration constraints
+
+. *Compare Implementations*
+  - Identify differences between 8-field and 14-field models
+  - Understand when to use each approach
+  - Learn database vs. in-memory trade-offs
+
+=== Advanced
+
+. *Deep Dive into OpenAPI 3.0 vs 3.1*
+  - Read comparison section above
+  - Understand JSON Schema 2020-12 alignment
+  - Learn migration strategies
+
+. *Implement Custom Validations*
+  - Add new fields with custom patterns
+  - Implement complex validation rules
+  - Create custom format specifications
+
+. *Integrate with Tools*
+  - Generate client code (TypeScript, Java, Python)
+  - Use JSON Schema validators (Ajv, jsonschema)
+  - Set up API linting (Spectral, Redocly)
+
+. *Build Your Own Service*
+  - Apply learnings to your project
+  - Use OpenAPI v3.1 features
+  - Implement comprehensive validation
+
+== Troubleshooting
+
+=== Port Already in Use
+
+[source,bash]
+----
+# Check what's using the port
+lsof -i :5050  # or :9081
+
+# Kill the process
+kill -9 <PID>
+
+# Or change port in server.xml
+<httpEndpoint id="defaultHttpEndpoint"
+              httpPort="9082"  # Change this
+              httpsPort="9443"/>
+----
+
+=== Build Failures
+
+[source,bash]
+----
+# Clean everything
+mvn clean
+
+# Rebuild from scratch
+mvn clean package
+
+# Check Java version (requires Java 21)
+java -version
+
+# Verify Maven version
+mvn -version
+----
+
+=== Database Connection Issues (Catalog Only)
+
+[source,bash]
+----
+# Check if PostgreSQL is running
+docker ps | grep postgres
+
+# Start PostgreSQL if not running
+docker run -d \
+  --name postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=productdb \
+  -p 5432:5432 \
+  postgres:15
+
+# Verify connection settings in microprofile-config.properties
+jakarta.persistence.jdbc.url=jdbc:postgresql://localhost:5432/productdb
+jakarta.persistence.jdbc.user=postgres
+jakarta.persistence.jdbc.password=postgres
+----
+
+=== OpenAPI Specification Not Loading
+
+[source,bash]
+----
+# Verify feature is enabled in server.xml
+<featureManager>
+    <feature>mpOpenAPI-4.0</feature>  <!-- Check this line -->
+    <feature>jsonp-2.1</feature>
+    <feature>jsonb-3.0</feature>
+    <feature>cdi-4.0</feature>
+    <feature>restfulWS-3.1</feature>
+</featureManager>
+
+# Check server logs for errors
+tail -f target/liberty/wlp/usr/servers/defaultServer/logs/messages.log
+
+# Verify application started successfully
+curl http://localhost:5050/mp-ecomm-store/openapi
+----
+
+=== Validation Not Working
+
+[source,bash]
+----
+# Check if Bean Validation is enabled (catalog service)
+<feature>beanValidation-3.0</feature>
+
+# Verify @Schema annotations are on fields, not getters
+
+# Check if using correct MicroProfile OpenAPI version (4.0+)
+<feature>mpOpenAPI-4.0</feature>  # Not mpOpenAPI-3.1
+----
+
+=== Swagger UI Shows Wrong Base Path
+
+[source,bash]
+----
+# Check server.xml for context-root
+<webApplication location="app.war" contextRoot="/mp-ecomm-store"/>
+
+# Verify @ApplicationPath in JAX-RS Application class
+@ApplicationPath("/api")
+public class ProductRestApplication extends Application {
+}
+
+# Full path = contextRoot + ApplicationPath
+# Example: /mp-ecomm-store/api/products
+----
+
+== Additional Resources
+
+=== Specifications
+
+* https://spec.openapis.org/oas/v3.1.0[OpenAPI v3.1.0 Specification]
+* https://json-schema.org/draft/2020-12/json-schema-core.html[JSON Schema 2020-12]
+* https://github.com/eclipse/microprofile-open-api[MicroProfile OpenAPI Specification]
+* https://jakarta.ee/specifications/restful-ws/3.1/[Jakarta RESTful Web Services 3.1]
+* https://jakarta.ee/specifications/bean-validation/3.0/[Jakarta Bean Validation 3.0]
+
+=== Tools and Libraries
+
+* https://www.jsonschemavalidator.net/[JSON Schema Validator Online]
+* https://github.com/ajv-validator/ajv[Ajv - JavaScript JSON Schema Validator]
+* https://github.com/python-jsonschema/jsonschema[jsonschema - Python JSON Schema Validator]
+* https://github.com/networknt/json-schema-validator[json-schema-validator - Java]
+* https://github.com/Redocly/redocly-cli[Redocly CLI - OpenAPI Linting]
+* https://github.com/stoplightio/spectral[Spectral - OpenAPI/JSON Schema Linter]
+* https://github.com/OpenAPITools/openapi-generator[OpenAPI Generator - Code Generation]
+
+=== MicroProfile
+
+* https://microprofile.io/[MicroProfile Official Website]
+* https://openliberty.io/[Open Liberty Runtime]
+* https://openliberty.io/docs/latest/reference/feature/mpOpenAPI-4.0.html[Liberty mpOpenAPI-4.0 Feature Documentation]
+
+== Summary
+
+This chapter provides **two complete, production-quality implementations** demonstrating MicroProfile OpenAPI 4.1 alignment with OpenAPI v3.1 and JSON Schema 2020-12:
+
+[cols="1,2", options="header"]
+|===
+| Implementation | Description
+
+| *Catalog Service*
+| Advanced, database-backed, 14 fields, production-ready with JPA/Hibernate integration
+
+| *MP E-Commerce Store*
+| Simple, in-memory, 8 essential fields, learning-focused without database complexity
+|===
+
+=== Key Features Demonstrated
+
+✅ *Pattern Validation* - Regex patterns for SKU, name, and other string fields +
+✅ *Exclusive Numeric Bounds* - OpenAPI 3.1 exclusive minimum/maximum (more intuitive than 3.0) +
+✅ *Format Specifications* - Precise type definitions (int32, int64, double, date-time, etc.) +
+✅ *Enumeration* - Type-safe category selection +
+✅ *Nullable Properties* - Explicit null handling (native in JSON Schema 2020-12) +
+✅ *Array Constraints* - minItems, maxItems for collections +
+✅ *Comprehensive Documentation* - Rich examples, descriptions, and constraints +
+✅ *multipleOf Validation* - Decimal precision control (e.g., currency with 2 decimal places) +
+✅ *Read-Only Fields* - Server-generated values (id, timestamps) +
+✅ *Default Values* - Sensible defaults for optional fields
+
+=== Benefits of OpenAPI v3.1
+
+[cols="1,3", options="header"]
+|===
+| Benefit | Description
+
+| *Single Source of Truth*
+| Same schemas work for API documentation, validation, code generation, and testing
+
+| *Better Validation*
+| More precise constraints (exclusiveMinimum, pattern, multipleOf) with clear semantics
+
+| *Improved Tooling*
+| Leverage entire JSON Schema ecosystem (Ajv, jsonschema, validators, generators)
+
+| *Standard Compliance*
+| Full JSON Schema 2020-12 support with no proprietary extensions
+
+| *Enhanced DX*
+| Type-safe code generation, better IDE support, actionable validation errors
+|===
+
+=== What's Next?
+
+. *Choose your implementation* based on your needs (simple or advanced)
+. *Run the application* with `mvn liberty:dev`
+. *Explore Swagger UI* to see schemas in action
+. *Test validation* with curl commands or test scripts
+. *Generate client code* using openapi-generator
+. *Integrate JSON Schema validators* in your projects
+. *Build your own service* applying these patterns
+
+*Ready to start?* Choose `catalog/` or `mp-ecomm-store/` and run `mvn liberty:dev`!

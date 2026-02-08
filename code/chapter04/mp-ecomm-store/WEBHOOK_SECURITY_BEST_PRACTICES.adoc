@@ -1,0 +1,610 @@
+= Webhook Security Best Practices
+:toc:
+:toc-placement!:
+
+This guide covers essential security practices for implementing webhook receivers that integrate with the MicroProfile OpenAPI webhook implementation.
+
+toc::[]
+
+== Overview
+
+When implementing webhook receivers, security is paramount. Webhooks involve your application making HTTP requests to client-controlled endpoints, which introduces several security considerations:
+
+* *Authentication*: Verify that webhook requests actually come from your API
+* *Confidentiality*: Protect webhook payloads from interception
+* *Integrity*: Ensure payloads haven't been tampered with
+* *Idempotency*: Handle duplicate deliveries gracefully
+* *Performance*: Respond quickly to avoid timeouts
+
+== 1. Verify Webhook Signatures
+
+Always verify the `X-Webhook-Signature` header to ensure the request comes from your API. This prevents malicious actors from sending fake webhook events to your endpoint.
+
+=== Implementation
+
+The webhook sender generates an HMAC-SHA256 signature of the payload using the subscription secret:
+
+[source, javascript]
+----
+const crypto = require('crypto');
+
+function verifyWebhookSignature(secret, body, signature) {
+  const expectedSignature = 'sha256=' + 
+    crypto.createHmac('sha256', secret)
+          .update(JSON.stringify(body))
+          .digest('hex');
+  
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expectedSignature)
+  );
+}
+
+// In your webhook handler
+app.post('/webhooks/products', (req, res) => {
+  const signature = req.headers['x-webhook-signature'];
+  const secret = process.env.WEBHOOK_SECRET;
+  
+  if (!verifyWebhookSignature(secret, req.body, signature)) {
+    return res.status(401).send('Invalid signature');
+  }
+  
+  // Process webhook event
+  console.log('Event received:', req.body.eventType);
+  res.status(200).send('OK');
+});
+----
+
+=== Key Points
+
+* Store the webhook secret securely (environment variables, secrets manager)
+* Use `crypto.timingSafeEqual()` to prevent timing attacks
+* Reject requests with invalid signatures immediately (401 Unauthorized)
+* Never log or expose the secret in error messages
+
+== 2. Use HTTPS Only
+
+Require HTTPS for all callback URLs to prevent man-in-the-middle attacks. This ensures:
+
+* Webhook payloads are encrypted in transit
+* Client identity can be verified via TLS certificates
+* Attackers cannot intercept or modify webhook data
+
+=== Schema Validation
+
+Use JSON Schema pattern validation to enforce HTTPS:
+
+[source, java]
+----
+@Schema(
+    description = "Callback URL (must be HTTPS)",
+    pattern = "^https://.*",
+    required = true,
+    example = "https://api.example.com/webhooks/products"
+)
+private String callbackUrl;
+----
+
+=== Validation Logic
+
+[source, java]
+----
+public class WebhookSubscriptionValidator {
+    
+    public void validateCallbackUrl(String url) {
+        if (!url.startsWith("https://")) {
+            throw new WebhookValidationException(
+                "Callback URL must use HTTPS protocol"
+            );
+        }
+        
+        // Additional validation
+        try {
+            URI uri = new URI(url);
+            if (uri.getHost() == null) {
+                throw new WebhookValidationException(
+                    "Invalid callback URL format"
+                );
+            }
+        } catch (URISyntaxException e) {
+            throw new WebhookValidationException(
+                "Malformed callback URL: " + e.getMessage()
+            );
+        }
+    }
+}
+----
+
+=== Development Exception
+
+For local testing, you may need to allow HTTP on localhost:
+
+[source, java]
+----
+private static final String LOCALHOST_EXCEPTION = "http://localhost";
+
+public void validateCallbackUrl(String url) {
+    boolean isProduction = System.getenv("ENVIRONMENT").equals("production");
+    boolean isLocalhost = url.startsWith(LOCALHOST_EXCEPTION);
+    
+    if (isProduction && !url.startsWith("https://")) {
+        throw new WebhookValidationException(
+            "Production webhooks must use HTTPS"
+        );
+    }
+    
+    if (!isProduction && !url.startsWith("https://") && !isLocalhost) {
+        throw new WebhookValidationException(
+            "Callback URL must use HTTPS (or http://localhost for testing)"
+        );
+    }
+}
+----
+
+== 3. Implement Idempotency
+
+Handle duplicate webhook deliveries gracefully using the `eventId`. Network issues or retries can cause the same event to be delivered multiple times.
+
+=== In-Memory Deduplication
+
+Simple approach for development/testing:
+
+[source, javascript]
+----
+const processedEvents = new Set();
+
+app.post('/webhooks/products', (req, res) => {
+  const { eventId } = req.body;
+  
+  if (processedEvents.has(eventId)) {
+    console.log('Duplicate event, skipping:', eventId);
+    return res.status(200).send('Already processed');
+  }
+  
+  // Process event
+  processEvent(req.body);
+  processedEvents.add(eventId);
+  
+  res.status(200).send('OK');
+});
+----
+
+=== Persistent Deduplication
+
+Production approach using a database:
+
+[source, javascript]
+----
+const db = require('./database');
+
+app.post('/webhooks/products', async (req, res) => {
+  const { eventId, eventType } = req.body;
+  
+  try {
+    // Check if event already processed
+    const existing = await db.webhookEvents.findOne({ eventId });
+    
+    if (existing) {
+      console.log('Duplicate event, already processed:', eventId);
+      return res.status(200).json({
+        received: true,
+        duplicate: true,
+        eventId: eventId
+      });
+    }
+    
+    // Record event as received
+    await db.webhookEvents.insertOne({
+      eventId,
+      eventType,
+      receivedAt: new Date(),
+      status: 'processing'
+    });
+    
+    // Process event
+    await processEvent(req.body);
+    
+    // Update status
+    await db.webhookEvents.updateOne(
+      { eventId },
+      { $set: { status: 'completed', processedAt: new Date() } }
+    );
+    
+    res.status(200).json({
+      received: true,
+      eventId: eventId,
+      processedAt: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('Webhook processing error:', error);
+    
+    // Update status to failed
+    await db.webhookEvents.updateOne(
+      { eventId },
+      { $set: { status: 'failed', error: error.message } }
+    );
+    
+    // Return 500 to trigger retry
+    res.status(500).json({ error: 'Processing failed' });
+  }
+});
+----
+
+=== Database Schema
+
+[source, sql]
+----
+CREATE TABLE webhook_events (
+  event_id VARCHAR(255) PRIMARY KEY,
+  event_type VARCHAR(100) NOT NULL,
+  received_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  processed_at TIMESTAMP,
+  status VARCHAR(50) NOT NULL, -- 'processing', 'completed', 'failed'
+  error_message TEXT,
+  payload JSONB,
+  
+  INDEX idx_event_type (event_type),
+  INDEX idx_received_at (received_at),
+  INDEX idx_status (status)
+);
+----
+
+== 4. Respond Quickly
+
+Acknowledge webhooks immediately (within 5 seconds) and process asynchronously. This prevents timeouts and allows the webhook sender to continue processing.
+
+=== Anti-Pattern (Synchronous Processing)
+
+[source, javascript]
+----
+// DON'T DO THIS - May timeout on slow operations
+app.post('/webhooks/products', async (req, res) => {
+  await verifySignature(req);
+  await updateDatabase(req.body);        // Slow
+  await sendEmailNotification(req.body); // Slow
+  await updateExternalSystem(req.body);  // Slow
+  
+  res.status(200).send('OK');
+});
+----
+
+=== Best Practice (Async Processing)
+
+[source, javascript]
+----
+app.post('/webhooks/products', async (req, res) => {
+  // Verify signature first (fast)
+  if (!verifySignature(req)) {
+    return res.status(401).send('Invalid signature');
+  }
+  
+  // Quick idempotency check
+  if (await isEventProcessed(req.body.eventId)) {
+    return res.status(200).send('Already processed');
+  }
+  
+  // Acknowledge immediately
+  res.status(200).send('OK');
+  
+  // Process asynchronously (don't await)
+  processWebhookAsync(req.body).catch(err => {
+    console.error('Webhook processing failed:', err);
+    // Log to error tracking service (Sentry, etc.)
+  });
+});
+
+async function processWebhookAsync(event) {
+  try {
+    // Record event reception
+    await db.webhookEvents.insertOne({
+      eventId: event.eventId,
+      status: 'processing',
+      receivedAt: new Date()
+    });
+    
+    // Perform time-consuming operations
+    await updateDatabase(event);
+    await sendEmailNotification(event);
+    await updateExternalSystem(event);
+    
+    // Mark as completed
+    await db.webhookEvents.updateOne(
+      { eventId: event.eventId },
+      { $set: { status: 'completed' } }
+    );
+    
+  } catch (error) {
+    console.error('Async processing error:', error);
+    
+    // Mark as failed for retry
+    await db.webhookEvents.updateOne(
+      { eventId: event.eventId },
+      { $set: { status: 'failed', error: error.message } }
+    );
+  }
+}
+----
+
+=== Using Message Queues
+
+For high-volume webhooks, use a message queue:
+
+[source, javascript]
+----
+const queue = require('./queue'); // RabbitMQ, Redis, AWS SQS, etc.
+
+app.post('/webhooks/products', async (req, res) => {
+  if (!verifySignature(req)) {
+    return res.status(401).send('Invalid signature');
+  }
+  
+  // Enqueue for processing
+  await queue.publish('webhook-events', {
+    eventId: req.body.eventId,
+    eventType: req.body.eventType,
+    payload: req.body,
+    receivedAt: new Date()
+  });
+  
+  // Immediate acknowledgment
+  res.status(200).json({
+    received: true,
+    eventId: req.body.eventId
+  });
+});
+
+// Separate worker process
+queue.subscribe('webhook-events', async (message) => {
+  try {
+    await processWebhookEvent(message.payload);
+    message.ack(); // Acknowledge processing
+  } catch (error) {
+    console.error('Worker processing error:', error);
+    message.nack(); // Reject for retry
+  }
+});
+----
+
+== 5. Additional Security Measures
+
+=== Rate Limiting
+
+Protect your webhook endpoints from abuse:
+
+[source, javascript]
+----
+const rateLimit = require('express-rate-limit');
+
+const webhookLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 100, // 100 requests per minute
+  message: 'Too many webhook requests',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.post('/webhooks/products', webhookLimiter, webhookHandler);
+----
+
+=== IP Allowlisting
+
+If webhook sender has static IPs, restrict access:
+
+[source, javascript]
+----
+const ALLOWED_IPS = process.env.WEBHOOK_ALLOWED_IPS?.split(',') || [];
+
+function ipAllowlistMiddleware(req, res, next) {
+  if (ALLOWED_IPS.length === 0) {
+    return next(); // No allowlist configured
+  }
+  
+  const clientIp = req.ip || req.connection.remoteAddress;
+  
+  if (!ALLOWED_IPS.includes(clientIp)) {
+    console.warn('Webhook from unauthorized IP:', clientIp);
+    return res.status(403).send('Forbidden');
+  }
+  
+  next();
+}
+
+app.post('/webhooks/products', ipAllowlistMiddleware, webhookHandler);
+----
+
+=== Webhook Payload Validation
+
+Validate payload structure before processing:
+
+[source, javascript]
+----
+const Joi = require('joi');
+
+const productEventSchema = Joi.object({
+  eventId: Joi.string().required(),
+  eventType: Joi.string().valid(
+    'product.created',
+    'product.updated',
+    'product.deleted',
+    'product.stock.low',
+    'product.stock.out'
+  ).required(),
+  timestamp: Joi.string().isoDate().required(),
+  product: Joi.object({
+    id: Joi.number().required(),
+    name: Joi.string().required(),
+    price: Joi.number().min(0).required(),
+    sku: Joi.string().required(),
+    category: Joi.string().required(),
+    stockQuantity: Joi.number().min(0).required()
+  }).required(),
+  metadata: Joi.object().optional()
+});
+
+app.post('/webhooks/products', async (req, res) => {
+  // Verify signature
+  if (!verifySignature(req)) {
+    return res.status(401).send('Invalid signature');
+  }
+  
+  // Validate payload
+  const { error, value } = productEventSchema.validate(req.body);
+  if (error) {
+    console.error('Invalid webhook payload:', error.details);
+    return res.status(400).json({
+      error: 'Invalid payload',
+      details: error.details
+    });
+  }
+  
+  // Process validated event
+  res.status(200).send('OK');
+  processWebhookAsync(value);
+});
+----
+
+=== Timeout Configuration
+
+Set appropriate timeouts for webhook delivery attempts:
+
+[source, java]
+----
+@ConfigProperty(name = "webhook.delivery.timeout.seconds", defaultValue = "5")
+int deliveryTimeoutSeconds;
+
+@ConfigProperty(name = "webhook.delivery.max.retries", defaultValue = "3")
+int maxRetries;
+
+public void deliverWebhook(WebhookSubscription subscription, ProductEvent event) {
+    WebhookPayload payload = buildPayload(event);
+    String signature = generateSignature(payload, subscription.getSecret());
+    
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            Response response = httpClient
+                .target(subscription.getCallbackUrl())
+                .request()
+                .header("Content-Type", "application/json")
+                .header("X-Webhook-Signature", signature)
+                .header("X-Event-Type", event.getEventType())
+                .header("X-Event-Id", event.getEventId())
+                .property(ClientProperties.CONNECT_TIMEOUT, deliveryTimeoutSeconds * 1000)
+                .property(ClientProperties.READ_TIMEOUT, deliveryTimeoutSeconds * 1000)
+                .post(Entity.json(payload));
+            
+            if (response.getStatus() == 200) {
+                logSuccess(subscription, event, attempt);
+                return;
+            }
+            
+            logFailedAttempt(subscription, event, attempt, response.getStatus());
+            
+        } catch (Exception e) {
+            logException(subscription, event, attempt, e);
+        }
+        
+        // Exponential backoff
+        if (attempt < maxRetries) {
+            Thread.sleep((long) Math.pow(2, attempt) * 1000);
+        }
+    }
+    
+    logMaxRetriesExceeded(subscription, event);
+}
+----
+
+== Security Checklist
+
+When implementing webhook receivers, ensure you:
+
+- [x] *Verify signatures* using HMAC-SHA256
+- [x] *Enforce HTTPS* for all callback URLs (except localhost in development)
+- [x] *Implement idempotency* using eventId deduplication
+- [x] *Respond quickly* (< 5 seconds) and process asynchronously
+- [x] *Validate payloads* against expected schema
+- [x] *Rate limit* webhook endpoints to prevent abuse
+- [x] *Log all events* for debugging and audit trails
+- [x] *Use message queues* for high-volume processing
+- [x] *Set timeouts* for webhook delivery attempts
+- [x] *Monitor failures* and alert on repeated delivery failures
+- [x] *Store secrets securely* (environment variables, secrets manager)
+- [x] *Handle errors gracefully* and return appropriate HTTP status codes
+
+== Testing Security
+
+=== Test Signature Verification
+
+[source, bash]
+----
+# Invalid signature (should return 401)
+curl -X POST http://localhost:3000/webhooks/products \
+  -H "Content-Type: application/json" \
+  -H "X-Webhook-Signature: invalid" \
+  -d '{
+    "eventId": "evt_test",
+    "eventType": "product.created",
+    "timestamp": "2026-02-08T10:00:00Z",
+    "product": {"id": 1, "name": "Test"}
+  }'
+
+# Valid signature (update with actual secret)
+SECRET="your-webhook-secret"
+PAYLOAD='{"eventId":"evt_test","eventType":"product.created"}'
+SIGNATURE=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "$SECRET" -binary | base64)
+
+curl -X POST http://localhost:3000/webhooks/products \
+  -H "Content-Type: application/json" \
+  -H "X-Webhook-Signature: $SIGNATURE" \
+  -d "$PAYLOAD"
+----
+
+=== Test Idempotency
+
+[source, bash]
+----
+# Send same event twice
+for i in {1..2}; do
+  curl -X POST http://localhost:3000/webhooks/products \
+    -H "Content-Type: application/json" \
+    -H "X-Webhook-Signature: $SIGNATURE" \
+    -d '{
+      "eventId": "evt_duplicate_test",
+      "eventType": "product.created",
+      "timestamp": "2026-02-08T10:00:00Z",
+      "product": {"id": 1, "name": "Test"}
+    }'
+  sleep 1
+done
+
+# Second request should be recognized as duplicate
+----
+
+=== Test HTTPS Enforcement
+
+[source, bash]
+----
+# HTTP URL (should be rejected in production)
+curl -X POST http://localhost:5050/mp-ecomm-store/api/webhooks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "callbackUrl": "http://example.com/webhook",
+    "events": ["product.created"]
+  }'
+
+# HTTPS URL (should succeed)
+curl -X POST http://localhost:5050/mp-ecomm-store/api/webhooks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "callbackUrl": "https://example.com/webhook",
+    "events": ["product.created"]
+  }'
+----
+
+== References
+
+* link:webhook-receiver.js[webhook-receiver.js] - Reference implementation with signature verification
+* link:README.adoc[README.adoc] - Complete webhook implementation guide
+* https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries[GitHub Webhook Security Guide]
+* https://stripe.com/docs/webhooks/best-practices[Stripe Webhook Best Practices]
+* https://www.owasp.org/index.php/HMAC[OWASP HMAC Guide]

@@ -1,149 +1,1081 @@
-= MicroProfile E-Commerce Store
-:toc:
-:icons: font
+= MicroProfile E-Commerce Store - OpenAPI 3.1 Demonstration
+:toc: left
+:toclevels: 3
 :source-highlighter: highlight.js
-:experimental:
+:icons: font
+
+This is an enhanced version of the Chapter 2 E-Commerce Store, demonstrating *MicroProfile OpenAPI 4.1* alignment with *OpenAPI 3.1* and *JSON Schema 2020-12*.
 
 == Overview
 
-This project demonstrates a MicroProfile-based e-commerce microservice. It provides REST endpoints for product management and showcases Jakarta EE 10 and MicroProfile 6.1 features in a practical application.
+This simple REST API showcases how MicroProfile OpenAPI 4.1 provides full OpenAPI 3.1 support with JSON Schema 2020-12 validation features, offering:
 
-== Development Environment
-
-This project includes a GitHub Codespace configuration with:
-
-* JDK 17 via SDKMAN
-* Maven build tools
-* VS Code extensions for Java and MicroProfile development
-
-=== Installing SDKMAN
-
-If SDKMAN is not already installed, follow the official instructions at https://sdkman.io/install/ or run:
-
-[source,bash]
-----
-curl -s "https://get.sdkman.io" | bash
-source "$HOME/.sdkman/bin/sdkman-init.sh"
-----
-
-=== Switching Java Versions
-
-SDKMAN allows easy switching between Java versions:
-
-[source,bash]
-----
-# List installed Java versions
-sdk list java | grep -E ".*\s+installed"
-
-# Switch to JDK 17 for the current shell session
-sdk use java 17.0.15-ms
-
-# Make JDK 17 the default for all sessions
-sdk default java 17.0.15-ms
-
-# Verify the current Java version
-java -version
-----
+* *Precise validation* with patterns, formats, and constraints
+* *Rich documentation* with examples and descriptions
+* *Standard compliance* with JSON Schema 2020-12
+* *Better tooling* by leveraging the JSON Schema ecosystem
+* *Webhooks* - OpenAPI 3.1 exclusive feature for server-to-client event notifications
 
 == Project Structure
 
-[source]
+[source,text]
 ----
 mp-ecomm-store/
-├── src/
-│   ├── main/
-│   │   ├── java/
-│   │   │   └── io/microprofile/tutorial/store/product/
-│   │   │       ├── entity/
-│   │   │       │   └── Product.java
-│   │   │       ├── resource/
-│   │   │       │   └── ProductResource.java
-│   │   │       └── ProductRestApplication.java
-│   │   ├── liberty/config/
-│   │   │   └── server.xml
-│   │   └── webapp/
-│   │       └── WEB-INF/
-│   │           └── web.xml
-│   └── test/
-└── pom.xml
+├── src/main/java/io/microprofile/tutorial/store/product/
+│   ├── config/
+│   │   ├── CustomModelReader.java         # Sets OpenAPI 3.1.0 version
+│   │   └── ExtensionFilter.java           # Custom OpenAPI filter
+│   ├── entity/
+│   │   ├── Product.java                   # Enhanced with OpenAPI 3.1 annotations
+│   │   ├── ProductEvent.java              # Webhook event payload schema
+│   │   └── WebhookSubscription.java       # Webhook subscription model
+│   ├── resource/
+│   │   ├── ProductResource.java           # REST endpoints with schema validation
+│   │   └── WebhookResource.java           # Webhook API with @Callback annotations ⭐
+│   ├── service/
+│   │   └── WebhookService.java            # Webhook event delivery service
+│   └── ProductRestApplication.java        # OpenAPI definition
+├── test-webhook-openapi.sh                # Test webhook implementation ⭐
+├── webhook-receiver.js                    # Node.js webhook receiver for testing
+├── WEBHOOK_SECURITY_BEST_PRACTICES.adoc   # Security guide for webhook receivers ⭐
+├── pom.xml
+└── README.adoc
 ----
 
-== REST Endpoints
+*⭐ Key Files for Webhook Demo:*
 
-[cols="2,1,3"]
-|===
-|Endpoint |Method |Description
+* `WebhookResource.java` - Demonstrates webhooks using *@Callback annotations only* (no CustomModelReader needed)
+* `ProductEvent.java` - Schema for webhook payloads
+* `WebhookService.java` - Event delivery implementation
+* `CustomModelReader.java` - Minimal implementation (only sets OpenAPI 3.1.0 version)
+* `webhook-receiver.js` - Node.js test server for receiving and verifying webhooks
+* `WEBHOOK_SECURITY_BEST_PRACTICES.adoc` - Comprehensive security guide for webhook implementations
 
-|`/mp-ecomm-store/api/products`
-|GET
-|Returns a list of products in JSON format
-|===
+== Key Features Demonstrated
 
-== Technology Stack
+=== 1. Webhooks (OpenAPI 3.1 Exclusive)
 
-* Jakarta EE 10
-* MicroProfile 6.1
-* Open Liberty
-* Lombok
-* JUnit 5
+*NEW in OpenAPI 3.1*: Native webhook support for documenting server-to-client callbacks.
 
-== Model Class
+Webhooks are "reverse APIs" where the server calls the client rather than the client calling the server. They enable real-time event notifications without polling.
 
-The Product model demonstrates the use of Lombok annotations for boilerplate code reduction:
+* *OpenAPI 3.0*: ❌ No webhook support
+* *OpenAPI 3.1*: ✅ Native webhook definitions in the specification
+
+==== Annotation-Based Implementation
+
+*File*: `WebhookResource.java` +
+*Path*: `/api/webhooks` +
+*Approach*: Uses standard MicroProfile OpenAPI `@Callback` annotations +
+*No CustomModelReader needed!*
 
 [source,java]
 ----
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
+@POST
+@Callback(
+    name = "productEvents",
+    callbackUrlExpression = "{$request.body#/callbackUrl}",
+    operations = {
+        @CallbackOperation(
+            method = "post",
+            summary = "Product Created Webhook",
+            requestBody = @RequestBody(
+                content = @Content(
+                    schema = @Schema(implementation = ProductEvent.class),
+                    examples = @ExampleObject(
+                        name = "product-created",
+                        summary = "New product notification",
+                        value = """
+                        {
+                          "eventId": "evt_abc123xyz",
+                          "eventType": "product.created",
+                          "timestamp": "2026-02-08T10:30:00Z",
+                          "product": {
+                            "id": 42,
+                            "name": "Wireless Mouse"
+                          }
+                        }
+                        """
+                    )
+                )
+            )
+        )
+        // ... 4 more webhook events
+    }
+)
+public Response subscribe(WebhookSubscription subscription) { }
+----
+
+*Advantages*:
+
+* ✅ No CustomModelReader modifications required
+* ✅ Pure annotation-based approach
+* ✅ Co-located documentation with code
+* ✅ IDE-friendly with autocomplete
+
+==== Webhook Features
+
+* *Subscription Management*: Create, list, get, and delete webhook subscriptions
+* *Event Delivery*: Automatic webhook calls when events occur
+* *Security*: HMAC-SHA256 signature verification
+* *Event Types*:
+** `product.created` - New product added to catalog
+** `product.updated` - Product details modified
+** `product.deleted` - Product removed from catalog
+** `product.stock.low` - Inventory below threshold
+** `product.stock.out` - Product sold out
+* *Schemas*: Fully documented webhook payloads using ProductEvent schema
+
+*Why This Matters*: OpenAPI 3.0 had NO webhook support. In 3.1, webhooks are first-class citizens in the API specification, enabling complete documentation of both request/response AND event-driven patterns.
+
+=== 2. Product Entity with JSON Schema 2020-12
+
+The `Product` entity demonstrates comprehensive JSON Schema validation:
+
+[source,java]
+----
+@Schema(
+    description = "Product in the e-commerce catalog",
+    required = {"name", "price", "category"}
+)
 public class Product {
+    
+    @Schema(
+        description = "Unique product identifier",
+        example = "42",
+        minimum = "1"
+    )
     private Long id;
+    
+    @Schema(
+        description = "Product name",
+        example = "Wireless Mouse",
+        minLength = 1,
+        maxLength = 100
+    )
+    @NotBlank
     private String name;
-    private String description;
-    private Double price;
+    
+    @Schema(
+        description = "Price in USD",
+        example = "29.99",
+        exclusiveMinimum = "0",  // OpenAPI 3.1: boolean changed to numeric
+        maximum = "999999.99"
+    )
+    @DecimalMin(value = "0.01")
+    private BigDecimal price;
+    
+    @Schema(
+        description = "Product category",
+        example = "ELECTRONICS",
+        enumeration = {"ELECTRONICS", "CLOTHING", "BOOKS", "HOME"}
+    )
+    private String category;
 }
 ----
 
-== Building the Application
+==== Key OpenAPI 3.1 Changes
+
+*exclusiveMinimum/exclusiveMaximum*:
+
+* *OpenAPI 3.0*: Boolean (`exclusiveMinimum: true` + `minimum: 0`)
+* *OpenAPI 3.1*: Numeric (`exclusiveMinimum: 0`)
+
+=== 3. Advanced Validation Patterns
+
+==== Email Validation
+
+[source,java]
+----
+@Schema(
+    description = "Customer email address",
+    example = "john.doe@example.com",
+    format = "email",
+    pattern = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+)
+private String email;
+----
+
+==== UUID Format
+
+[source,java]
+----
+@Schema(
+    description = "Webhook event ID",
+    example = "evt_abc123xyz",
+    format = "uuid"
+)
+private String eventId;
+----
+
+== Webhook Architecture
+
+[source,text]
+----
+┌─────────────────┐           ┌──────────────────┐
+│   Client Apps   │──(1)──────│  Subscription    │
+│                 │  Subscribe │     API          │
+└─────────────────┘           └──────────────────┘
+                                       │
+                                       ▼
+                              ┌──────────────────┐
+                              │ WebhookService   │
+                              │ - subscriptions  │
+                              │ - sendEvent()    │
+                              └──────────────────┘
+                                       │
+        ┌──────────────────────────────┼──────────────────────────────┐
+        │                              │                              │
+        ▼                              ▼                              ▼
+┌──────────────┐            ┌──────────────┐            ┌──────────────┐
+│ Product API  │──(2)───────│   Product    │──(3)───────│  Webhook     │
+│ POST /product│   Create   │   Created    │   Trigger  │  Delivery    │
+└──────────────┘            └──────────────┘            └──────────────┘
+                                                                 │
+                                                                 ▼
+                                                         ┌──────────────┐
+                                                         │ Client URL   │
+                                                         │ (HTTPS POST) │
+                                                         └──────────────┘
+----
+
+== Implementation Details
+
+=== Entity Classes
+
+==== ProductEvent.java
+
+Represents the webhook event payload sent to subscribers.
+
+*Purpose*: Webhook event payload schema
+
+*Key Fields*:
+
+* `eventId` - Unique event identifier
+* `eventType` - Event type (product.created, product.updated, etc.)
+* `timestamp` - ISO 8601 timestamp
+* `product` - Product data snapshot
+* `metadata` - Additional event context
+
+[source,java]
+----
+@Schema(
+    description = "Product webhook event payload",
+    required = {"eventId", "eventType", "timestamp", "product"}
+)
+public class ProductEvent {
+    
+    @Schema(
+        description = "Unique event identifier",
+        example = "evt_abc123xyz",
+        pattern = "^evt_[a-z0-9]+$"
+    )
+    private String eventId;
+    
+    @Schema(
+        description = "Event type",
+        example = "product.created",
+        enumeration = {
+            "product.created",
+            "product.updated",
+            "product.deleted",
+            "product.stock.low",
+            "product.stock.out"
+        }
+    )
+    private String eventType;
+    
+    @Schema(
+        description = "ISO 8601 timestamp",
+        example = "2026-02-08T10:30:00Z",
+        format = "date-time"
+    )
+    private String timestamp;
+    
+    @Schema(description = "Product data")
+    private Product product;
+    
+    @Schema(
+        description = "Additional event metadata",
+        example = "{\"source\": \"inventory-service\"}"
+    )
+    private Map<String, Object> metadata;
+}
+----
+
+==== WebhookSubscription.java
+
+Represents a webhook subscription configuration.
+
+*Purpose*: Webhook subscription model
+
+*Key Fields*:
+
+* `id` - Auto-generated subscription ID
+* `callbackUrl` - HTTPS URL for webhook delivery
+* `events` - List of event types to subscribe to
+* `secret` - HMAC secret for signature verification
+* `active` - Subscription status
+
+[source,java]
+----
+@Schema(
+    description = "Webhook subscription configuration",
+    required = {"callbackUrl", "events"}
+)
+public class WebhookSubscription {
+    
+    @Schema(
+        description = "Unique subscription identifier (auto-generated)",
+        example = "sub_abc123",
+        pattern = "^sub_[a-z0-9]+$",
+        readOnly = true
+    )
+    private String id;
+    
+    @Schema(
+        description = "HTTPS URL for webhook delivery",
+        example = "https://myapp.com/webhooks/products",
+        format = "uri",
+        pattern = "^https://.*"
+    )
+    @NotBlank
+    private String callbackUrl;
+    
+    @Schema(
+        description = "Event types to subscribe to",
+        example = "[\"product.created\", \"product.updated\"]",
+        minItems = 1
+    )
+    @NotEmpty
+    private List<String> events;
+    
+    @Schema(
+        description = "HMAC secret for signature verification (auto-generated)",
+        example = "whsec_abc123...",
+        pattern = "^whsec_[a-z0-9]+$",
+        readOnly = true
+    )
+    private String secret;
+    
+    @Schema(
+        description = "Whether subscription is active",
+        example = "true"
+    )
+    private boolean active = true;
+}
+----
+
+=== Service Layer
+
+==== WebhookService.java
+
+Manages webhook subscriptions and event delivery.
+
+*Purpose*: Webhook subscription management and event delivery
+
+*Key Methods*:
+
+* `subscribe(WebhookSubscription)` - Create new subscription
+* `getSubscriptions()` - List all subscriptions
+* `getSubscription(String id)` - Get subscription by ID
+* `deleteSubscription(String id)` - Remove subscription
+* `sendEvent(ProductEvent)` - Deliver event to subscribers (async)
+
+*Features*:
+
+* Subscription CRUD operations
+* Async event delivery to subscribers
+* HMAC-SHA256 signature generation
+* HTTP client for webhook calls
+* Event filtering by subscription
+* Logging and error handling
+
+[source,java]
+----
+@ApplicationScoped
+public class WebhookService {
+    
+    private final Map<String, WebhookSubscription> subscriptions = new ConcurrentHashMap<>();
+    private final ExecutorService executor = Executors.newCachedThreadPool();
+    
+    public WebhookSubscription subscribe(WebhookSubscription subscription) {
+        subscription.setId("sub_" + generateId());
+        subscription.setSecret("whsec_" + generateSecret());
+        subscriptions.put(subscription.getId(), subscription);
+        return subscription;
+    }
+    
+    public void sendEvent(ProductEvent event) {
+        subscriptions.values().stream()
+            .filter(sub -> sub.isActive())
+            .filter(sub -> sub.getEvents().contains(event.getEventType()))
+            .forEach(sub -> executor.submit(() -> deliverWebhook(sub, event)));
+    }
+    
+    private void deliverWebhook(WebhookSubscription sub, ProductEvent event) {
+        String payload = toJson(event);
+        String signature = generateHmacSignature(payload, sub.getSecret());
+        
+        // HTTP POST to callback URL with X-Webhook-Signature header
+        httpClient.post(sub.getCallbackUrl())
+            .header("X-Webhook-Signature", signature)
+            .header("Content-Type", "application/json")
+            .body(payload)
+            .send();
+    }
+}
+----
+
+=== Resource Layer
+
+==== WebhookResource.java
+
+REST API for webhook subscription management with @Callback documentation.
+
+*Purpose*: REST API for webhook subscriptions with complete callback documentation
+
+*Endpoints*:
+
+[cols="1,2,3"]
+|===
+|Method |Path |Description
+
+|POST
+|`/api/webhooks`
+|Create subscription
+
+|GET
+|`/api/webhooks`
+|List subscriptions
+
+|GET
+|`/api/webhooks/\{id}`
+|Get subscription
+
+|DELETE
+|`/api/webhooks/\{id}`
+|Delete subscription
+|===
+
+*@Callback Annotation Features*:
+
+* Documents all 5 webhook event types
+* Includes complete request/response schemas
+* Provides realistic examples for each event
+* Documents security headers (X-Webhook-Signature)
+* Specifies retry behavior (5xx responses)
+
+[source,java]
+----
+@Path("/webhooks")
+@ApplicationScoped
+@Tag(
+    name = "Webhooks",
+    description = "Manage webhook subscriptions for product event notifications"
+)
+public class WebhookResource {
+    
+    @Inject
+    WebhookService webhookService;
+    
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(
+        summary = "Subscribe to webhook events",
+        description = """
+            Create a new webhook subscription to receive product event notifications.
+            
+            The webhook will receive POST requests with a ProductEvent payload when 
+            subscribed events occur.
+            
+            **Security**: Each webhook receives a secret for verifying request signatures.
+            **Signature**: Check the X-Webhook-Signature header (HMAC-SHA256 of payload 
+            using secret).
+            """
+    )
+    @Callback(
+        name = "productEvents",
+        callbackUrlExpression = "{$request.body#/callbackUrl}",
+        operations = {
+            @CallbackOperation(
+                method = "post",
+                summary = "Product Created Webhook",
+                description = "Triggered when a new product is added to the catalog",
+                requestBody = @RequestBody(
+                    description = "Product created event payload",
+                    content = @Content(
+                        mediaType = MediaType.APPLICATION_JSON,
+                        schema = @Schema(implementation = ProductEvent.class),
+                        examples = @ExampleObject(
+                            name = "product-created",
+                            summary = "New product notification",
+                            value = """
+                            {
+                              "eventId": "evt_abc123xyz",
+                              "eventType": "product.created",
+                              "timestamp": "2026-02-08T10:30:00Z",
+                              "product": {
+                                "id": 42,
+                                "name": "Wireless Mouse",
+                                "price": 29.99,
+                                "category": "ELECTRONICS"
+                              },
+                              "metadata": {
+                                "source": "product-service"
+                              }
+                            }
+                            """
+                        )
+                    ),
+                    required = true
+                ),
+                responses = {
+                    @APIResponse(responseCode = "200", description = "Event received"),
+                    @APIResponse(responseCode = "5xx", description = "Will retry")
+                }
+            ),
+            // Additional @CallbackOperation entries for:
+            // - product.updated
+            // - product.deleted
+            // - product.stock.low
+            // - product.stock.out
+        }
+    )
+    public Response createSubscription(@Valid WebhookSubscription subscription) {
+        WebhookSubscription created = webhookService.subscribe(subscription);
+        return Response.status(Response.Status.CREATED).entity(created).build();
+    }
+}
+----
+
+=== OpenAPI Configuration
+
+==== CustomModelReader.java
+
+Minimal implementation that only sets the OpenAPI version.
+
+*Purpose*: Set OpenAPI 3.1.0 version and JSON Schema dialect
+
+*Key Features*:
+
+* Sets `openapi: "3.1.0"`
+* Sets `jsonSchemaDialect: "https://json-schema.org/draft/2020-12/schema"`
+* Does NOT modify webhooks (handled by @Callback annotations)
+
+[source,java]
+----
+@ApplicationScoped
+public class CustomModelReader implements OASModelReader {
+    
+    @Override
+    public OpenAPI buildModel() {
+        return OASFactory.createOpenAPI()
+            .openapi("3.1.0")
+            .jsonSchemaDialect("https://json-schema.org/draft/2020-12/schema");
+    }
+}
+----
+
+== Testing Webhooks
+
+=== Running the Test Script
+
+The project includes a comprehensive test script that verifies the webhook implementation:
 
 [source,bash]
 ----
-mvn clean package
+# Start the server
+mvn liberty:run
+
+# Run the webhook tests (in another terminal)
+./test-webhook-openapi.sh
 ----
+
+=== Test Script Output
+
+----
+==================================================
+Webhook Annotation-Based Approach Demo
+==================================================
+
+Step 1: Verify OpenAPI Callbacks Documentation
+✓ Callbacks found in OpenAPI spec!
+
+Callback events documented:
+Out of Stock Webhook
+
+==================================================
+Step 2: Create Webhook Subscription
+
+✓ Subscription created:
+{
+  "active": true,
+  "events": ["product.created", "product.updated"],
+  "id": "sub_3067fb5972b7489b",
+  "secret": "whsec_e96bd4294d344778b4e057a4ea448cff"
+}
+
+==================================================
+Step 3: List Subscriptions
+[...]
+
+==================================================
+Step 4: Get Specific Subscription
+[...]
+
+==================================================
+Step 5: View Callback Documentation
+
+Event: stock-out-event
+  Type: product.stock.out
+  Example ID: evt_vwx345yz
+
+==================================================
+Step 6: Delete Subscription
+
+✓ Subscription deleted (HTTP 204)
+
+==================================================
+✓ Demo Complete!
+==================================================
+----
+
+=== End-to-End Testing with Webhook Receiver
+
+The project includes `webhook-receiver.js`, a Node.js test server that acts as a real webhook receiver to test the complete webhook flow.
+
+TIP: For production webhook implementations, see link:WEBHOOK_SECURITY_BEST_PRACTICES.adoc[Webhook Security Best Practices] for comprehensive security guidance including signature verification, HTTPS enforcement, idempotency, rate limiting, and async processing patterns.
+
+==== Purpose
+
+* Receive and display webhook events from the MicroProfile application
+* Verify HMAC-SHA256 signature authentication
+* Log detailed event information for debugging
+* Test webhook integration without requiring external services
+
+==== Setup and Usage
+
+. *Install Dependencies*
++
+[source,bash]
+----
+npm install express body-parser crypto
+----
+
+. *Start the Webhook Receiver*
++
+[source,bash]
+----
+# Basic usage (no signature verification)
+node webhook-receiver.js
+
+# With signature verification
+WEBHOOK_SECRET=your-secret node webhook-receiver.js
+----
++
+The receiver starts on `http://localhost:3000/webhooks/products`
+
+. *Create a Subscription* (in another terminal)
++
+[source,bash]
+----
+curl -X POST http://localhost:5050/mp-ecomm-store/api/webhooks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "callbackUrl": "http://localhost:3000/webhooks/products",
+    "events": ["product.created", "product.updated", "product.deleted"]
+  }'
+----
++
+*Note*: Save the `secret` from the response to configure signature verification.
+
+. *Update the Webhook Secret* (optional, for signature verification)
++
+[source,bash]
+----
+curl -X POST http://localhost:3000/set-secret \
+  -H "Content-Type: application/json" \
+  -d '{"secret": "whsec_abc123..."}'
+----
+
+. *Trigger a Webhook Event*
++
+[source,bash]
+----
+# Create a product to trigger product.created event
+curl -X POST http://localhost:5050/mp-ecomm-store/api/products \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Gaming Mouse",
+    "price": 59.99,
+    "category": "ELECTRONICS"
+  }'
+----
+
+. *View the Webhook Event*
++
+Check the webhook-receiver.js terminal output:
++
+[source,text]
+----
+============================================================
+📨 Webhook Received!
+============================================================
+
+📋 Headers:
+  X-Event-Type: product.created
+  X-Event-Id: evt_abc123xyz
+  X-Webhook-Signature: sha256=...
+  Content-Type: application/json
+
+✅ Signature verified successfully
+
+📦 Payload:
+{
+  "eventId": "evt_abc123xyz",
+  "eventType": "product.created",
+  "timestamp": "2026-02-08T10:30:00Z",
+  "product": {
+    "id": 42,
+    "name": "Gaming Mouse",
+    "price": 59.99,
+    "category": "ELECTRONICS"
+  }
+}
+
+🔔 Event Details:
+  Event Type: product.created
+  Event ID: evt_abc123xyz
+  Timestamp: 2026-02-08T10:30:00Z
+
+  📦 Product:
+    ID: 42
+    Name: Gaming Mouse
+    Price: $59.99
+    Category: ELECTRONICS
+============================================================
+----
+
+==== Public URL Testing with ngrok
+
+To test webhooks with a publicly accessible URL:
+
+. *Install ngrok*
++
+[source,bash]
+----
+# Download from https://ngrok.com/download
+# Or install via package manager
+brew install ngrok  # macOS
+----
+
+. *Expose the Webhook Receiver*
++
+[source,bash]
+----
+ngrok http 3000
+----
+
+. *Use the HTTPS URL in Your Subscription*
++
+[source,bash]
+----
+curl -X POST http://localhost:5050/mp-ecomm-store/api/webhooks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "callbackUrl": "https://your-random-id.ngrok.io/webhooks/products",
+    "events": ["product.created", "product.updated"]
+  }'
+----
+
+=== Manual Testing
+
+==== 1. View OpenAPI Spec
+
+[source,bash]
+----
+curl http://localhost:5050/openapi | jq '.paths."/api/webhooks".post.callbacks'
+----
+
+==== 2. Create a Subscription
+
+[source,bash]
+----
+curl -X POST http://localhost:5050/mp-ecomm-store/api/webhooks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "callbackUrl": "https://myapp.com/webhooks",
+    "events": ["product.created", "product.updated"]
+  }'
+----
+
+*Response*:
+[source,json]
+----
+{
+  "id": "sub_xyz123",
+  "secret": "whsec_abc...",
+  "active": true,
+  "callbackUrl": "https://myapp.com/webhooks",
+  "events": ["product.created", "product.updated"]
+}
+----
+
+==== 3. Trigger Webhook by Creating Product
+
+[source,bash]
+----
+curl -X POST http://localhost:5050/mp-ecomm-store/api/products \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Test Product",
+    "price": 99.99,
+    "category": "ELECTRONICS"
+  }'
+----
+
+This will trigger a webhook POST to `https://myapp.com/webhooks` with:
+
+* *Header*: `X-Webhook-Signature: sha256=...`
+* *Body*: ProductEvent JSON
+
+==== 4. Verify Webhook Signature
+
+Client-side webhook receiver should verify the signature:
+
+[source,javascript]
+----
+const crypto = require('crypto');
+
+function verifyWebhookSignature(payload, signature, secret) {
+  const hmac = crypto.createHmac('sha256', secret);
+  hmac.update(payload);
+  const expectedSignature = 'sha256=' + hmac.digest('hex');
+  return signature === expectedSignature;
+}
+
+// Express.js webhook endpoint
+app.post('/webhooks', (req, res) => {
+  const signature = req.headers['x-webhook-signature'];
+  const payload = JSON.stringify(req.body);
+  const secret = 'whsec_abc...'; // From subscription response
+  
+  if (verifyWebhookSignature(payload, signature, secret)) {
+    console.log('Webhook verified:', req.body);
+    res.status(200).send('OK');
+  } else {
+    console.error('Invalid signature');
+    res.status(401).send('Unauthorized');
+  }
+});
+----
+
+== Webhook Event Flow
+
+=== Step 1: Client Subscribes
+
+[source,bash]
+----
+POST /mp-ecomm-store/api/webhooks
+{
+  "callbackUrl": "https://myapp.com/webhooks",
+  "events": ["product.created", "product.stock.low"]
+}
+----
+
+*Response*:
+
+[source,json]
+----
+{
+  "id": "sub_xyz123",
+  "secret": "whsec_abc...",
+  "active": true
+}
+----
+
+=== Step 2: Product Event Occurs
+
+Internal product creation, update, or deletion triggers the webhook service.
+
+[source,java]
+----
+// Inside ProductResource.createProduct()
+Product created = productService.create(product);
+
+// Trigger webhook
+ProductEvent event = new ProductEvent(
+    "evt_" + UUID.randomUUID(),
+    "product.created",
+    Instant.now().toString(),
+    created,
+    Map.of("source", "product-api")
+);
+webhookService.sendEvent(event);
+----
+
+=== Step 3: Webhook Delivery
+
+WebhookService delivers the event to all matching subscriptions:
+
+[source,text]
+----
+POST https://myapp.com/webhooks
+X-Webhook-Signature: sha256=abc123...
+Content-Type: application/json
+
+{
+  "eventId": "evt_abc123xyz",
+  "eventType": "product.created",
+  "timestamp": "2026-02-08T10:30:00Z",
+  "product": {
+    "id": 42,
+    "name": "Wireless Mouse",
+    "price": 29.99,
+    "category": "ELECTRONICS"
+  },
+  "metadata": {
+    "source": "product-api"
+  }
+}
+----
+
+=== Step 4: Client Processes Event
+
+Client application receives the webhook, verifies signature, and processes the event.
+
+== OpenAPI 3.1 vs 3.0 Comparison
+
+[cols="2,3,3"]
+|===
+|Feature |OpenAPI 3.0 |OpenAPI 3.1
+
+|*Webhooks*
+|❌ Not supported
+|✅ Native support via `callbacks` or root `webhooks` object
+
+|*exclusiveMinimum*
+|Boolean + minimum
+|Numeric value
+
+|*exclusiveMaximum*
+|Boolean + maximum
+|Numeric value
+
+|*JSON Schema*
+|Custom subset
+|Full JSON Schema 2020-12
+
+|*const keyword*
+|Not available
+|✅ Supported
+
+|*$schema*
+|Not allowed
+|✅ Via `jsonSchemaDialect`
+
+|*null type*
+|Via nullable: true
+|✅ Direct type: null
+|===
+
+== Benefits of OpenAPI 3.1
+
+=== 1. Webhook Documentation
+
+Document server-to-client event notifications directly in the API specification.
+
+=== 2. Stronger Validation
+
+* Numeric exclusive bounds
+* Pattern validation
+* Format validation
+* JSON Schema 2020-12 compliance
+
+=== 3. Better Tooling
+
+* JSON Schema ecosystem compatibility
+* Improved code generation
+* Enhanced validation libraries
+
+=== 4. Standard Alignment
+
+OpenAPI 3.1 is a true superset of JSON Schema, ensuring compatibility with the broader schema ecosystem.
 
 == Running the Application
 
-=== Using Liberty Maven Plugin
+=== Prerequisites
+
+* Java 21 or later
+* Maven 3.9+
+
+=== Build and Run
 
 [source,bash]
 ----
-mvn liberty:dev
+# Build the project
+mvn clean package
+
+# Run with Liberty
+mvn liberty:run
 ----
 
-This starts Open Liberty server in development mode with hot reloading enabled, allowing for rapid development cycles.
+The application will be available at:
 
-=== Accessing the Application
+* REST API: http://localhost:5050/mp-ecomm-store/api/
+* OpenAPI Spec: http://localhost:5050/openapi
+* OpenAPI UI: http://localhost:5050/openapi/ui/
 
-Once the server is running, you can access:
-
-* Products Endpoint: http://<hostname>:5050/mp-ecomm-store/api/products
-
-Replace <hostname> with _localhost_ or the hostname of the system, where you are running this code.
-
-=== Running Unit Tests
-
-To run the `ProductResourceTest.java` unit test, use the following Maven command from the project root:
+=== Testing Endpoints
 
 [source,bash]
 ----
-mvn test -Dtest=io.microprofile.tutorial.store.product.resource.ProductResourceTest
+# Create a product
+curl -X POST http://localhost:5050/mp-ecomm-store/api/products \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Wireless Keyboard",
+    "price": 49.99,
+    "category": "ELECTRONICS"
+  }'
+
+# List all products
+curl http://localhost:5050/mp-ecomm-store/api/products
+
+# Subscribe to webhooks
+curl -X POST http://localhost:5050/mp-ecomm-store/api/webhooks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "callbackUrl": "https://example.com/webhooks",
+    "events": ["product.created", "product.updated"]
+  }'
 ----
 
-This will execute the test and display the results in the terminal.
+== Key Takeaways
 
-== Key Features
+✅ *Webhooks documented using @Callback annotations* - No CustomModelReader modifications required
 
-Current features:
+✅ *All 5 event types fully documented with examples* - product.created, updated, deleted, stock.low, stock.out
 
-* Basic product listing functionality
-* JSON-B serialization
+✅ *Security headers documented* - HMAC-SHA256 signature verification via @Header annotation
+
+✅ *Response codes and retry behavior documented* - Automatic retry on 5xx responses
+
+✅ *OpenAPI 3.1 compliance* - Full JSON Schema 2020-12 support with numeric exclusive bounds
+
+✅ *Clean separation of concerns* - Webhooks in resource layer, delivery in service layer
+
+== Additional Resources
+
+*Project Documentation:*
+
+* link:WEBHOOK_SECURITY_BEST_PRACTICES.adoc[Webhook Security Best Practices] - Comprehensive guide for implementing secure webhook receivers
+
+*Specifications & Standards:*
+
+* link:https://microprofile.io/specifications/microprofile-open-api/[MicroProfile OpenAPI Specification]
+* link:https://spec.openapis.org/oas/v3.1.0[OpenAPI 3.1 Specification]
+* link:https://json-schema.org/draft/2020-12/schema[JSON Schema 2020-12]
+* link:https://openliberty.io/docs/latest/reference/feature/mpOpenAPI-4.0.html[Open Liberty MicroProfile OpenAPI]

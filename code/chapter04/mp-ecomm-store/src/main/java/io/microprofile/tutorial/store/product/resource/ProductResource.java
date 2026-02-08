@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 import java.util.Optional;
 
 import io.microprofile.tutorial.store.product.entity.Product;
+import io.microprofile.tutorial.store.product.service.WebhookService;
 
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
@@ -19,6 +20,7 @@ import org.eclipse.microprofile.openapi.annotations.extensions.Extension;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DefaultValue;
@@ -49,6 +51,9 @@ import jakarta.ws.rs.core.Response;
 )
 public class ProductResource {
     private List<Product> products;
+    
+    @Inject
+    WebhookService webhookService;
 
     public ProductResource() {
         products = new ArrayList<>();
@@ -170,9 +175,16 @@ public class ProductResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(
         summary = "Create a new product",
+        description = """
+            Creates a new product in the catalog.
+            
+            **Webhook Trigger**: This operation triggers a `product.created` webhook event 
+            to all active subscribers.
+            """,
         extensions = {
             @Extension(name = "x-requires-auth", value = "admin"),
-            @Extension(name = "x-audit-log", value = "true")
+            @Extension(name = "x-audit-log", value = "true"),
+            @Extension(name = "x-webhook-event", value = "product.created")
         }
     )
     @SecurityRequirement(name = "oauth2", scopes = {"write:products"})
@@ -208,6 +220,10 @@ public class ProductResource {
             .orElse(0L) + 1;
         product.setId(newId);
         products.add(product);
+        
+        // Trigger webhook event
+        webhookService.sendEvent("product.created", product);
+        
         return Response.status(Response.Status.CREATED).entity(product).build();
     }
 
