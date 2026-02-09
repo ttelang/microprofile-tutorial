@@ -480,7 +480,8 @@ public class CustomModelReader implements OASModelReader {
             // Supports all JSON Schema 2020-12 keywords PLUS Open API specific extensions.
             .jsonSchemaDialect("https://spec.openapis.org/oas/3.1/dialect/base")
             
-            // Alternative: Use pure JSON Schema 2020-12. Use this ONLY if you need strict compatibility                // with external tools that do not recognize OpenAPI-specific keywords.
+            // Alternative: Use pure JSON Schema 2020-12. Use this ONLY if you need strict compatibility
+            // with external tools that do not recognize OpenAPI-specific keywords.
             // .jsonSchemaDialect("https://json-schema.org/draft/2020-12/schema")
             
             .info(OASFactory.createInfo()
@@ -669,11 +670,11 @@ Filters are useful for:
 * *Code generation*: Add hints for client SDK generators
 * *Custom tooling*: Process the OpenAPI document programmatically for custom tools
 
-=== Documenting Asynchronous Operations with Callbacks
+== Documenting Asynchronous Operations with Callbacks
 
 MicroProfile OpenAPI 4.1 supports documenting asynchronous operations that use callbacks. Callbacks are useful for webhook-style APIs where your service initiates an asynchronous process and notifies the client when it completes by making an HTTP request back to a URL provided by the client.
 
-==== Understanding Callbacks
+=== Understanding Callbacks
 
 A callback in OpenAPI describes an HTTP request that your API will make to the client. Common use cases include:
 
@@ -690,7 +691,7 @@ The callback pattern works as follows:
 3. Your API processes the request asynchronously
 4. When complete, your API makes an HTTP request to the client's callback URL
 
-==== Documenting Callbacks with @Callback
+=== Documenting Callbacks with `@Callback`
 
 The `@Callback` annotation documents the HTTP request your API will make back to the client:
 
@@ -778,7 +779,7 @@ public class AsyncProductResource {
 }
 ----
 
-==== Request and Response Models
+=== Request and Response Models
 
 The implementation for AsyncProductRequest is as below:
 
@@ -845,7 +846,7 @@ public class ProcessResult {
 }
 ----
 
-==== Generated OpenAPI Specification
+=== Generated OpenAPI Specification
 
 The callback is documented in the OpenAPI specification:
 
@@ -919,7 +920,7 @@ components:
           example: 2024-02-04T10:30:00Z
 ----
 
-==== Understanding the Callback Components
+=== Understanding the Callback Components
 
 *@Callback annotation parameters:*
 
@@ -934,7 +935,7 @@ components:
 * `summary`: Brief description of the callback
 * `requestBody`: Defines what your API will send to the client's callback URL
 
-==== Example Usage Flow
+=== Example Usage Flow
 
 *Step 1: Client initiates async processing*
 
@@ -982,7 +983,7 @@ Content-Type: application/json
 }
 ----
 
-==== Benefits of Documenting Callbacks
+=== Benefits of Documenting Callbacks
 
 Documenting callbacks in your OpenAPI specification provides:
 
@@ -992,11 +993,11 @@ Documenting callbacks in your OpenAPI specification provides:
 * *Validation*: Schema validation ensures your callbacks send correct data
 * *Code generation*: Tools can generate callback handler code for clients
 
-=== Using Security Schemes in OpenAPI Documentation
+== Using Security Schemes in OpenAPI Documentation
 
 Security is a critical aspect of API documentation. MicroProfile OpenAPI 4.1 provides comprehensive support for documenting various security schemes including API keys, HTTP authentication, OAuth2, and OpenID Connect.
 
-==== Defining Security Schemes
+=== Defining Security Schemes
 
 Security schemes are defined at the application level using `@SecurityScheme` annotations:
 
@@ -1057,7 +1058,7 @@ public class ProductRestApplication extends Application {
 }
 ----
 
-==== Applying Security to Operations
+=== Applying Security to Operations
 
 You can apply security requirements to individual operations or to entire resource classes:
 
@@ -1107,7 +1108,7 @@ public Response createSecuredProduct(Product product) {
 }
 ----
 
-==== Generated OpenAPI Document
+=== Generated OpenAPI Document
 
 The security schemes and requirements are documented in the OpenAPI specification:
 
@@ -1170,7 +1171,7 @@ paths:
           description: Forbidden - insufficient scopes
 ----
 
-==== Security in Swagger UI
+=== Security in Swagger UI
 
 When viewing the documented API in Swagger UI, security schemes appear in several ways:
 
