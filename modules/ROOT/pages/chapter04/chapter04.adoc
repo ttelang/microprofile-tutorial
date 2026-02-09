@@ -672,17 +672,15 @@ Filters are useful for:
 
 == Documenting Asynchronous Operations with Callbacks
 
-MicroProfile OpenAPI 4.1 supports documenting asynchronous operations that use callbacks. Callbacks are useful for webhook-style APIs where your service initiates an asynchronous process and notifies the client when it completes by making an HTTP request back to a URL provided by the client.
+MicroProfile OpenAPI 4.1 supports documenting asynchronous operations that use callbacks. Callbacks are useful for APIs where your service initiates an asynchronous process and notifies the client when it completes by making an HTTP request back to a URL provided by the client.
 
 === Understanding Callbacks
 
-A callback in OpenAPI describes an HTTP request that your API will make to the client. Common use cases include:
+A callback in OpenAPI describes an HTTP request that your API will make to the client. Common use cases of callbacks include:
 
 * *Webhook notifications*: Notify clients when long-running operations complete
 * *Event subscriptions*: Send events to client-provided endpoints
-* *Payment processing*: Notify clients of payment status changes
 * *Batch processing*: Alert clients when batch jobs finish
-* *Order fulfillment*: Update clients on order status changes
 
 The callback pattern works as follows:
 
@@ -699,49 +697,32 @@ The `@Callback` annotation documents the HTTP request your API will make back to
 ----
 package io.microprofile.tutorial.store.product.resource;
 
-import org.eclipse.microprofile.openapi.annotations.Operation;
-import org.eclipse.microprofile.openapi.annotations.callbacks.Callback;
-import org.eclipse.microprofile.openapi.annotations.callbacks.CallbackOperation;
-import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
-import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
-import org.eclipse.microprofile.openapi.annotations.media.Content;
-import org.eclipse.microprofile.openapi.annotations.media.Schema;
-import org.eclipse.microprofile.openapi.annotations.tags.Tag;
-import jakarta.ws.rs.POST;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.Consumes;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
-import jakarta.enterprise.context.ApplicationScoped;
-import io.microprofile.tutorial.store.product.entity.AsyncProductRequest;
-import io.microprofile.tutorial.store.product.entity.ProcessResult;
+// ...
 
 @Path("/products")
 @ApplicationScoped
-@Tag(name = "Products", description = "Async product operations")
-public class AsyncProductResource {
+@Tag(name = "Products")
+public class ProductResource {
+
+    // ... 
 
     @POST
     @Path("/process-async")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    @Operation(
-        summary = "Process product asynchronously",
-        description = "Initiates asynchronous product processing and calls back when complete"
-    )
-    @APIResponse(
-        responseCode = "202",
-        description = "Processing initiated"
-    )
+    @Operation(summary = "Process product updates asynchronously")
+    @APIResponse(responseCode = "202", description = "Request accepted for processing"))
     @Callback(
         name = "productProcessed",
         callbackUrlExpression = "{$request.body#/callbackUrl}",
         operations = {
             @CallbackOperation(
                 method = "post",
-                summary = "Product processing completed",
-                description = "Called when async product processing is complete",
+                summary = "Product upate processing completed",
+                responses = @APIResponse(
+                   responseCode = "200",
+                   description = "Callback received successfully"
+                ),
                 requestBody = @RequestBody(
                     description = "Processing result",
                     content = @Content(
@@ -778,6 +759,28 @@ public class AsyncProductResource {
     }
 }
 ----
+
+Explanation: 
+
+* `@Callback`: Documents the callback operation
+
+*@Callback annotation parameters:*
+
+* `name`: Identifier for this callback (used in the OpenAPI spec)
+* `callbackUrlExpression`: JSON Pointer expression to extract the callback URL from the request
+  - `{$request.body#/callbackUrl}` means: "Use the `callbackUrl` field from the request body"
+* `operations`: Array of `@CallbackOperation` defining what HTTP requests your API will make
+
+
+* `@CallbackOperation`: Documents the HTTP POST your API will make to the callback URL 
+
+*@CallbackOperation parameters:*
+
+* `method`: HTTP method your API will use (typically "post")
+* `summary`: Brief description of the callback
+* `requestBody`: Defines what your API will send to the client's callback URL
+
+* `@RequestBody`: Describes the JSON payload sent to the callback
 
 === Request and Response Models
 
@@ -846,9 +849,12 @@ public class ProcessResult {
 }
 ----
 
+Explanation: 
+
+
 === Generated OpenAPI Specification
 
-The callback is documented in the OpenAPI specification:
+The callback is documented in the OpenAPI documentation as below:
 
 [source, yaml]
 ----
@@ -920,21 +926,6 @@ components:
           example: 2024-02-04T10:30:00Z
 ----
 
-=== Understanding the Callback Components
-
-*@Callback annotation parameters:*
-
-* `name`: Identifier for this callback (used in the OpenAPI spec)
-* `callbackUrlExpression`: JSON Pointer expression to extract the callback URL from the request
-  - `{$request.body#/callbackUrl}` means: "Use the `callbackUrl` field from the request body"
-* `operations`: Array of `@CallbackOperation` defining what HTTP requests your API will make
-
-*@CallbackOperation parameters:*
-
-* `method`: HTTP method your API will use (typically "post")
-* `summary`: Brief description of the callback
-* `requestBody`: Defines what your API will send to the client's callback URL
-
 === Example Usage Flow
 
 *Step 1: Client initiates async processing*
@@ -983,15 +974,474 @@ Content-Type: application/json
 }
 ----
 
-=== Benefits of Documenting Callbacks
+=== Webhook Event Subscriptions
 
-Documenting callbacks in your OpenAPI specification provides:
+For more complex scenarios with multiple event types, you can use webhooks. This example shows a webhook subscription system with five different event types:
 
-* *Clear contract*: Clients know exactly what to expect from your callback
-* *Implementation guide*: Client developers know what endpoint to implement
-* *Testing support*: Tools can generate mock callback endpoints
-* *Validation*: Schema validation ensures your callbacks send correct data
-* *Code generation*: Tools can generate callback handler code for clients
+[source, java]
+----
+package io.microprofile.tutorial.store.product.resource;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.callbacks.Callback;
+import org.eclipse.microprofile.openapi.annotations.callbacks.CallbackOperation;
+import org.eclipse.microprofile.openapi.annotations.media.Content;
+import org.eclipse.microprofile.openapi.annotations.media.ExampleObject;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
+import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+
+@Path("/webhooks")
+@ApplicationScoped
+@Tag(
+    name = "Webhooks",
+    description = """
+        Manage webhook subscriptions for product event notifications.
+        
+        Subscribe to receive HTTP POST callbacks when products are created, updated, deleted,
+        or when stock levels change. Each subscription includes a secret for verifying webhook signatures.
+        """
+)
+public class WebhookResource {
+    
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(
+        summary = "Subscribe to product webhook events",
+        description = """
+            Create a webhook subscription to receive real-time product event notifications.
+            
+            ## How It Works
+            1. POST your subscription with a valid HTTPS callback URL
+            2. Receive a unique secret for verifying webhook signatures
+            3. Your callback URL will receive POST requests when subscribed events occur
+            
+            ## Security
+            - All webhook deliveries include X-Webhook-Signature header
+            - Signature format: HMAC-SHA256(secret, request_body) in hex
+            - Always verify signatures to ensure request authenticity
+            """
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    @APIResponses({
+        @APIResponse(
+            responseCode = "201",
+            description = "Subscription created successfully",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                schema = @Schema(implementation = WebhookSubscription.class)
+            )
+        ),
+        @APIResponse(responseCode = "400", description = "Invalid subscription configuration"),
+        @APIResponse(responseCode = "401", description = "Unauthorized - API key required")
+    })
+    @Callback(
+        name = "productEvents",
+        callbackUrlExpression = "{$request.body#/callbackUrl}",
+        operations = {
+            // Event 1: Product Created
+            @CallbackOperation(
+                method = "post",
+                summary = "Product Created Webhook",
+                description = """
+                    Triggered when a new product is added to the catalog via POST /products.
+                    
+                    Headers included:
+                    - X-Webhook-Signature: HMAC-SHA256 signature for verification
+                    - X-Event-Type: product.created
+                    - X-Event-ID: Unique event identifier
+                    """,
+                requestBody = @RequestBody(
+                    description = "Product creation event payload",
+                    required = true,
+                    content = @Content(
+                        mediaType = MediaType.APPLICATION_JSON,
+                        schema = @Schema(implementation = ProductEvent.class),
+                        examples = @ExampleObject(
+                            name = "created-event",
+                            value = """
+                                {
+                                  "eventId": "evt_abc123xyz",
+                                  "eventType": "product.created",
+                                  "timestamp": "2026-02-08T10:35:12Z",
+                                  "product": {
+                                    "id": 42,
+                                    "name": "Wireless Keyboard",
+                                    "price": 89.99,
+                                    "category": "ELECTRONICS"
+                                  }
+                                }
+                                """
+                        )
+                    )
+                ),
+                responses = {
+                    @APIResponse(
+                        responseCode = "200",
+                        description = "Webhook acknowledged successfully"
+                    ),
+                    @APIResponse(
+                        responseCode = "5xx",
+                        description = "Processing failed - Will retry with exponential backoff"
+                    )
+                }
+            ),
+            
+            // Event 2: Product Updated
+            @CallbackOperation(
+                method = "post",
+                summary = "Product Updated Webhook",
+                description = "Triggered when an existing product is modified via PUT /products/{id}",
+                requestBody = @RequestBody(
+                    description = "Product update event payload",
+                    required = true,
+                    content = @Content(
+                        mediaType = MediaType.APPLICATION_JSON,
+                        schema = @Schema(implementation = ProductEvent.class),
+                        examples = @ExampleObject(
+                            name = "updated-event",
+                            value = """
+                                {
+                                  "eventId": "evt_def456ghi",
+                                  "eventType": "product.updated",
+                                  "timestamp": "2026-02-08T11:20:33Z",
+                                  "product": {
+                                    "id": 42,
+                                    "name": "Wireless Keyboard",
+                                    "price": 79.99
+                                  },
+                                  "metadata": {
+                                    "changedFields": ["price"],
+                                    "previousPrice": 89.99
+                                  }
+                                }
+                                """
+                        )
+                    )
+                ),
+                responses = {
+                    @APIResponse(responseCode = "200", description = "Event acknowledged"),
+                    @APIResponse(responseCode = "5xx", description = "Will retry")
+                }
+            ),
+            
+            // Event 3: Product Deleted
+            @CallbackOperation(
+                method = "post",
+                summary = "Product Deleted Webhook",
+                description = "Triggered when a product is removed via DELETE /products/{id}",
+                requestBody = @RequestBody(
+                    description = "Product deletion event payload",
+                    required = true,
+                    content = @Content(
+                        mediaType = MediaType.APPLICATION_JSON,
+                        schema = @Schema(implementation = ProductEvent.class),
+                        examples = @ExampleObject(
+                            name = "deleted-event",
+                            value = """
+                                {
+                                  "eventId": "evt_jkl789mno",
+                                  "eventType": "product.deleted",
+                                  "timestamp": "2026-02-08T12:05:18Z",
+                                  "product": {
+                                    "id": 42
+                                  },
+                                  "metadata": {
+                                    "reason": "discontinued"
+                                  }
+                                }
+                                """
+                        )
+                    )
+                ),
+                responses = {
+                    @APIResponse(responseCode = "200", description = "Event acknowledged"),
+                    @APIResponse(responseCode = "5xx", description = "Will retry")
+                }
+            ),
+            
+            // Event 4: Low Stock Alert
+            @CallbackOperation(
+                method = "post",
+                summary = "Low Stock Alert Webhook",
+                description = """
+                    Triggered when product inventory falls below threshold (default: 10 units).
+                    Sent only once when threshold is crossed.
+                    """,
+                requestBody = @RequestBody(
+                    description = "Low stock alert payload",
+                    required = true,
+                    content = @Content(
+                        mediaType = MediaType.APPLICATION_JSON,
+                        schema = @Schema(implementation = ProductEvent.class),
+                        examples = @ExampleObject(
+                            name = "stock-low-event",
+                            value = """
+                                {
+                                  "eventId": "evt_pqr012stu",
+                                  "eventType": "product.stock.low",
+                                  "timestamp": "2026-02-08T13:45:22Z",
+                                  "product": {
+                                    "id": 42,
+                                    "name": "Wireless Keyboard"
+                                  },
+                                  "metadata": {
+                                    "currentStock": 7,
+                                    "threshold": 10,
+                                    "recommendedReorder": 50
+                                  }
+                                }
+                                """
+                        )
+                    )
+                ),
+                responses = {
+                    @APIResponse(responseCode = "200", description = "Alert acknowledged"),
+                    @APIResponse(responseCode = "5xx", description = "Will retry")
+                }
+            ),
+            
+            // Event 5: Out of Stock
+            @CallbackOperation(
+                method = "post",
+                summary = "Out of Stock Webhook",
+                description = """
+                    Triggered when product inventory reaches zero.
+                    Priority: HIGH - requires immediate attention.
+                    """,
+                requestBody = @RequestBody(
+                    description = "Out of stock alert payload",
+                    required = true,
+                    content = @Content(
+                        mediaType = MediaType.APPLICATION_JSON,
+                        schema = @Schema(implementation = ProductEvent.class),
+                        examples = @ExampleObject(
+                            name = "stock-out-event",
+                            value = """
+                                {
+                                  "eventId": "evt_vwx345yz",
+                                  "eventType": "product.stock.out",
+                                  "timestamp": "2026-02-08T14:12:09Z",
+                                  "product": {
+                                    "id": 42,
+                                    "name": "Wireless Keyboard"
+                                  },
+                                  "metadata": {
+                                    "lastSoldAt": "2026-02-08T14:12:05Z",
+                                    "totalSoldToday": 25,
+                                    "backorderAvailable": true
+                                  }
+                                }
+                                """
+                        )
+                    )
+                ),
+                responses = {
+                    @APIResponse(responseCode = "200", description = "Alert acknowledged"),
+                    @APIResponse(responseCode = "5xx", description = "Will retry")
+                }
+            )
+        }
+    )
+    public Response subscribe(WebhookSubscription subscription) {
+        // Create subscription and return with generated ID and secret
+        return Response.status(Response.Status.CREATED)
+                      .entity(webhookService.subscribe(subscription))
+                      .build();
+    }
+}
+----
+
+==== Webhook Data Models
+
+*WebhookSubscription* - Subscription configuration sent by clients:
+
+[source, java]
+----
+@Data
+@Schema(description = "Webhook subscription configuration")
+public class WebhookSubscription {
+    
+    @Schema(description = "Unique subscription identifier", 
+            example = "sub_abc123", 
+            readOnly = true)
+    private String id;
+    
+    @Schema(description = "Callback URL (must be HTTPS)", 
+            example = "https://example.com/webhooks/products",
+            required = true,
+            pattern = "^https://.*")
+    private String url;
+    
+    @Schema(description = "List of event types to subscribe to",
+            required = true,
+            minItems = 1,
+            enumeration = {
+                "product.created",
+                "product.updated",
+                "product.deleted",
+                "product.stock.low",
+                "product.stock.out"
+            })
+    private List<String> events;
+    
+    @Schema(description = "Secret key for webhook signature verification", 
+            example = "whsec_abc123def456...",
+            readOnly = true,
+            pattern = "^whsec_[a-zA-Z0-9]{32,}$")
+    private String secret;
+    
+    @Schema(description = "Whether the webhook subscription is active",
+            defaultValue = "true")
+    private Boolean active;
+}
+----
+
+*ProductEvent* - Event payload sent to webhook subscribers:
+
+[source, java]
+----
+@Data
+@Schema(description = "Event notification sent to webhook subscribers")
+public class ProductEvent {
+    
+    @Schema(description = "Unique event identifier",
+            example = "evt_1234567890",
+            required = true)
+    private String eventId;
+    
+    @Schema(description = "Type of event that occurred",
+            example = "product.created",
+            required = true,
+            enumeration = {
+                "product.created",
+                "product.updated",
+                "product.deleted",
+                "product.stock.low",
+                "product.stock.out"
+            })
+    private String eventType;
+    
+    @Schema(description = "Timestamp when the event occurred",
+            example = "2026-02-08T10:30:00",
+            required = true,
+            format = "date-time")
+    private LocalDateTime timestamp;
+    
+    @Schema(description = "The product that triggered the event",
+            required = true)
+    private Product product;
+    
+    @Schema(description = "Additional metadata about the event",
+            nullable = true)
+    private String metadata;
+}
+----
+
+=== Example Webhook Flow
+
+*Step 1: Client subscribes to events*
+
+[source, bash]
+----
+POST /api/webhooks
+Authorization: Bearer <api-key>
+Content-Type: application/json
+
+{
+  "callbackUrl": "https://myapp.example.com/webhooks/products",
+  "events": [
+    "product.created",
+    "product.updated",
+    "product.stock.low"
+  ],
+  "active": true
+}
+----
+
+*Step 2: API creates subscription and returns secret*
+
+[source, bash]
+----
+HTTP/1.1 201 Created
+Content-Type: application/json
+
+{
+  "id": "sub_7x9k2m4n6p",
+  "callbackUrl": "https://myapp.example.com/webhooks/products",
+  "events": ["product.created", "product.updated", "product.stock.low"],
+  "secret": "whsec_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
+  "active": true,
+  "createdAt": "2026-02-08T10:30:00Z"
+}
+----
+
+*Step 3: Product event occurs (e.g., new product created)*
+
+[source, bash]
+----
+POST /api/products
+Content-Type: application/json
+
+{
+  "name": "Wireless Keyboard",
+  "price": 89.99,
+  "category": "ELECTRONICS"
+}
+----
+
+*Step 4: API sends webhook to client's callback URL*
+
+[source, bash]
+----
+POST https://myapp.example.com/webhooks/products
+X-Webhook-Signature: sha256=a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6
+X-Event-Type: product.created
+X-Event-ID: evt_abc123xyz
+Content-Type: application/json
+
+{
+  "eventId": "evt_abc123xyz",
+  "eventType": "product.created",
+  "timestamp": "2026-02-08T10:35:12Z",
+  "product": {
+    "id": 42,
+    "name": "Wireless Keyboard",
+    "price": 89.99,
+    "category": "ELECTRONICS"
+  },
+  "metadata": {
+    "source": "api",
+    "userId": "user@example.com"
+  }
+}
+----
+
+*Step 5: Client acknowledges webhook*
+
+[source, bash]
+----
+HTTP/1.1 200 OK
+----
+
+=== Benefits of Documenting Callbacks and Webhooks
+
+Documenting webhooks and callbacks in OpenAPI specification provides the following advantages:
+
+* *Discoverability*: All webhook events are documented in one place
+* *Maintenance*: Changes to webhook schemas can be tracked and versioned
+* *Clear contract*: Developers know exactly what events are available and what data to expect. This also serves as developer's integration guide.
+* *Interactive Documentation*: Swagger UI displays all webhook events with examples 
+* *Testing support*: Tools can generate mock callback endpoints and these mock servers can simulate webhook deliveries for integration tests 
+* *Code generation*: Tools can generate callback handler code for clients and webhook handler stubs automatically
 
 == Using Security Schemes in OpenAPI Documentation
 
