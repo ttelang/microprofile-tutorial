@@ -369,33 +369,36 @@ schema:
 
 When documenting query parameters, path parameters, or request body fields that can be null, MicroProfile OpenAPI 4.1 generates OpenAPI v3.1 specifications that use standard JSON Schema nullable notation (`type: ["string", "null"]`) instead of the deprecated `nullable: true` keyword.
 
-==== Enhanced Schema Composition
+==== Enhanced schema composition
 
-OpenAPI v3.1 provides improved support for `oneOf`, `anyOf`, and `allOf` keywords, enabling more flexible and precise schema modeling for:
+OpenAPI v3.1 provides improved support for `oneOf`, `anyOf`, and `allOf` keywords, which enables more flexible and precise schema modeling for:
 
 * Polymorphic types (using discriminators)
 * Union types (multiple possible schemas)
 * Inheritance relationships (schema extension and composition)
 
-=== Support for Java Records
+=== Support for Java records
 
-Java Records (introduced in Java 14/16) provide a concise way to declare immutable data carriers with several advantages:
+Java records provide a concise way to declare immutable data carriers with several advantages:
 
-* *Concise syntax*: Requires less boilerplate code compared to traditional POJOs (Plain Old Java Objects)
-* *Immutability*: Records are inherently immutable, hence promoting safer API contracts
-* *Type safety*: Records provides compile-time guarantees for your data models
-* *Clarity of intent*: Records signal that the type is a simple data carrier
+* Concise syntax that requires less boilerplate code compared to traditional Plain Old Java Objects (POJOs)
+* Immutability that promotes safer API contracts
+* Type safety that provides compile-time guarantees for your data models
+* Clarity of intent that signals the type is a simple data carrier
 
-MicroProfile OpenAPI 4.1 provides native support for Java Records, automatically generating schema definitions from record components.
+MicroProfile OpenAPI 4.1 provides native support for Java records and automatically generates schema definitions from record components.
 
-==== Basic Record Schema Generation
+==== Basic record schema generation
 
-MicroProfile OpenAPI automatically discovers record components and generates corresponding OpenAPI schemas. Here's an example using a category record for organizing products:
+MicroProfile OpenAPI automatically discovers record components and generates corresponding OpenAPI schemas. The following example shows a category record for organizing products:
 
-*Java Record definition:*
+*Java record definition:*
 [source, java]
 ----
-// ... 
+package io.microprofile.tutorial.store.product.entity;
+
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 
 @Schema(name = "CategoryRecord", description = "Product category information")
 public record CategoryRecord(
@@ -467,7 +470,7 @@ Below are the available dialects in OpenAPI 3.1:
 * *Default dialect*: `https://spec.openapis.org/oas/3.1/dialect/base` - This is used when no dialect is specified. It is a superset of JSON Schema 2020-12. It permits all standard JSON Schema 2020-12 keywords as well as OpenAPI-specific keywords.
 * *JSON Schema 2020-12*: `https://json-schema.org/draft/2020-12/schema` - Use this to restrict schemas to standard JSON Schema 2020-12. It ensures your OpenAPI documents compatibility with external systems that require strict adherence to the JSON Schema 2020-12 specification and do not understand OpenAPI extensions.
 
-==== Specifying the Dialect Programmatically
+==== Specifying the dialect programmatically
 
 You can set the JSON Schema dialect using the `OASModelReader` interface:
 
@@ -489,7 +492,7 @@ public class CustomModelReader implements OASModelReader {
             // Supports all JSON Schema 2020-12 keywords PLUS Open API specific extensions.
             .jsonSchemaDialect("https://spec.openapis.org/oas/3.1/dialect/base")
             
-            // Alternative: Use pure JSON Schema 2020-12. Use this ONLY if you need strict compatibility
+            // Alternative: Use JSON Schema 2020-12 ONLY if you need strict compatibility
             // with external tools that do not recognize OpenAPI-specific keywords.
             // .jsonSchemaDialect("https://json-schema.org/draft/2020-12/schema")
             
@@ -501,7 +504,7 @@ public class CustomModelReader implements OASModelReader {
 }
 ----
 
-==== Activating the Model Reader
+==== Activating the model reader
 
 Configure the model reader in `microprofile-config.properties`:
 
@@ -510,11 +513,11 @@ Configure the model reader in `microprofile-config.properties`:
 mp.openapi.model.reader=io.microprofile.tutorial.store.config.CustomModelReader
 ----
 
-=== Extensible Interface Methods
+=== Extensible interface methods
 
 MicroProfile OpenAPI 4.1 adds two new methods to the `Extensible` interface: `getExtension(String)` and `hasExtension(String)`. These methods provide a more convenient way to work with vendor extensions (custom properties prefixed with `x-`) in your OpenAPI model.
 
-==== Understanding Vendor Extensions
+==== Understanding vendor extensions
 
 Vendor extensions allow you to add custom metadata to your OpenAPI specification beyond the standard properties. Extensions must be prefixed with `x-` and can contain any valid JSON value. Common use cases include:
 
@@ -524,14 +527,39 @@ Vendor extensions allow you to add custom metadata to your OpenAPI specification
 * Tool-specific processing instructions
 * Security or compliance annotations
 
-==== New Convenience Methods
+==== New convenience methods
 
-Prior to MicroProfile OpenAPI 4.1, checking for and retrieving extensions required working directly with the extensions map. The new methods simplify this:
+Prior to MicroProfile OpenAPI 4.1, checking for and retrieving extensions required working directly with the extensions map. The new methods simplify this process:
 
-* `hasExtension(String name)` - Returns `true` if the extension exists
-* `getExtension(String name)` - Returns the extension value or `null` if not found
+* `hasExtension(String name)`: Returns `true` if the extension exists
+* `getExtension(String name)`: Returns the extension value or `null` if not found
 
-==== Adding Extensions to Operations
+==== Mutable model collections
+
+Version 4.1 requires that all collection-returning methods in model interfaces return mutable collections. This ensures consistent behavior when modifying the OpenAPI model programmatically:
+
+[source, java]
+----
+@Override
+public Operation filterOperation(Operation operation) {
+    // Collections are guaranteed to be mutable in 4.1
+    List<SecurityRequirement> requirements = operation.getSecurity();
+    if (requirements == null) {
+        requirements = new ArrayList<>();
+        operation.setSecurity(requirements);
+    }
+    
+    requirements.add(
+        OASFactory.createSecurityRequirement().addScheme("apiKey")
+    );
+    
+    return operation;
+}
+----
+
+Prior to version 4.1, implementations could return immutable collections, which would cause runtime errors when attempting modifications.
+
+==== Adding extensions to operations
 
 You can add vendor extensions to operations using the `@Extension` annotation:
 
@@ -549,7 +577,8 @@ You can add vendor extensions to operations using the `@Extension` annotation:
     }
 )
 public Response getProductById(@PathParam("id") Long id) {
-    // Method implementation
+    // Method implementation returns product details
+    return Response.ok(productService.findById(id)).build();
 }
 ----
 
@@ -575,19 +604,19 @@ paths:
           description: Product found
 ----
 
-==== Using Extensible Interface Methods in Filters
+==== Using extensible interface methods in filters
 
-OAS filters execute during OpenAPI document generation and allow you to programmatically modify the OpenAPI model before it's served. Filters are useful when you need to add, modify, or remove content from the OpenAPI specification based on logic that can't be expressed through annotations alone.
+OAS filters execute during OpenAPI document generation and allow you to programmatically modify the OpenAPI model before it is served. Filters prove useful when you need to add, modify, or remove content from the OpenAPI specification based on logic that cannot be expressed through annotations alone.
 
 An `OASFilter` allows you to:
 
-* *Read existing extensions* from your annotated code and make decisions based on their values
-* *Add new extensions dynamically* based on business logic or computed values
-* *Modify the OpenAPI document* programmatically at runtime
-* *Enforce policies* across all operations (e.g., ensure all operations have certain metadata)
-* *Integrate with external systems* by reading configuration and adding appropriate extensions
+* Read existing extensions from your annotated code and make decisions based on their values
+* Add new extensions dynamically based on business logic or computed values
+* Modify the OpenAPI document programmatically at runtime
+* Enforce policies across all operations (for example, ensure all operations have certain metadata)
+* Integrate with external systems by reading configuration and adding appropriate extensions
 
-For example, the filter below reads the `x-custom-timeout` extension that was defined in the `@Operation` annotation and uses it to dynamically add another extension (`x-requires-approval`) if the timeout exceeds a threshold.
+For example, the following filter reads the `x-custom-timeout` extension that was defined in the `@Operation` annotation and uses it to dynamically add another extension (`x-requires-approval`) if the timeout exceeds a threshold:
 
 [source, java]
 ----
@@ -595,8 +624,6 @@ package io.microprofile.tutorial.store.product.config;
 
 import org.eclipse.microprofile.openapi.models.Operation;
 import org.eclipse.microprofile.openapi.OASFilter;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 public class ExtensionFilter implements OASFilter {
     
@@ -607,48 +634,30 @@ public class ExtensionFilter implements OASFilter {
         }
         
         try {
-            // Get existing extensions (or create new map if null)
-            Map<String, Object> existingExtensions = operation.getExtensions();
-            if (existingExtensions == null) {
-                return operation; // No extensions to process
-            }
-            
-            // Create a new map with existing extensions
-            Map<String, Object> newExtensions = new LinkedHashMap<>(existingExtensions);
-            
             // Check if a custom timeout extension exists
-            if (newExtensions.containsKey("x-custom-timeout")) {
-                Object timeout = newExtensions.get("x-custom-timeout");
-                if (timeout != null) {
-                    int timeoutValue = Integer.parseInt(timeout.toString());
-                    if (timeoutValue > 30) {
-                        newExtensions.put("x-requires-approval", "true");
-                    }
+            Object timeout = operation.getExtension("x-custom-timeout");
+            if (timeout != null) {
+                int timeoutValue = Integer.parseInt(timeout.toString());
+                if (timeoutValue > 30) {
+                    operation.addExtension("x-requires-approval", "true");
                 }
             }
             
             // Check for rate limiting configuration
-            if (newExtensions.containsKey("x-rate-limit")) {
-                Object rateLimit = newExtensions.get("x-rate-limit");
-                if (rateLimit != null) {
-                    int rateLimitValue = Integer.parseInt(rateLimit.toString());
-                    if (rateLimitValue > 500) {
-                        newExtensions.put("x-high-volume", "true");
-                    }
+            Object rateLimit = operation.getExtension("x-rate-limit");
+            if (rateLimit != null) {
+                int rateLimitValue = Integer.parseInt(rateLimit.toString());
+                if (rateLimitValue > 500) {
+                    operation.addExtension("x-high-volume", "true");
                 }
             }
             
             // Check for authentication requirements
-            if (newExtensions.containsKey("x-requires-auth")) {
-                Object authLevel = newExtensions.get("x-requires-auth");
-                if (authLevel != null && "admin".equals(authLevel.toString())) {
-                    newExtensions.put("x-security-notice", 
-                        "This operation requires administrator privileges");
-                }
+            Object authLevel = operation.getExtension("x-requires-auth");
+            if (authLevel != null && "admin".equals(authLevel.toString())) {
+                operation.addExtension("x-security-notice", 
+                    "This operation requires administrator privileges");
             }
-            
-            // Set the modified extensions map back
-            operation.setExtensions(newExtensions);
             
         } catch (Exception e) {
             System.err.println("Error in ExtensionFilter: " + e.getMessage());
@@ -667,17 +676,24 @@ Configure the filter in `microprofile-config.properties`:
 mp.openapi.filter=io.microprofile.tutorial.store.product.config.ExtensionFilter
 ----
 
-==== Practical Use Cases for Filters
+==== Practical use cases for filters
 
-Filters are useful for:
+Filters prove useful for:
 
-* *Dynamic documentation enrichment*: Add computed metadata based on existing extensions
-* *Validation*: Log warnings for operations missing required extensions
-* *Policy enforcement*: Ensure all admin operations have proper security annotations
-* *Metrics*: Count operations by type or collect extension statistics
-* *Gateway configuration*: Generate routing or rate-limiting rules for API gateways
-* *Code generation*: Add hints for client SDK generators
-* *Custom tooling*: Process the OpenAPI document programmatically for custom tools
+* *Dynamic documentation enrichment*: Add computed metadata based on businness logic (as demonstrated in the example, we added `x-requires-approval` to flag high timeout values)
+* *Validation*: Log warnings for operations missing required metadata
+* *Policy enforcement*: Ensure operations comply with organizational standards (for example, verify admin endpoints have appropriate security requirements).
+* *Metrics*: Collect statistics about API structure during document generation
+* *Tool integration*: Add vendor extensions that can be consumed by external tools, for example:
+  - API gateways: `x-rate-limit`, `x-timeout`
+  - Code generators: `x-client-name`, `x-operation-id`
+  - Monitoring: `x-monitoring-level`, `x-alert-threshold`
+  - Testing: `x-test-priority`, `x-mock-data`
+
+[NOTE]
+====
+Filters modify the OpenAPI document before it is served. They do not directly generate configuration files or code. Instead, they add metadata (often as vendor extensions) that other tools consume from the generated OpenAPI specification.
+====
 
 == Documenting Asynchronous Operations with Callbacks
 
@@ -698,7 +714,7 @@ The callback pattern works as follows:
 3. Your API processes the request asynchronously
 4. When complete, your API makes an HTTP request to the client's callback URL
 
-=== Documenting Callbacks with `@Callback`
+=== Documenting callbacks with `@Callback`
 
 The `@Callback` annotation documents the HTTP request your API will make back to the client:
 
@@ -857,9 +873,6 @@ public class ProcessResult {
     }
 }
 ----
-
-Explanation: 
-
 
 === Generated OpenAPI Specification
 
