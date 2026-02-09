@@ -451,17 +451,12 @@ Use `@NotNull` validation annotations or `@Schema(required = true)` to explicitl
 
 === JSON Schema Dialect Support
 
-MicroProfile OpenAPI 4.1 introduces the `jsonSchemaDialect` property, which allows you to specify which JSON Schema dialect is used in your OpenAPI document. This property is part of OpenAPI 3.1's alignment with JSON Schema standards.
+MicroProfile OpenAPI 4.1 introduces the `jsonSchemaDialect` property. This property defines the default meta-schema used to validate and interpret the JSON schema objects within your OpenAPI document. 
 
-==== Understanding JSON Schema Dialects
+Below are the available dialects in OpenAPI 3.1:
 
-A JSON Schema dialect defines which version and vocabulary of JSON Schema is being used. OpenAPI 3.1 supports multiple dialects:
-
-* *Default dialect*: `https://spec.openapis.org/oas/3.1/dialect/base` - The standard OpenAPI 3.1 JSON Schema dialect
-* *Full JSON Schema*: `https://json-schema.org/draft/2020-12/schema` - Complete JSON Schema 2020-12 specification
-* *Custom dialects*: Organization-specific or tool-specific schema vocabularies
-
-Setting the dialect explicitly ensures compatibility with tools and validators that support specific JSON Schema versions.
+* *Default dialect*: `https://spec.openapis.org/oas/3.1/dialect/base` - This is used when no dialect is specified. It is a superset of JSON Schema 2020-12. It permits all standard JSON Schema 2020-12 keywords as well as OpenAPI-specific keywords.
+* *JSON Schema 2020-12*: `https://json-schema.org/draft/2020-12/schema` - Use this to restrict schemas to standard JSON Schema 2020-12. It ensures your OpenAPI documents compatibility with external systems that require strict adherence to the JSON Schema 2020-12 specification and do not understand OpenAPI extensions.
 
 ==== Specifying the Dialect Programmatically
 
@@ -495,13 +490,6 @@ public class CustomModelReader implements OASModelReader {
 }
 ----
 
-The full JSON Schema 2020-12 dialect enables advanced features like:
-
-* `prefixItems` for tuple validation
-* `$dynamicRef` and `$dynamicAnchor` for dynamic schema references
-* `unevaluatedProperties` and `unevaluatedItems` for strict validation
-* Enhanced pattern properties and additional vocabulary extensions
-
 ==== Activating the Model Reader
 
 Configure the model reader in `microprofile-config.properties`:
@@ -510,81 +498,6 @@ Configure the model reader in `microprofile-config.properties`:
 ----
 mp.openapi.model.reader=io.microprofile.tutorial.store.config.CustomModelReader
 ----
-
-==== Dialect Usage
-
-While you can set the `jsonSchemaDialect` programmatically through the OpenAPI model, the dialect property controls how JSON Schema validation and processing occurs internally. The dialect setting ensures that:
-
-* Schema validation follows the specified JSON Schema version rules
-* Type definitions are interpreted according to the dialect's vocabulary
-* Schema composition keywords (`oneOf`, `anyOf`, `allOf`) behave according to the dialect specification
-* Nullable types use the appropriate representation for the dialect
-* Advanced JSON Schema features are available when using the full 2020-12 dialect
-
-==== When to Specify the Dialect
-
-You should explicitly set the `jsonSchemaDialect` when:
-
-* *Using advanced JSON Schema features*: `prefixItems`, `$dynamicRef`, `unevaluatedProperties`
-* *Integrating with external validators*: Tools that require JSON Schema 2020-12 compliance
-* *Strict schema validation*: Need features like `unevaluatedProperties` for comprehensive validation
-* *Tool compatibility*: Working with schema generators or validators that expect specific dialects
-* *Custom vocabularies*: Using organization-specific schema extensions
-
-For most applications using standard MicroProfile OpenAPI features, the default dialect (`https://spec.openapis.org/oas/3.1/dialect/base`) is used automatically and doesn't need to be explicitly set.
-
-==== Comparison of Dialects
-
-.JSON Schema Dialect Feature Comparison
-[options="header"]
-|===
-|Feature | Description | OpenAPI 3.1 Base Dialect |Full JSON Schema 2020-12
-
-|*Basic Validation*
-|Basic type validation (`string`, `number`, `boolean`, etc.)
-|✓ Supported
-|✓ Supported
-
-|*Schema Composition*
-|Combining schemas using `oneOf`, `anyOf`, `allOf`
-|✓ Supported
-|✓ Supported
-
-|*Nullable Types*
-|Representing values that can be `null`
-|✓ Supported with type arrays
-|✓ Supported with type arrays
-
-|*Tuple Validation (`prefixItems`)*
-|Validate arrays with different types per position (e.g., [`string`, `number`, `boolean`])
-|✗ Not available
-|✓ Supported
-
-|*Dynamic References (`$dynamicRef`)*
-|Advanced schema composition with runtime-resolved references
-|✗ Not available
-|✓ Supported
-
-|*Strict Validation (`unevaluatedProperties`)*
-|Reject additional properties not covered by schema
-|✗ Not available
-|✓ Supported
-
-|*Custom Vocabularies (`$vocabulary`)*
-|Define and use custom validation keywords
-|✗ Not available
-|✓ Supported
-
-|*Primary Use Case*
-|
-|Standard REST API documentation and validation
-|Advanced schema validation, tooling integration, strict compliance
-
-|*Recommended For*
-|
-|Most microservices and REST APIs
-|Complex validation requirements, schema tooling, external validators
-|===
 
 === Extensible Interface Methods
 
