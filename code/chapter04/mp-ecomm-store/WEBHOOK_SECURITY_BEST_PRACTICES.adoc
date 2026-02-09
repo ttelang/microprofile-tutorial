@@ -2,7 +2,7 @@
 :toc:
 :toc-placement!:
 
-This guide covers essential security practices for implementing webhook receivers that integrate with the MicroProfile OpenAPI webhook implementation.
+This guide covers essential security practices for implementing webhook receivers that integrate with the webhook implementation.
 
 toc::[]
 
@@ -69,21 +69,7 @@ Require HTTPS for all callback URLs to prevent man-in-the-middle attacks. This e
 * Webhook payloads are encrypted in transit
 * Client identity can be verified via TLS certificates
 * Attackers cannot intercept or modify webhook data
-
-=== Schema Validation
-
-Use JSON Schema pattern validation to enforce HTTPS:
-
-[source, java]
-----
-@Schema(
-    description = "Callback URL (must be HTTPS)",
-    pattern = "^https://.*",
-    required = true,
-    example = "https://api.example.com/webhooks/products"
-)
-private String callbackUrl;
-----
+* Enforce HTTPS for all callback URLs during subscription validation.
 
 === Validation Logic
 
