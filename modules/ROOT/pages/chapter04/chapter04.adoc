@@ -164,7 +164,7 @@ These annotations enrich the `ProductResource` class with metadata necessary for
 Annotation scanning is enabled by default. If you need to disable it, you can set `mp.openapi.scan.disabled=true` in your `microprofile-config.properties` file.
 ====
 
-Build and run your application after configuring MicroProfile OpenAPI.
+Next, let us build and run the application.
 
 == Viewing the generated documentation
 
@@ -175,7 +175,7 @@ To view the generated documentation, use the OpenAPI endpoint. Access the OpenAP
 http://<hostname>:<port>/openapi/
 ----
 
-Replace `<hostname>` and `<port>` with the actual hostname and port used by your runtime (for example, `localhost:9080`, which is the default port for Open Liberty server). 
+Replace `<hostname>` and `<port>` with the actual hostname and port used by your runtime (for example, `localhost:9080`). 
 
 The `/openapi` endpoint returns the OpenAPI specification generated from the annotations in your source code. It returns information in YAML format.
 
@@ -461,174 +461,14 @@ components:
 
 Use `@NotNull` validation annotations or `@Schema(required = true)` to explicitly mark components as required in the generated specification. For nullable components, you can either use `@Schema(nullable = true)` or wrap the type in `Optional<T>` to indicate they can accept null values. In this example, `@NotNull` annotations mark `id`, `name`, and `displayOrder` as required, while `parentId` is marked as nullable for root categories that have no parent.
 
-=== Enhanced annotation type safety
-
-MicroProfile OpenAPI 4.1 improves type safety by adding explicit `@Target` meta-annotations to several OpenAPI annotations. This enhancement works behind the scenes to help IDEs and build tools provide better warnings when you use annotations in inappropriate locations.
-
-==== What this means for developers
-
-The `@Target` meta-annotation defines where an annotation can be applied (classes, methods, fields, parameters, and so on). Prior to MicroProfile OpenAPI 4.1, some annotations lacked explicit `@Target` definitions, which made it harder for development tools to validate annotation usage.
-
-With MicroProfile OpenAPI 4.1, annotations like `@Schema`, `@SchemaProperty`, and others now have explicit `@Target` constraints that:
-
-* Provide warnings for incorrect annotation usage
-* Help build tools detect potential issues during compilation
-* Make the API more predictable and self-documenting
-* Improve code completion accuracy in modern IDEs
-
-==== Example: Compile-time warnings for incorrect usage
-
-Modern IDEs may provide warnings about improper annotation placement:
-
-*Questionable usage:*
-[source, java]
-----
-@Schema(description = "Product resource")  // IDE may warn: unusual location for @Schema
-@Path("/products")
-public class ProductResource {
-    // While this compiles, the @Schema annotation on the resource class itself
-    // may not have the intended effect
-}
-----
-
-*Recommended usage:*
-[source, java]
-----
-@Path("/products")
-public class ProductResource {
-    
-    @GET
-    @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "Get all products")
-    @APIResponse(
-        responseCode = "200",
-        content = @Content(schema = @Schema(implementation = Product.class))
-    )
-    public List<Product> getAllProducts() {
-        return productService.findAll();
-    }
-}
-----
-
-==== Working with flexible schema types
-
-The enhanced type safety works seamlessly with flexible schema definitions:
-
-*Example: Product with dynamic attributes*
-[source, java]
-----
-package io.microprofile.tutorial.store.product.entity;
-
-import org.eclipse.microprofile.openapi.annotations.media.Schema;
-import org.eclipse.microprofile.openapi.annotations.media.SchemaProperty;
-import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
-import java.util.Map;
-import java.util.List;
-import lombok.Data;
-
-@Data
-@Schema(
-    description = "Product with flexible custom attributes",
-    properties = {
-        @SchemaProperty(name = "tags")
-    }
-)
-public class FlexibleProduct {
-    
-    @Schema(description = "Product ID", example = "1")
-    private Long id;
-    
-    @Schema(description = "Product name", example = "Wireless Mouse")
-    private String name;
-    
-    @Schema(description = "Product price", example = "29.99")
-    private Double price;
-    
-    @Schema(
-        description = "Product specifications (e.g., color, material, size)",
-        type = SchemaType.OBJECT,
-        example = "{\"color\": \"black\", \"material\": \"plastic\", \"weight\": \"100g\"}"
-    )
-    private Map<String, Object> specifications;
-    
-    @Schema(
-        description = "Product tags for categorization and search",
-        type = SchemaType.ARRAY,
-        implementation = String.class,
-        example = "[\"wireless\", \"electronics\", \"accessories\"]"
-    )
-    private List<String> tags;
-}
-----
-
-The `@SchemaProperty` annotation allows you to reference properties at the class level, particularly useful when combined with field-level `@Schema` annotations.
-
-*Generated OpenAPI schema:*
-[source, yaml]
-----
-FlexibleProduct:
-  description: Product with flexible custom attributes
-  properties:
-    tags:
-      description: Product tags for categorization and search
-      type: array
-      examples:
-      - - wireless
-        - electronics
-        - accessories
-      items:
-        type: string
-    id:
-      type: integer
-      format: int64
-      description: Product ID
-      examples:
-      - 1
-    name:
-      type: string
-      description: Product name
-      examples:
-      - Wireless Mouse
-    price:
-      type: number
-      format: double
-      description: Product price
-      examples:
-      - 29.99
-    specifications:
-      type: object
-      additionalProperties: {}
-      description: "Product specifications (e.g., color, material, size)"
-      examples:
-      - color: black
-        material: plastic
-        weight: 100g
-  type: object
-----
-
-==== Benefits of enhanced type safety
-
-The addition of explicit `@Target` annotations provides:
-
-* Early error detection: Misused annotations are caught at compile time, not runtime
-* Better IDE experience: Code completion only suggests annotations valid for the current context
-* Self-documenting API: Annotation definitions clearly communicate their intended use
-* Reduced debugging time: Fewer runtime errors related to incorrect annotation placement
-* More maintainable code: Clear constraints make it easier for teams to use annotations correctly
-
 === JSON Schema dialect support
 
-MicroProfile OpenAPI 4.1 introduces the `jsonSchemaDialect` property, which allows you to specify which JSON Schema dialect your OpenAPI document uses. This property is part of OpenAPI 3.1's alignment with JSON Schema standards.
+MicroProfile OpenAPI 4.1 introduces the `jsonSchemaDialect` property. This property defines the default meta-schema used to validate and interpret the JSON schema objects within your OpenAPI document.
 
-==== Understanding JSON Schema dialects
+Below are the available dialects in OpenAPI 3.1:
 
-A JSON Schema dialect defines which version and vocabulary of JSON Schema is being used. OpenAPI 3.1 supports multiple dialects:
-
-* Default dialect: `\https://spec.openapis.org/oas/3.1/dialect/base` (the standard OpenAPI 3.1 JSON Schema dialect)
-* Full JSON Schema: `\https://json-schema.org/draft/2020-12/schema` (complete JSON Schema 2020-12 specification)
-* Custom dialects: Organization-specific or tool-specific schema vocabularies
-
-When you set the dialect explicitly, you ensure compatibility with tools and validators that support specific JSON Schema versions.
+* *Default dialect*: `https://spec.openapis.org/oas/3.1/dialect/base` - This is used when no dialect is specified. It is a superset of JSON Schema 2020-12. It permits all standard JSON Schema 2020-12 keywords as well as OpenAPI-specific keywords.
+* *JSON Schema 2020-12*: `https://json-schema.org/draft/2020-12/schema` - Use this to restrict schemas to standard JSON Schema 2020-12. It ensures your OpenAPI documents compatibility with external systems that require strict adherence to the JSON Schema 2020-12 specification and do not understand OpenAPI extensions.
 
 ==== Specifying the dialect programmatically
 
@@ -648,10 +488,12 @@ public class CustomModelReader implements OASModelReader {
     public OpenAPI buildModel() {
         return OASFactory.createOpenAPI()
             .openapi("3.1.0")
-            // Use default OpenAPI 3.1 dialect (recommended for most use cases)
+            // Use default OpenAPI 3.1 dialect (recommended for most use cases). 
+            // Supports all JSON Schema 2020-12 keywords PLUS Open API specific extensions.
             .jsonSchemaDialect("https://spec.openapis.org/oas/3.1/dialect/base")
             
-            // Alternative: Use full JSON Schema 2020-12 dialect for advanced features
+            // Alternative: Use JSON Schema 2020-12 ONLY if you need strict compatibility
+            // with external tools that do not recognize OpenAPI-specific keywords.
             // .jsonSchemaDialect("https://json-schema.org/draft/2020-12/schema")
             
             .info(OASFactory.createInfo()
@@ -662,13 +504,6 @@ public class CustomModelReader implements OASModelReader {
 }
 ----
 
-The full JSON Schema 2020-12 dialect enables advanced features like:
-
-* `prefixItems` for tuple validation
-* `$dynamicRef` and `$dynamicAnchor` for dynamic schema references
-* `unevaluatedProperties` and `unevaluatedItems` for strict validation
-* Enhanced pattern properties and additional vocabulary extensions
-
 ==== Activating the model reader
 
 Configure the model reader in `microprofile-config.properties`:
@@ -677,72 +512,6 @@ Configure the model reader in `microprofile-config.properties`:
 ----
 mp.openapi.model.reader=io.microprofile.tutorial.store.config.CustomModelReader
 ----
-
-==== Dialect usage
-
-While you can set the `jsonSchemaDialect` programmatically through the OpenAPI model, the dialect property controls how JSON Schema validation and processing occurs internally. The dialect setting ensures that:
-
-* Schema validation follows the specified JSON Schema version rules
-* Type definitions are interpreted according to the dialect's vocabulary
-* Schema composition keywords (`oneOf`, `anyOf`, `allOf`) behave according to the dialect specification
-* Nullable types use the appropriate representation for the dialect
-* Advanced JSON Schema features are available when using the full 2020-12 dialect
-
-==== When to specify the dialect
-
-You should explicitly set the `jsonSchemaDialect` when:
-
-* Using advanced JSON Schema features: `prefixItems`, `$dynamicRef`, `unevaluatedProperties`
-* Integrating with external validators: Tools that require JSON Schema 2020-12 compliance
-* Requiring strict schema validation: Need features like `unevaluatedProperties` for comprehensive validation
-* Ensuring tool compatibility: Working with schema generators or validators that expect specific dialects
-* Using custom vocabularies: Organization-specific schema extensions
-
-For most applications using standard MicroProfile OpenAPI features, the default dialect (`\https://spec.openapis.org/oas/3.1/dialect/base`) is used automatically and does not need to be explicitly set.
-
-==== Comparison of dialects
-
-.JSON Schema dialect feature comparison
-[cols="3,2,2", options="header"]
-|===
-| Feature and description | OpenAPI 3.1 base dialect | Full JSON Schema 2020-12
-
-| *Basic validation:* Basic type validation (string, number, boolean, and so on)
-| ✓ Supported
-| ✓ Supported
-
-| *Schema composition:* Combining schemas using `oneOf`, `anyOf`, `allOf`
-| ✓ Supported
-| ✓ Supported
-
-| *Nullable types:* Representing values that can be null
-| ✓ Supported with type arrays
-| ✓ Supported with type arrays
-
-| *Tuple validation (`prefixItems`):* Validate arrays with different types per position (for example, [`string`, `number`, `boolean`])
-| ✗ Not available
-| ✓ Supported
-
-| *Dynamic references (`$dynamicRef`):* Advanced schema composition with runtime-resolved reference
-| ✗ Not available
-| ✓ Supported
-
-| *Strict validation (`unevaluatedProperties`):* Reject additional properties not covered by schema
-| ✗ Not available
-| ✓ Supported
-
-| *Custom vocabularies (`$vocabulary`):* Define and use custom validation keywords
-| ✗ Not available
-| ✓ Supported
-
-| *Primary use case*
-| Standard REST API documentation and validation
-| Advanced schema validation, tooling integration, strict compliance
-
-| *Recommended for*
-| Most microservices and REST APIs
-| Complex validation requirements, schema tooling, external validators
-|===
 
 === Extensible interface methods
 
@@ -926,26 +695,24 @@ Filters prove useful for:
 Filters modify the OpenAPI document before it is served. They do not directly generate configuration files or code. Instead, they add metadata (often as vendor extensions) that other tools consume from the generated OpenAPI specification.
 ====
 
-=== Documenting asynchronous operations with callbacks
+== Documenting Asynchronous Operations with Callbacks
 
-MicroProfile OpenAPI 4.1 supports documenting asynchronous operations that use callbacks. Callbacks prove useful for webhook-style APIs where your service initiates an asynchronous process and notifies the client when it completes by making an HTTP request back to a URL provided by the client.
+MicroProfile OpenAPI 4.1 supports documenting asynchronous operations that use callbacks. Callbacks are useful for APIs where your service initiates an asynchronous process and notifies the client when it completes by making an HTTP request back to a URL provided by the client.
 
-==== Understanding callbacks
+=== Understanding Callbacks
 
-A callback in OpenAPI describes an HTTP request that your API will make to the client. Common use cases include:
+A callback in OpenAPI describes an HTTP request that your API will make to the client. Common use cases of callbacks include:
 
-* Webhook notifications: Notify clients when long-running operations complete
-* Event subscriptions: Send events to client-provided endpoints
-* Payment processing: Notify clients of payment status changes
-* Batch processing: Alert clients when batch jobs finish
-* Order fulfillment: Update clients on order status changes
+* *Webhook notifications*: Notify clients when long-running operations complete
+* *Event subscriptions*: Send events to client-provided endpoints
+* *Batch processing*: Alert clients when batch jobs finish
 
 The callback pattern works as follows:
 
-1. Client makes a request to your API and provides a callback URL.
-2. Your API accepts the request and returns immediately (typically 202 Accepted).
-3. Your API processes the request asynchronously.
-4. When complete, your API makes an HTTP request to the client's callback URL.
+1. Client makes a request to your API and provides a callback URL
+2. Your API accepts the request and returns immediately (typically 202 Accepted)
+3. Your API processes the request asynchronously
+4. When complete, your API makes an HTTP request to the client's callback URL
 
 ==== Documenting callbacks with @Callback
 
