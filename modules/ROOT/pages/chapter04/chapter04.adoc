@@ -9,20 +9,27 @@ In the previous chapters, you built RESTful APIs that various clients can use to
 This chapter introduces MicroProfile OpenAPI and shows you how to document your RESTful services using OpenAPI annotations. You'll learn to generate comprehensive API documentation that follows the OpenAPI specification, then visualize and interact with your documented APIs using Swagger UI (aka Open UI tool), a browser-based interface that makes your API contract immediately accessible to developers and stakeholders.
 
 == Topics to be covered:
+
 - Introduction to MicroProfile OpenAPI
+
 - API Specification using MicroProfile Open API
+
 - Generating API Documentation
-- Documenting Authentication and Authorization Requirements
+
 - Exploring the APIs using Swagger UI
 
-=== New Features in MicroProfile OpenAPI 4.1:
+- New Features in MicroProfile OpenAPI 4.1:
+
   * OpenAPI v3.1 compatibility
   * Java Records support
   * JSON Schema Dialect support
   * Extensible interface methods
-  * Async operations with callbacks
   * Optional<T> nullable fields
   * Comprehensive security schemes
+
+- Documenting Asyncronous operations with callbacks
+
+- Documenting Authentication and Authorization Requirements
 
 == OpenAPI Specification
 
@@ -157,13 +164,10 @@ Explanation:
 
 These annotations enrich the `ProductResource` class with metadata necessary for generating comprehensive and descriptive OpenAPI documentation automatically.
 
-Finally, we need to add the following property to the src/main/resources/META-INF/microprofile-config.properties file:
-
-----
-mp.openapi.scan=true
-----
-
-This property tells MicroProfile OpenAPI to scan our classes for annotations and generate API documentation for them. 
+[NOTE]
+====
+Annotation scanning is enabled by default. If you need to disable it, you can set `mp.openapi.scan.disabled=true` in your `microprofile-config.properties` file.
+====
 
 Now that we have configured MicroProfile OpenAPI, we can build and run our application.
 
