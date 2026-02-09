@@ -18,7 +18,6 @@ This chapter introduces MicroProfile OpenAPI and shows you how to document your 
 === New Features in MicroProfile OpenAPI 4.1:
   * OpenAPI v3.1 compatibility
   * Java Records support
-  * @Target annotation enhancements
   * JSON Schema Dialect support
   * Extensible interface methods
   * Async operations with callbacks
@@ -449,160 +448,6 @@ components:
 ----
 
 Use `@NotNull` validation annotations or `@Schema(required = true)` to explicitly mark components as required in the generated specification. For nullable components, you can either use `@Schema(nullable = true)` or wrap the type in `Optional<T>` to indicate they can accept null values. In this example, `@NotNull` annotations mark `id`, `name`, and `displayOrder` as required, while `parentId` is marked as nullable for root categories that have no parent.
-
-=== Enhanced Annotation Type Safety
-
-MicroProfile OpenAPI 4.1 improves type safety by adding explicit `@Target` meta-annotations to several OpenAPI annotations. This enhancement works behind the scenes to help IDEs and build tools provide better warnings when annotations are used in inappropriate locations.
-
-==== What This Means for Developers
-
-The `@Target` meta-annotation defines where an annotation can be applied (classes, methods, fields, parameters, etc.). Prior to MicroProfile OpenAPI 4.1, some annotations lacked explicit `@Target` definitions, making it harder for development tools to validate annotation usage.
-
-With MicroProfile OpenAPI 4.1, annotations like `@Schema`, `@SchemaProperty`, and others now have explicit `@Target` constraints that:
-
-* Provide warnings for incorrect annotation usage
-* Help build tools detect potential issues during compilation
-* Make the API more predictable and self-documenting
-* Improve code completion accuracy in modern IDEs
-
-==== Example: Compile-Time Warnings for Incorrect Usage
-
-You would get a compile time warning about improper annotation placement:
-
-*Incorrect usage:*
-[source, java]
-----
-@Schema(description = "Product resource")  // warning: unusual location for @Schema
-@Path("/products")
-public class ProductResource {
-    // While this compiles, the @Schema annotation on the resource class itself
-    // may not have the intended effect
-}
-----
-
-*Recommended usage:*
-[source, java]
-----
-@Path("/products")
-public class ProductResource {
-    
-    @GET
-    @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "Get all products")
-    @APIResponse(
-        responseCode = "200",
-        content = @Content(schema = @Schema(implementation = Product.class))
-    )
-    public List<Product> getAllProducts() {
-        return productService.findAll();
-    }
-}
-----
-
-==== Working with Flexible Schema Types
-
-The enhanced type safety works seamlessly with flexible schema definitions:
-
-*Example: Product with dynamic attributes*
-[source, java]
-----
-package io.microprofile.tutorial.store.product.entity;
-
-import org.eclipse.microprofile.openapi.annotations.media.Schema;
-import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
-import java.util.Map;
-import java.util.List;
-import lombok.Data;
-
-@Data
-@Schema(
-    description = "Product with flexible custom attributes",
-    properties = {
-        @SchemaProperty(name = "tags")
-    }
-)   // Valid on TYPE
-public class FlexibleProduct {
-    
-    @Schema(description = "Product ID", example = "1")  // Valid on FIELD
-    private Long id;
-    
-    @Schema(description = "Product name", example = "Wireless Mouse")
-    private String name;
-    
-    @Schema(description = "Product price", example = "29.99")
-    private Double price;
-    
-    @Schema(
-        description = "Product specifications (e.g., color, material, size)",
-        type = SchemaType.OBJECT,
-        example = "{\"color\": \"black\", \"material\": \"plastic\", \"weight\": \"100g\"}"
-    )
-    private Map<String, Object> specifications;
-    
-    @Schema(
-        description = "Product tags for categorization and search",
-        type = SchemaType.ARRAY,
-        implementation = String.class,
-        example = "[\"wireless\", \"electronics\", \"accessories\"]"
-    )
-    private List<String> tags;
-}
-----
-
-The `@SchemaProperty` annotation allows you to reference properties at the class level, particularly useful when combined with field-level `@Schema` annotations.
-
-*Generated OpenAPI schema:*
-[source, yaml]
-----
-FlexibleProduct:
-      description: Product with flexible custom attributes
-      properties:
-        tags:
-          description: Product tags for categorization and search
-          type: array
-          examples:
-          - - wireless
-            - electronics
-            - accessories
-          items:
-            type: string
-        id:
-          type: integer
-          format: int64
-          description: Product ID
-          examples:
-          - 1
-        name:
-          type: string
-          description: Product name
-          examples:
-          - Wireless Mouse
-        price:
-          type: number
-          format: double
-          description: Product price
-          examples:
-          - 29.99
-        specifications:
-          type: object
-          additionalProperties: {}
-          description: "Product specifications (e.g., color, material, size)"
-          examples:
-          - color: black
-            material: plastic
-            weight: 100g
-      type: object
-----
-
-==== Benefits of Enhanced Type Safety
-
-The addition of explicit `@Target` annotations provides:
-
-* *Early error detection*: Misused annotations are caught at compile time, not runtime
-* *Better IDE experience*: Code completion only suggests annotations valid for the current context
-* *Self-documenting API*: Annotation definitions clearly communicate their intended use
-* *Reduced debugging time*: Fewer runtime errors related to incorrect annotation placement
-* *More maintainable code*: Clear constraints make it easier for teams to use annotations correctly
 
 === JSON Schema Dialect Support
 
@@ -1439,10 +1284,6 @@ You learned how MicroProfile OpenAPI 4.1 fully supports OpenAPI v3.1, bringing i
 *Java Records Support*
 
 You explored how MicroProfile OpenAPI 4.1 provides native support for Java Records, allowing you to use modern, immutable data carriers like `CategoryRecord` with automatic schema generation. You learned to combine `@Schema` annotations with `@NotNull` validation to create well-documented, type-safe data models.
-
-*Enhanced Annotation Type Safety*
-
-You discovered how explicit `@Target` meta-annotations improve compile-time checking and IDE support, helping you use OpenAPI annotations correctly and preventing misuse during development.
 
 *JSON Schema Dialect Support*
 
