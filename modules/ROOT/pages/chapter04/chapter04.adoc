@@ -1337,7 +1337,7 @@ This makes it easy for API consumers to understand authentication requirements a
 
 == Summary
 
-In this chapter, you explored how MicroProfile OpenAPI 4.1 enables automatic generation of comprehensive, OpenAPI v3.1-compliant documentation for your RESTful web services. When you integrate MicroProfile OpenAPI into your Jakarta REST applications, you can create well-documented APIs that are discoverable, understandable, and easy to consume.
+In this chapter, you explored how MicroProfile OpenAPI 4.1 enables automatic generation of comprehensive, OpenAPI v3.1-compliant documentation for your RESTful web services. 
 
 === Core concepts mastered
 
@@ -1355,20 +1355,17 @@ You learned how MicroProfile OpenAPI 4.1 fully supports OpenAPI v3.1, bringing i
 
 You explored how MicroProfile OpenAPI 4.1 provides native support for Java records, which allows you to use modern, immutable data carriers like `CategoryRecord` with automatic schema generation. You learned to combine `@Schema` annotations with `@NotNull` validation to create well-documented, type-safe data models.
 
-*Enhanced type safety*
-You discovered how explicit `@Target` meta-annotations improve compile-time checking and IDE support, which helps you use OpenAPI annotations correctly and prevents misuse during development.
-
 *JSON Schema dialects*
 
-You learned to specify JSON Schema dialects programmatically using the `jsonSchemaDialect` property, which enables better compatibility with external validators and tooling. You explored the differences between the default OpenAPI 3.1 dialect and full JSON Schema 2020-12 support.
+You learned to specify JSON Schema dialects programmatically using the `jsonSchemaDialect` property enabling better compatibility with external validators and tooling.
 
 *Vendor extensions*
 
-You explored the new `hasExtension()` and `getExtension()` convenience methods that simplify working with vendor extensions (`x-` properties). Through practical examples with `ExtensionFilter`, you learned how to read existing extensions and dynamically add metadata to your OpenAPI documentation for API gateway configuration, monitoring, and policy enforcement.
+You explored the new `hasExtension()` and `getExtension()` convenience methods that simplify working with vendor extensions (`x-` properties). Through practical examples with `ExtensionFilter`, you learned how to read existing extensions and dynamically add metadata to your OpenAPI documentation.
 
 *Asynchronous operations*
 
-You learned to document asynchronous operations using the `@Callback` annotation, which is essential for webhook-style APIs. Using the `AsyncProductRequest` and `ProcessResult` models, you documented how your API initiates async processing and notifies clients when operations complete.
+You learned to document asynchronous operations using the `@Callback` annotation. You documented how your API initiates async processing and notifies clients when operations complete.
 
 *Security schemes*
 
@@ -1380,16 +1377,14 @@ Having finished this chapter, you can now:
 
 * Generate OpenAPI 3.1 specifications automatically from Jakarta REST code
 * Document endpoints using `@Operation`, `@APIResponse`, and `@Tag` annotations
-* Construct type-safe schemas using Java records and `@Schema`
-* Handle flexible schemas for dynamic attributes
-* Document asynchronous operations with callbacks
-* Configure multiple security schemes
 * Add OAS filters for dynamic documentation
 * Test APIs interactively with Swagger UI
+* Document asynchronous operations with callbacks
+* Configure multiple security schemes
 
 === Practical applications
 
-MicroProfile OpenAPI 4.1's alignment with OpenAPI v3.1 guarentees your API documentation ahdres to the latest standards in the API landscape. This annotation-driven approach keeps documentation in sync with your implementation, thereby avoiding the common problem of outdated specifications. The generated OpenAPI documents facilities:
+MicroProfile OpenAPI 4.1's alignment with OpenAPI v3.1 guarentees your API documentation adheres to the latest standards in the API landscape. This annotation-driven approach keeps documentation in sync with your implementation, thereby avoiding the common problem of outdated specifications. The generated OpenAPI documents facilities:
 
 * Automatic client SDK generation across multiple programming languages
 * Interactive API exploration via Swagger UI
