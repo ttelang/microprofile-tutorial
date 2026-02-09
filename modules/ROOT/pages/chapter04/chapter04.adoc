@@ -695,11 +695,11 @@ Filters prove useful for:
 Filters modify the OpenAPI document before it is served. They do not directly generate configuration files or code. Instead, they add metadata (often as vendor extensions) that other tools consume from the generated OpenAPI specification.
 ====
 
-== Documenting Asynchronous Operations with Callbacks
+== Documenting asynchronous operations
 
 MicroProfile OpenAPI 4.1 supports documenting asynchronous operations that use callbacks. Callbacks are useful for APIs where your service initiates an asynchronous process and notifies the client when it completes by making an HTTP request back to a URL provided by the client.
 
-=== Understanding Callbacks
+=== Understanding callbacks
 
 A callback in OpenAPI describes an HTTP request that your API will make to the client. Common use cases of callbacks include:
 
@@ -726,28 +726,29 @@ package io.microprofile.tutorial.store.product.resource;
 
 @Path("/products")
 @ApplicationScoped
-@Tag(name = "Products")
-public class ProductResource {
-
-    // ... 
+@Tag(name = "Products", description = "Async product operations")
+public class AsyncProductResource {
 
     @POST
     @Path("/process-async")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "Process product updates asynchronously")
-    @APIResponse(responseCode = "202", description = "Request accepted for processing"))
+    @Operation(
+        summary = "Process product asynchronously",
+        description = "Initiates asynchronous product processing and calls back when complete"
+    )
+    @APIResponse(
+        responseCode = "202",
+        description = "Processing initiated"
+    )
     @Callback(
         name = "productProcessed",
         callbackUrlExpression = "{$request.body#/callbackUrl}",
         operations = {
             @CallbackOperation(
                 method = "post",
-                summary = "Product upate processing completed",
-                responses = @APIResponse(
-                   responseCode = "200",
-                   description = "Callback received successfully"
-                ),
+                summary = "Product processing completed",
+                description = "Called when async product processing is complete",
                 requestBody = @RequestBody(
                     description = "Processing result",
                     content = @Content(
@@ -796,8 +797,7 @@ Explanation:
   - `{$request.body#/callbackUrl}` means: "Use the `callbackUrl` field from the request body"
 * `operations`: Array of `@CallbackOperation` defining what HTTP requests your API will make
 
-
-* `@CallbackOperation`: Documents the HTTP POST your API will make to the callback URL 
+* `@CallbackOperation`: Documents the HTTP request your API will make to the callback URL 
 
 *@CallbackOperation parameters:*
 
@@ -807,12 +807,14 @@ Explanation:
 
 * `@RequestBody`: Describes the JSON payload sent to the callback
 
-=== Request and Response Models
+=== Request and response models
 
-The implementation for AsyncProductRequest is as below:
+The implementation for `AsyncProductRequest` is as below:
 
 [source, java]
 ----
+package io.microprofile.tutorial.store.product.entity;
+
 // ... 
 
 @Data
@@ -836,10 +838,14 @@ public class AsyncProductRequest {
 }
 ----
 
-The processResult class is implemented as below: 
+The `ProcessResult` class is implemented as below: 
 
 [source, java]
 ----
+package io.microprofile.tutorial.store.product.entity;
+
+// ...
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -857,13 +863,6 @@ public class ProcessResult {
     
     @Schema(description = "Processing timestamp", example = "2024-02-04T10:30:00Z")
     private String timestamp;
-
-    public ProcessResult(Long productId, ProcessingStatus status, String message) {
-        this.productId = productId;
-        this.status = status;
-        this.message = message;
-        this.timestamp = Instant.now().toString();
-    }
     
     @Schema(description = "Processing status values")
     public enum ProcessingStatus {
@@ -874,39 +873,43 @@ public class ProcessResult {
 }
 ----
 
-=== Generated OpenAPI Specification
+=== Generated OpenAPI specification
 
-The callback is documented in the OpenAPI documentation as below:
+The callback is documented in the OpenAPI specification as below:
 
 [source, yaml]
 ----
+
 paths:
   /api/products/process-async:
-    post:
-      summary: Process product asynchronously
-      description: Initiates asynchronous product processing and calls back when complete
-      requestBody:
-        description: Product data and callback URL
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AsyncProductRequest'
-      responses:
-        '202':
-          description: Processing initiated
-      callbacks:
-        productProcessed:
-          '{$request.body#/callbackUrl}':
-            post:
-              summary: Product processing completed
-              description: Called when async product processing is complete
-              requestBody:
-                description: Processing result
-                content:
-                  application/json:
-                    schema:
-                      $ref: '#/components/schemas/ProcessResult'
+      post:
+        summary: Process product asynchronously
+        description: Initiates asynchronous product processing and calls back when complete
+        tags:
+        - Products
+        requestBody:
+          description: Product data and callback URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncProductRequest'
+          required: true
+        responses:
+          "202":
+            description: Processing initiated
+        callbacks:
+          productProcessed:
+            '{$request.body#/callbackUrl}':
+              post:
+                summary: Product processing completed
+                description: Called when async product processing is complete
+                requestBody:
+                  description: Processing result
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/ProcessResult'
+                  required: true
 
 components:
   schemas:
@@ -914,41 +917,24 @@ components:
       description: Async product processing request
       type: object
       required:
-        - product
-        - callbackUrl
+      - product
+      - callbackUrl
       properties:
         product:
+          description: Product to process
+          type: object
           $ref: '#/components/schemas/Product'
         callbackUrl:
           type: string
           description: URL to call when processing completes
-          example: https://client.example.com/webhooks/product-processed
-    
-    ProcessResult:
-      description: Product processing result
-      type: object
-      properties:
-        productId:
-          type: integer
-          format: int64
-          description: ID of the processed product
-          example: 12345
-        status:
-          type: string
-          description: Processing status
-          enum: [SUCCESS, FAILED, PARTIAL]
-          example: SUCCESS
-        message:
-          type: string
-          description: Result message
-          example: Product processed successfully
-        timestamp:
-          type: string
-          description: Processing timestamp
-          example: 2024-02-04T10:30:00Z
+          examples:
+          - https://client.example.com/webhooks/product-processed
+
 ----
 
-=== Example Usage Flow
+=== Callback process flow sequence
+
+The following sequence demonstrates the callback pattern:
 
 *Step 1: Client initiates async processing*
 
@@ -981,6 +967,8 @@ Content-Type: application/json
 
 *Step 3: API processes asynchronously (takes time)*
 
+The system processes the request in the background.
+
 *Step 4: API calls client's callback URL when complete*
 
 [source, bash]
@@ -996,29 +984,15 @@ Content-Type: application/json
 }
 ----
 
-=== Webhook Event Subscriptions
+=== Webhook event subscriptions
 
-For more complex scenarios with multiple event types, you can use webhooks. This example shows a webhook subscription system with five different event types:
+For more complex scenarios with multiple event types, you can use webhooks. The code example shows a webhook subscription system with different event types:
 
 [source, java]
 ----
 package io.microprofile.tutorial.store.product.resource;
 
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.ws.rs.*;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
-import org.eclipse.microprofile.openapi.annotations.Operation;
-import org.eclipse.microprofile.openapi.annotations.callbacks.Callback;
-import org.eclipse.microprofile.openapi.annotations.callbacks.CallbackOperation;
-import org.eclipse.microprofile.openapi.annotations.media.Content;
-import org.eclipse.microprofile.openapi.annotations.media.ExampleObject;
-import org.eclipse.microprofile.openapi.annotations.media.Schema;
-import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
-import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
-import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
-import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
-import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+// ...
 
 @Path("/webhooks")
 @ApplicationScoped
@@ -1045,11 +1019,6 @@ public class WebhookResource {
             1. POST your subscription with a valid HTTPS callback URL
             2. Receive a unique secret for verifying webhook signatures
             3. Your callback URL will receive POST requests when subscribed events occur
-            
-            ## Security
-            - All webhook deliveries include X-Webhook-Signature header
-            - Signature format: HMAC-SHA256(secret, request_body) in hex
-            - Always verify signatures to ensure request authenticity
             """
     )
     @SecurityRequirement(name = "bearerAuth")
@@ -1065,6 +1034,7 @@ public class WebhookResource {
         @APIResponse(responseCode = "400", description = "Invalid subscription configuration"),
         @APIResponse(responseCode = "401", description = "Unauthorized - API key required")
     })
+    // @Callback documents all webhook events
     @Callback(
         name = "productEvents",
         callbackUrlExpression = "{$request.body#/callbackUrl}",
@@ -1116,178 +1086,27 @@ public class WebhookResource {
                     )
                 }
             ),
-            
-            // Event 2: Product Updated
-            @CallbackOperation(
-                method = "post",
-                summary = "Product Updated Webhook",
-                description = "Triggered when an existing product is modified via PUT /products/{id}",
-                requestBody = @RequestBody(
-                    description = "Product update event payload",
-                    required = true,
-                    content = @Content(
-                        mediaType = MediaType.APPLICATION_JSON,
-                        schema = @Schema(implementation = ProductEvent.class),
-                        examples = @ExampleObject(
-                            name = "updated-event",
-                            value = """
-                                {
-                                  "eventId": "evt_def456ghi",
-                                  "eventType": "product.updated",
-                                  "timestamp": "2026-02-08T11:20:33Z",
-                                  "product": {
-                                    "id": 42,
-                                    "name": "Wireless Keyboard",
-                                    "price": 79.99
-                                  },
-                                  "metadata": {
-                                    "changedFields": ["price"],
-                                    "previousPrice": 89.99
-                                  }
-                                }
-                                """
-                        )
-                    )
-                ),
-                responses = {
-                    @APIResponse(responseCode = "200", description = "Event acknowledged"),
-                    @APIResponse(responseCode = "5xx", description = "Will retry")
-                }
-            ),
-            
-            // Event 3: Product Deleted
-            @CallbackOperation(
-                method = "post",
-                summary = "Product Deleted Webhook",
-                description = "Triggered when a product is removed via DELETE /products/{id}",
-                requestBody = @RequestBody(
-                    description = "Product deletion event payload",
-                    required = true,
-                    content = @Content(
-                        mediaType = MediaType.APPLICATION_JSON,
-                        schema = @Schema(implementation = ProductEvent.class),
-                        examples = @ExampleObject(
-                            name = "deleted-event",
-                            value = """
-                                {
-                                  "eventId": "evt_jkl789mno",
-                                  "eventType": "product.deleted",
-                                  "timestamp": "2026-02-08T12:05:18Z",
-                                  "product": {
-                                    "id": 42
-                                  },
-                                  "metadata": {
-                                    "reason": "discontinued"
-                                  }
-                                }
-                                """
-                        )
-                    )
-                ),
-                responses = {
-                    @APIResponse(responseCode = "200", description = "Event acknowledged"),
-                    @APIResponse(responseCode = "5xx", description = "Will retry")
-                }
-            ),
-            
-            // Event 4: Low Stock Alert
-            @CallbackOperation(
-                method = "post",
-                summary = "Low Stock Alert Webhook",
-                description = """
-                    Triggered when product inventory falls below threshold (default: 10 units).
-                    Sent only once when threshold is crossed.
-                    """,
-                requestBody = @RequestBody(
-                    description = "Low stock alert payload",
-                    required = true,
-                    content = @Content(
-                        mediaType = MediaType.APPLICATION_JSON,
-                        schema = @Schema(implementation = ProductEvent.class),
-                        examples = @ExampleObject(
-                            name = "stock-low-event",
-                            value = """
-                                {
-                                  "eventId": "evt_pqr012stu",
-                                  "eventType": "product.stock.low",
-                                  "timestamp": "2026-02-08T13:45:22Z",
-                                  "product": {
-                                    "id": 42,
-                                    "name": "Wireless Keyboard"
-                                  },
-                                  "metadata": {
-                                    "currentStock": 7,
-                                    "threshold": 10,
-                                    "recommendedReorder": 50
-                                  }
-                                }
-                                """
-                        )
-                    )
-                ),
-                responses = {
-                    @APIResponse(responseCode = "200", description = "Alert acknowledged"),
-                    @APIResponse(responseCode = "5xx", description = "Will retry")
-                }
-            ),
-            
-            // Event 5: Out of Stock
-            @CallbackOperation(
-                method = "post",
-                summary = "Out of Stock Webhook",
-                description = """
-                    Triggered when product inventory reaches zero.
-                    Priority: HIGH - requires immediate attention.
-                    """,
-                requestBody = @RequestBody(
-                    description = "Out of stock alert payload",
-                    required = true,
-                    content = @Content(
-                        mediaType = MediaType.APPLICATION_JSON,
-                        schema = @Schema(implementation = ProductEvent.class),
-                        examples = @ExampleObject(
-                            name = "stock-out-event",
-                            value = """
-                                {
-                                  "eventId": "evt_vwx345yz",
-                                  "eventType": "product.stock.out",
-                                  "timestamp": "2026-02-08T14:12:09Z",
-                                  "product": {
-                                    "id": 42,
-                                    "name": "Wireless Keyboard"
-                                  },
-                                  "metadata": {
-                                    "lastSoldAt": "2026-02-08T14:12:05Z",
-                                    "totalSoldToday": 25,
-                                    "backorderAvailable": true
-                                  }
-                                }
-                                """
-                        )
-                    )
-                ),
-                responses = {
-                    @APIResponse(responseCode = "200", description = "Alert acknowledged"),
-                    @APIResponse(responseCode = "5xx", description = "Will retry")
-                }
-            )
-        }
+            // ...
     )
     public Response subscribe(WebhookSubscription subscription) {
         // Create subscription and return with generated ID and secret
         return Response.status(Response.Status.CREATED)
-                      .entity(webhookService.subscribe(subscription))
-                      .build();
+                  .entity(webhookService.subscribe(subscription))
+                  .build();
     }
 }
 ----
 
-==== Webhook Data Models
+==== Webhook data models
 
-*WebhookSubscription* - Subscription configuration sent by clients:
+The `WebhookSubscription` class represents subscription configuration sent by clients:
 
 [source, java]
 ----
+package io.microprofile.tutorial.store.product.entity;
+
+// ... 
+
 @Data
 @Schema(description = "Webhook subscription configuration")
 public class WebhookSubscription {
@@ -1327,10 +1146,14 @@ public class WebhookSubscription {
 }
 ----
 
-*ProductEvent* - Event payload sent to webhook subscribers:
+The `ProductEvent` represents the event payload sent to webhook subscribers:
 
 [source, java]
 ----
+package io.microprofile.tutorial.store.product.entity; 
+
+// ... 
+
 @Data
 @Schema(description = "Event notification sent to webhook subscribers")
 public class ProductEvent {
@@ -1368,7 +1191,7 @@ public class ProductEvent {
 }
 ----
 
-=== Example Webhook Flow
+=== Example webhook call sequence 
 
 *Step 1: Client subscribes to events*
 
@@ -1454,38 +1277,29 @@ Content-Type: application/json
 HTTP/1.1 200 OK
 ----
 
-=== Benefits of Documenting Callbacks and Webhooks
+=== Benefits of documenting callbacks
 
-Documenting webhooks and callbacks in OpenAPI specification provides the following advantages:
+When you document callbacks in your OpenAPI specification, you provide:
 
-* *Discoverability*: All webhook events are documented in one place
-* *Maintenance*: Changes to webhook schemas can be tracked and versioned
-* *Clear contract*: Developers know exactly what events are available and what data to expect. This also serves as developer's integration guide.
-* *Interactive Documentation*: Swagger UI displays all webhook events with examples 
-* *Testing support*: Tools can generate mock callback endpoints and these mock servers can simulate webhook deliveries for integration tests 
-* *Code generation*: Tools can generate callback handler code for clients and webhook handler stubs automatically
+* Clear contract: Clients know exactly what to expect from your callback
+* Implementation guide: Client developers know what endpoint to implement
+* Testing support: Tools can generate mock callback endpoints
+* Validation: Schema validation ensures your callbacks send correct data
+* Code generation: Tools can generate callback handler code for clients
 
-== Using Security Schemes in OpenAPI Documentation
+== Using security schemes in OpenAPI documentation
 
 Security is a critical aspect of API documentation. MicroProfile OpenAPI 4.1 provides comprehensive support for documenting various security schemes including API keys, HTTP authentication, OAuth2, and OpenID Connect.
 
-=== Defining Security Schemes
+== Documenting security schemes
 
 Security schemes are defined at the application level using `@SecurityScheme` annotations:
 
 [source, java]
 ----
-import org.eclipse.microprofile.openapi.annotations.OpenAPIDefinition;
-import org.eclipse.microprofile.openapi.annotations.security.SecurityScheme;
-import org.eclipse.microprofile.openapi.annotations.security.SecuritySchemes;
-import org.eclipse.microprofile.openapi.annotations.enums.SecuritySchemeType;
-import org.eclipse.microprofile.openapi.annotations.enums.SecuritySchemeIn;
-import org.eclipse.microprofile.openapi.annotations.security.OAuthFlows;
-import org.eclipse.microprofile.openapi.annotations.security.OAuthFlow;
-import org.eclipse.microprofile.openapi.annotations.security.OAuthScope;
-import org.eclipse.microprofile.openapi.annotations.info.Info;
-import jakarta.ws.rs.ApplicationPath;
-import jakarta.ws.rs.core.Application;
+package io.microprofile.tutorial.store.product; 
+
+// ...
 
 @ApplicationPath("/api")
 @OpenAPIDefinition(
@@ -1530,57 +1344,104 @@ public class ProductRestApplication extends Application {
 }
 ----
 
-=== Applying Security to Operations
+=== Applying security to operations
 
 You can apply security requirements to individual operations or to entire resource classes:
 
-*Applying security to individual operations:*
-
 [source, java]
 ----
+package io.microprofile.tutorial.store.product.resource;
+
+// ... 
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirements;
 
-@GET
-@Path("/{id}")
-@Produces(MediaType.APPLICATION_JSON)
-@Operation(summary = "Get product by ID", description = "Requires authentication")
-@SecurityRequirement(name = "bearerAuth")
-@APIResponse(
-    responseCode = "200",
-    description = "Product found",
-    content = @Content(
-        mediaType = "application/json",
-        schema = @Schema(implementation = Product.class)
-    )
+// .. 
+@Path("/products")
+@ApplicationScoped
+@Schema(description = "Product resource")
+@Tag(
+    name = "Products",
+    description = "Product catalog operations"
 )
-@APIResponse(responseCode = "401", description = "Unauthorized")
-@APIResponse(responseCode = "404", description = "Product not found")
-public Response getSecuredProduct(@PathParam("id") Long id) {
-    // Method implementation
-}
+public class ProductResource {
 
-@POST
-@Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
-@Operation(summary = "Create a new product", description = "Requires OAuth2 write scope")
-@SecurityRequirement(name = "oauth2", scopes = {"write:products"})
-@APIResponse(
-    responseCode = "201",
-    description = "Product created",
-    content = @Content(
-        mediaType = "application/json",
-        schema = @Schema(implementation = Product.class)
+    // ... 
+
+    @GET
+    @Path("/{id}")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(
+        summary = "Get product by ID",
+        description = "Retrieves a single product by its unique identifier",
+        extensions = {
+            @Extension(name = "x-custom-timeout", value = "60"),
+            @Extension(name = "x-rate-limit", value = "100"),
+            @Extension(name = "x-cache-ttl", value = "300")
+        }
     )
-)
-@APIResponse(responseCode = "401", description = "Unauthorized")
-@APIResponse(responseCode = "403", description = "Forbidden - insufficient scopes")
-public Response createSecuredProduct(Product product) {
-    // Method implementation
+    @SecurityRequirement(name = "bearerAuth")
+    @APIResponses({
+        @APIResponse(
+            responseCode = "200",
+            description = "Product found",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                schema = @Schema(implementation = Product.class)
+            )
+        ),
+        @APIResponse(responseCode = "401", description = "Unauthorized"),
+        @APIResponse(
+            responseCode = "404",
+            description = "Product not found"
+        ),
+        @APIResponse(
+            responseCode = "400",
+            description = "Invalid ID format"
+        )
+    })
+    public Response getProductById(
+        @Parameter(
+            description = "Product ID - must be a positive integer",
+            required = true,
+            schema = @Schema(
+                type = SchemaType.INTEGER,
+                format = "int64",
+                minimum = "1",
+                example = "1"
+            )
+        )
+        @PathParam("id") Long id
+    ) {
+      // Method implementation
+      // ... 
+    }
+
+    @POST
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Operation(summary = "Create a new product", description = "Requires OAuth2 write scope")
+    @SecurityRequirement(name = "oauth2", scopes = {"write:products"})
+    @APIResponse(
+        responseCode = "201",
+        description = "Product created",
+        content = @Content(
+            mediaType = "application/json",
+            schema = @Schema(implementation = Product.class)
+        )
+    )
+    @APIResponse(responseCode = "401", description = "Unauthorized")
+    @APIResponse(responseCode = "403", description = "Forbidden - insufficient scopes")
+    public Response createSecuredProduct(Product product) {
+        // Method implementation
+        // ... 
+    }
+
+    // ... 
 }
 ----
 
-=== Generated OpenAPI Document
+=== Generated OpenAPI document
 
 The security schemes and requirements are documented in the OpenAPI specification:
 
@@ -1588,66 +1449,95 @@ The security schemes and requirements are documented in the OpenAPI specificatio
 ----
 openapi: 3.1.0
 info:
-  title: Secured Product API
+  title: Product Catalog API
   version: 1.0.0
-  description: Product API with multiple security schemes
+  description: E-commerce product catalog API with multiple security schemes
+
 components:
   securitySchemes:
     apiKey:
       type: apiKey
-      description: API Key authentication
+      description: API Key authentication for service-to-service communication
       name: X-API-Key
       in: header
+    
     bearerAuth:
       type: http
-      description: JWT Bearer token authentication
+      description: JWT Bearer token authentication for user requests
       scheme: bearer
       bearerFormat: JWT
+    
     oauth2:
       type: oauth2
-      description: OAuth2 authentication
+      description: OAuth2 authentication with authorization code flow
       flows:
         authorizationCode:
-          authorizationUrl: https://example.com/oauth/authorize
-          tokenUrl: https://example.com/oauth/token
+          authorizationUrl: https://auth.example.com/oauth/authorize
+          tokenUrl: https://auth.example.com/oauth/token
           scopes:
             read:products: Read product information
-            write:products: Modify product information
+            write:products: Create and modify product information
+            delete:products: Delete products
+
 paths:
   /api/products/{id}:
     get:
       summary: Get product by ID
-      description: Requires authentication
+      description: Retrieves detailed product information. Requires JWT authentication.
       security:
         - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
       responses:
-        "200":
+        '200':
           description: Product found
-        "401":
-          description: Unauthorized
-        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '401':
+          description: Unauthorized - Missing or invalid JWT token
+        '404':
           description: Product not found
+  
   /api/products:
     post:
       summary: Create a new product
-      description: Requires OAuth2 write scope
+      description: Creates a new product in the catalog. Requires OAuth2 write:products scope.
       security:
         - oauth2:
             - write:products
+      requestBody:
+        description: Product to create
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Product'
       responses:
-        "201":
-          description: Product created
-        "401":
-          description: Unauthorized
-        "403":
-          description: Forbidden - insufficient scopes
+        '201':
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          description: Bad request - Invalid product data
+        '401':
+          description: Unauthorized - Missing or invalid OAuth2 token
+        '403':
+          description: Forbidden - Token lacks required write:products scope
 ----
 
-=== Security in Swagger UI
+=== Security in swagger UI
 
 When viewing the documented API in Swagger UI, security schemes appear in several ways:
 
-* A lock icon (🔒) appears next to secured operations
+* A lock icon appears next to secured operations
 * An "Authorize" button allows testers to input credentials
 * Required scopes are displayed for each operation
 * Operations can be tested with provided authentication
