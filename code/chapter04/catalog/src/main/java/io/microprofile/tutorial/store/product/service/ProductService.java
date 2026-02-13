@@ -1,8 +1,7 @@
 package io.microprofile.tutorial.store.product.service;
 
 import io.microprofile.tutorial.store.product.entity.Product;
-import io.microprofile.tutorial.store.product.repository.JPA;
-import io.microprofile.tutorial.store.product.repository.ProductRepositoryInterface;
+import io.microprofile.tutorial.store.product.repository.ProductRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.List;
@@ -18,8 +17,7 @@ public class ProductService {
     private static final Logger LOGGER = Logger.getLogger(ProductService.class.getName());
 
     @Inject
-    @JPA
-    private ProductRepositoryInterface repository;
+    private ProductRepository repository;
 
     /**
      * Retrieves all products.
@@ -62,14 +60,7 @@ public class ProductService {
      */
     public Product updateProduct(Long id, Product updatedProduct) {
         LOGGER.info("Service: Updating product with ID: " + id);
-        
-        Product existingProduct = repository.findProductById(id);
-        if (existingProduct != null) {
-            // Set the ID to ensure correct update
-            updatedProduct.setId(id);
-            return repository.updateProduct(updatedProduct);
-        }
-        return null;
+        return repository.updateProduct(id, updatedProduct);
     }
     
     /**

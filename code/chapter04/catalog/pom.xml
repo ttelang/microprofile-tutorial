@@ -94,26 +94,6 @@
       <version>5.3.1</version>
       <scope>test</scope>
     </dependency>
-    
-    <!-- Derby Database -->
-    <dependency>
-        <groupId>org.apache.derby</groupId>
-        <artifactId>derby</artifactId>
-        <version>10.16.1.1</version>
-        <scope>provided</scope>
-    </dependency>
-    <dependency>
-        <groupId>org.apache.derby</groupId>
-        <artifactId>derbyshared</artifactId>
-        <version>10.16.1.1</version>
-        <scope>provided</scope>
-    </dependency>
-    <dependency>
-        <groupId>org.apache.derby</groupId>
-        <artifactId>derbytools</artifactId>
-        <version>10.16.1.1</version>
-        <scope>provided</scope>
-    </dependency>
   </dependencies>
 
   <build>
@@ -134,23 +114,6 @@
         <groupId>io.openliberty.tools</groupId>
         <artifactId>liberty-maven-plugin</artifactId>
         <version>3.11.2</version>
-        <configuration>
-                    <copyDependencies>
-                        <location>${project.build.directory}/liberty/wlp/usr/shared/resources</location>
-                        <dependency>
-                            <groupId>org.apache.derby</groupId>
-                            <artifactId>derby</artifactId>
-                        </dependency>
-                        <dependency>
-                            <groupId>org.apache.derby</groupId>
-                            <artifactId>derbyshared</artifactId>
-                        </dependency>
-                        <dependency>
-                            <groupId>org.apache.derby</groupId>
-                            <artifactId>derbytools</artifactId>
-                        </dependency>
-                    </copyDependencies>
-                </configuration>
       </plugin>
 
       <plugin>
