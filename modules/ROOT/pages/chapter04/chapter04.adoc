@@ -325,6 +325,15 @@ You can use MicroProfile OpenAPI annotations to document any Jakarta RESTful Web
 | `@RequestBody`
 | Describes the request body of an HTTP request, specifying the content of the body and whether it is required. In MicroProfile OpenAPI 4.0 and later, request bodies are required by default (`required=true`). To make a request body optional, explicitly set `required=false`.
 
+| `@RequestBodySchema`
+| Convenience annotation that simplifies documenting request bodies. Instead of using `@RequestBody` with nested `@Content` and `@Schema`, you can directly specify the implementation class: `@RequestBodySchema(MyClass.class)`.
+
+| `@APIResponseSchema`
+| Convenience annotation for documenting responses. Instead of using `@APIResponse` with nested `@Content` and `@Schema`, you can directly specify the response code and implementation class: `@APIResponseSchema(responseCode = "200", value = MyClass.class)`.
+
+| `@SchemaProperty`
+| Allows defining properties within a `@Schema` annotation without creating separate classes. Useful for inline property definitions.
+
 | `@Schema`
 | Provides schema details for a response or request body, specifying the data type, format, and constraints.
 
@@ -358,6 +367,106 @@ You can use MicroProfile OpenAPI annotations to document any Jakarta RESTful Web
 |===
 
 All of these annotations are defined in the `org.eclipse.microprofile.openapi.annotations` package.
+
+=== Convenience annotation examples
+
+MicroProfile OpenAPI 2.0 introduced convenience annotations that simplify common documentation patterns.
+
+==== Using @RequestBodySchema
+
+Instead of:
+
+[source, java]
+----
+@POST
+public Response createProduct(
+    @RequestBody(
+        description = "Product to create",
+        required = true,
+        content = @Content(
+            mediaType = MediaType.APPLICATION_JSON,
+            schema = @Schema(implementation = Product.class)
+        )
+    ) Product product) {
+    // Implementation
+}
+----
+
+You can use:
+
+[source, java]
+----
+import org.eclipse.microprofile.openapi.annotations.parameters.RequestBodySchema;
+
+@POST
+@RequestBodySchema(Product.class)
+public Response createProduct(Product product) {
+    // Implementation
+}
+----
+
+==== Using @APIResponseSchema
+
+Instead of:
+
+[source, java]
+----
+@GET
+@Path("/{id}")
+@APIResponse(
+    responseCode = "200",
+    description = "Product found",
+    content = @Content(
+        mediaType = MediaType.APPLICATION_JSON,
+        schema = @Schema(implementation = Product.class)
+    )
+)
+public Response getProduct(@PathParam("id") Long id) {
+    // Implementation
+}
+----
+
+You can use:
+
+[source, java]
+----
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponseSchema;
+
+@GET
+@Path("/{id}")
+@APIResponseSchema(value = Product.class, responseCode = "200", responseDescription = "Product found")
+public Response getProduct(@PathParam("id") Long id) {
+    // Implementation
+}
+----
+
+==== Using @SchemaProperty
+
+For inline schema property definitions:
+
+[source, java]
+----
+import org.eclipse.microprofile.openapi.annotations.media.SchemaProperty;
+
+@Schema(
+    description = "Order summary",
+    properties = {
+        @SchemaProperty(
+            name = "orderId",
+            description = "Unique order identifier",
+            example = "ORD-12345"
+        ),
+        @SchemaProperty(
+            name = "total",
+            description = "Total order amount",
+            example = "99.99"
+        )
+    }
+)
+public class OrderSummary {
+    // Class implementation
+}
+----
 
 == Configuration properties
 
@@ -833,6 +942,182 @@ Filters prove useful for:
 [NOTE]
 ====
 Filters modify the OpenAPI document before it is served. They do not directly generate configuration files or code. Instead, they add metadata (often as vendor extensions) that other tools consume from the generated OpenAPI specification.
+====
+
+== Jakarta Bean Validation integration
+
+MicroProfile OpenAPI automatically processes Jakarta Bean Validation annotations and uses them to enhance the generated OpenAPI schemas with validation constraints. This integration eliminates the need to duplicate validation rules in both your code and OpenAPI documentation.
+
+=== Supported validation annotations
+
+The following table shows which Jakarta Bean Validation annotations affect OpenAPI schemas:
+
+[cols="1,1,2", options="header"]
+|===
+| Annotation | Schema Type | Generated Properties
+
+| `@NotEmpty`
+| `string`
+| `minLength: 1`
+
+| `@NotEmpty`
+| `array`
+| `minItems: 1`
+
+| `@NotEmpty`
+| `object`
+| `minProperties: 1`
+
+| `@NotBlank`
+| `string`
+| `pattern: \S` (requires non-whitespace)
+
+| `@Size(min=a, max=b)`
+| `string`
+| `minLength: a`, `maxLength: b`
+
+| `@Size(min=a, max=b)`
+| `array`
+| `minItems: a`, `maxItems: b`
+
+| `@Size(min=a, max=b)`
+| `object`
+| `minProperties: a`, `maxProperties: b`
+
+| `@DecimalMax(value=a)`
+| `number` or `integer`
+| `maximum: a`
+
+| `@DecimalMax(value=a, inclusive=false)`
+| `number` or `integer`
+| `exclusiveMaximum: a`
+
+| `@DecimalMin(value=a)`
+| `number` or `integer`
+| `minimum: a`
+
+| `@DecimalMin(value=a, inclusive=false)`
+| `number` or `integer`
+| `exclusiveMinimum: a`
+
+| `@Max(a)`
+| `number` or `integer`
+| `maximum: a`
+
+| `@Min(a)`
+| `number` or `integer`
+| `minimum: a`
+
+| `@Negative`
+| `number` or `integer`
+| `exclusiveMaximum: 0`
+
+| `@NegativeOrZero`
+| `number` or `integer`
+| `maximum: 0`
+
+| `@Positive`
+| `number` or `integer`
+| `exclusiveMinimum: 0`
+
+| `@PositiveOrZero`
+| `number` or `integer`
+| `minimum: 0`
+
+|===
+
+=== Example with validation annotations
+
+[source, java]
+----
+import jakarta.validation.constraints.*;
+
+public class Product {
+    
+    @NotNull
+    @Positive
+    @Schema(description = "Product ID")
+    private Long id;
+    
+    @NotBlank
+    @Size(min = 3, max = 100)
+    @Schema(description = "Product name")
+    private String name;
+    
+    @Size(max = 500)
+    @Schema(description = "Product description")
+    private String description;
+    
+    @NotNull
+    @DecimalMin(value = "0.01", inclusive = true)
+    @DecimalMax(value = "999999.99")
+    @Schema(description = "Product price in USD")
+    private BigDecimal price;
+    
+    @Min(0)
+    @Schema(description = "Available stock quantity")
+    private Integer stock;
+    
+    // Getters and setters...
+}
+----
+
+This generates the following OpenAPI schema:
+
+[source, yaml]
+----
+components:
+  schemas:
+    Product:
+      type: object
+      required:
+        - id
+        - name
+        - price
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Product ID
+          exclusiveMinimum: 0
+        name:
+          type: string
+          description: Product name
+          minLength: 3
+          maxLength: 100
+          pattern: \S
+        description:
+          type: string
+          description: Product description
+          maxLength: 500
+        price:
+          type: number
+          description: Product price in USD
+          minimum: 0.01
+          maximum: 999999.99
+        stock:
+          type: integer
+          format: int32
+          description: Available stock quantity
+          minimum: 0
+----
+
+=== Controlling Bean Validation processing
+
+Bean Validation annotation processing is enabled by default. You can disable it using the configuration property:
+
+[source, properties]
+----
+mp.openapi.scan.beanvalidation=false
+----
+
+[NOTE]
+====
+Bean Validation annotations only affect the schema when:
+
+* The annotation is applied to an element for which a schema is generated
+* The annotation's `groups` attribute is empty or includes `jakarta.validation.groups.Default`
+* The property hasn't been explicitly set using `@Schema` annotations
 ====
 
 == Documenting asynchronous operations with callbacks
