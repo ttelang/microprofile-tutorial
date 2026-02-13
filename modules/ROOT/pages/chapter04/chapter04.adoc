@@ -88,27 +88,9 @@ However, for most applications, annotations alone provide sufficient documentati
 
 Use the `mp.openapi.scan.exclude.packages` and `mp.openapi.scan.exclude.classes` configuration properties to exclude specific resources from documentation. This approach proves useful for internal or administrative endpoints you do not want to expose in your public API specification.
 
-=== Processing order and precedence
+=== Documentation sources
 
-MicroProfile OpenAPI processes documentation from multiple sources and merges them in a specific order. Understanding this order helps you predict how different documentation mechanisms interact and override each other.
-
-The specification mandates the following processing order:
-
-1. **Configuration values**: The implementation reads all `mp.openapi.*` configuration properties.
-
-2. **Model reader**: If configured via `mp.openapi.model.reader`, the OASModelReader creates an initial OpenAPI model tree.
-
-3. **Static OpenAPI file**: The implementation loads any static OpenAPI document from `META-INF/openapi.{yml,yaml,json}` and merges it with the model from step 2.
-
-4. **Annotations**: The implementation scans Jakarta REST resources for OpenAPI annotations and merges them with the model from step 3.
-
-5. **Filter**: If configured via `mp.openapi.filter`, the OASFilter receives callbacks for each element in the model tree and can modify or remove elements.
-
-Each step adds to or overrides the OpenAPI model built in previous steps. For example:
-
-* Annotations can override elements defined in static files
-* Filters can modify or remove any elements from the final model
-* Configuration properties (like `mp.openapi.servers`) override any server definitions from other sources
+MicroProfile OpenAPI merges documentation from multiple sources. Annotations override static files, and configuration properties can override both. Use filters to programmatically modify the final specification.
 
 == Using MicroProfile OpenAPI in your project
 
@@ -494,1004 +476,213 @@ public class OrderSummary {
 
 == Configuration properties
 
-MicroProfile OpenAPI provides several configuration properties to control its behavior. These properties are configured via MicroProfile Config, typically in `microprofile-config.properties`.
+MicroProfile OpenAPI provides configuration properties to control its behavior. Configure these properties in `microprofile-config.properties`.
+
+Common configuration properties include:
+
+* `mp.openapi.scan.exclude.packages` - Comma-separated list of packages to exclude from scanning
+* `mp.openapi.scan.exclude.classes` - Comma-separated list of classes to exclude from scanning  
+* `mp.openapi.servers` - Comma-separated list of global server URLs
+* `mp.openapi.filter` - Fully qualified name of an OASFilter implementation class
+* `mp.openapi.model.reader` - Fully qualified name of an OASModelReader implementation class
 
 [NOTE]
 ====
 Configuration property names are available as constants in the `org.eclipse.microprofile.openapi.OASConfig` class for type-safe access in Java code.
 ====
 
-The following table lists the core configuration properties:
-
-[cols="1,3,1", options="header"]
-|===
-| Property | Description | Default
-
-| `mp.openapi.model.reader`
-| Fully qualified name of the OASModelReader implementation class
-| None
-
-| `mp.openapi.filter`
-| Fully qualified name of the OASFilter implementation class
-| None
-
-| `mp.openapi.scan.disable`
-| Disable annotation scanning
-| `false`
-
-| `mp.openapi.scan.packages`
-| Comma-separated list of packages to scan (including subpackages)
-| All packages
-
-| `mp.openapi.scan.classes`
-| Comma-separated list of specific classes to scan
-| All classes
-
-| `mp.openapi.scan.exclude.packages`
-| Comma-separated list of packages to exclude from scanning
-| None
-
-| `mp.openapi.scan.exclude.classes`
-| Comma-separated list of classes to exclude from scanning
-| None
-
-| `mp.openapi.scan.beanvalidation`
-| Enable Jakarta Bean Validation annotation processing
-| `true`
-
-| `mp.openapi.servers`
-| Comma-separated list of global server URLs
-| None
-
-| `mp.openapi.servers.path.{path}`
-| Alternative servers for a specific path
-| None
-
-| `mp.openapi.servers.operation.{operationId}`
-| Alternative servers for a specific operation (requires `operationId`)
-| None
-
-| `mp.openapi.schema.{className}`
-| JSON-formatted schema definition for a specific class
-| None
-
-|===
-
-=== Configuration examples
-
-*Exclude packages from scanning:*
+*Example: Exclude internal packages from scanning:*
 
 [source, properties]
 ----
 mp.openapi.scan.exclude.packages=io.myapp.internal,io.myapp.admin
 ----
 
-*Configure custom servers:*
+*Example: Configure custom servers:*
 
 [source, properties]
 ----
 mp.openapi.servers=https://api.example.com/v1,https://api-staging.example.com/v1
 ----
 
-*Override servers for a specific path:*
-
-[source, properties]
-----
-mp.openapi.servers.path./products=https://products-api.example.com/v1
-----
-
-*Define a schema for a class:*
-
-[source, properties]
-----
-mp.openapi.schema.java.util.Date={"name":"EpochMillis","type":"number","format":"int64","description":"Milliseconds since January 1, 1970, 00:00:00 GMT"}
-----
-
 == Features in MicroProfile OpenAPI 4.x
 
-This chapter documents features introduced in MicroProfile OpenAPI 4.0 and refined in 4.1.
-
-[NOTE]
-====
-**Version history:**
-
-* **MicroProfile OpenAPI 4.0** (March 2024): Major release introducing OpenAPI v3.1 support, webhooks via `@PathItem`, and new schema properties for JSON Schema 2020-12 compliance.
-
-* **MicroProfile OpenAPI 4.1** (March 2025): Clarification release that added:
-  - Requirement that all collection-returning methods in model interfaces must return mutable collections
-  - Clarifications on annotation scanning behavior for Jakarta REST subresource locators
-  - Refinements to `@Schema` and `@RequestBody` annotation semantics
-  - New convenience methods: `hasExtension()` and `getExtension()`
-
-Unless otherwise noted, this chapter covers features available in both 4.0 and 4.1.
-====
+MicroProfile OpenAPI 4.0 introduced support for OpenAPI Specification 3.1, and version 4.1 added clarifications and convenience methods.
 
 === OpenAPI v3.1 specification support
 
-MicroProfile OpenAPI 4.0 introduced full support for the OpenAPI v3.1 specification, which brings several important improvements.
+MicroProfile OpenAPI 4.0 supports OpenAPI v3.1, which aligns with JSON Schema 2020-12. This provides better interoperability with standard JSON Schema validators and tooling.
 
-==== JSON Schema 2020-12 alignment
+==== Nullable type handling
 
-OpenAPI v3.1 adopts JSON Schema 2020-12 as its schema vocabulary, replacing the custom JSON Schema dialect used in v3.0. This provides:
+OpenAPI v3.1 uses JSON Schema's standard type arrays for nullable fields. Use `@Schema(nullable = true)` in your Java code, which generates `type: ["string", "null"]` in the specification:
 
-* Valid JSON Schema documents that work with standard validators
-* Better interoperability with JSON Schema tooling and libraries
-* Access to newer JSON Schema features like `prefixItems`, `$dynamicRef`, and enhanced pattern properties
-
-You can now use standard JSON Schema validation tools to test your API schemas independently of OpenAPI tooling.
-
-==== Improved nullable type handling
-
-OpenAPI v3.1 eliminates the proprietary `nullable: true` keyword in favor of JSON Schema's standard approach using type arrays (`type: ["string", "null"]`).
-
-MicroProfile OpenAPI 4.1 supports both approaches for backward compatibility:
-
-* Use `@Schema(nullable = true)` in your Java code (converted to type arrays in the generated spec)
-* Or directly use type arrays via `@Schema(type = {SchemaType.STRING, SchemaType.NULL})`
-
-*Before (OpenAPI v3.0):*
-[source, yaml]
+[source, java]
 ----
-schema:
-  type: string
-  nullable: true  # Custom OpenAPI extension
+@Schema(description = "Optional description", nullable = true)
+private String description;
 ----
-
-*Now (OpenAPI v3.1):*
-[source, yaml]
-----
-schema:
-  type: ["string", "null"]  # Standard JSON Schema
-----
-
-When documenting query parameters, path parameters, or request body fields that can be null, MicroProfile OpenAPI 4.1 generates OpenAPI v3.1 specifications that use standard JSON Schema nullable notation (`type: ["string", "null"]`) instead of the deprecated `nullable: true` keyword.
-
-==== Enhanced schema composition
-
-OpenAPI v3.1 provides improved support for `oneOf`, `anyOf`, and `allOf` keywords, which enables more flexible and precise schema modeling for:
-
-* Polymorphic types (using discriminators)
-* Union types (multiple possible schemas)
-* Inheritance relationships (schema extension and composition)
 
 === Support for Java records
 
-Java records provide a concise way to declare immutable data carriers with several advantages:
+MicroProfile OpenAPI 4.1 supports Java records and automatically generates schema definitions from record components:
 
-* Concise syntax that requires less boilerplate code compared to traditional Plain Old Java Objects (POJOs)
-* Immutability that promotes safer API contracts
-* Type safety that provides compile-time guarantees for your data models
-* Clarity of intent that signals the type is a simple data carrier
-
-MicroProfile OpenAPI 4.1 provides native support for Java records and automatically generates schema definitions from record components.
-
-==== Basic record schema generation
-
-MicroProfile OpenAPI automatically discovers record components and generates corresponding OpenAPI schemas. The following example shows a category record for organizing products:
-
-*Java record definition:*
 [source, java]
 ----
-package io.microprofile.tutorial.store.product.entity;
-
-import org.eclipse.microprofile.openapi.annotations.media.Schema;
-import jakarta.validation.constraints.NotNull;
-
-@Schema(name = "CategoryRecord", description = "Product category information")
-public record CategoryRecord(
+@Schema(name = "Product", description = "Product information")
+public record Product(
     @NotNull
-    @Schema(description = "Category ID", example = "1")
+    @Schema(description = "Product ID")
     Long id,
     
     @NotNull
-    @Schema(description = "Category name", example = "Electronics")
+    @Schema(description = "Product name")
     String name,
     
-    @Schema(description = "Parent category ID for hierarchical structure", nullable = true)
-    Long parentId,
-    
-    @NotNull
-    @Schema(description = "Display order", example = "1")
-    Integer displayOrder
+    @Schema(description = "Optional description", nullable = true)
+    String description
 ) {}
 ----
 
-The generated OpenAPI schema for the record:
+Use `@NotNull` validation annotations to mark required fields. The generated schema includes proper type definitions, required fields, and descriptions from your record components.
 
-[source, yaml]
-----
-openapi: 3.1.0
-components:
-  schemas:
-    CategoryRecord:
-      description: Product category information
-      type: object
-      required:
-      - id
-      - name
-      - displayOrder
-      properties:
-        id:
-          type: integer
-          format: int64
-          description: Category ID
-          examples:
-          - 1
-        name:
-          type: string
-          description: Category name
-          examples:
-          - Electronics
-        parentId:
-          type:
-          - integer
-          - "null"
-          format: int64
-          description: Parent category ID for hierarchical structure
-        displayOrder:
-          type: integer
-          format: int32
-          description: Display order
-          examples:
-          - 1
-----
+== Jakarta Bean Validation integration
 
-Use `@NotNull` validation annotations or `@Schema(required = true)` to explicitly mark components as required in the generated specification. For nullable components, you can either use `@Schema(nullable = true)` or wrap the type in `Optional<T>` to indicate they can accept null values. In this example, `@NotNull` annotations mark `id`, `name`, and `displayOrder` as required, while `parentId` is marked as nullable for root categories that have no parent.
+MicroProfile OpenAPI automatically processes Jakarta Bean Validation annotations and uses them to enhance the generated OpenAPI schemas. Common validation annotations include:
 
-=== JSON Schema dialect support
+* `@NotNull`, `@NotEmpty`, `@NotBlank` - Mark fields as required or with minimum constraints
+* `@Size(min, max)` - Set minimum and maximum length for strings, arrays, or objects
+* `@Min(value)`, `@Max(value)` - Set numeric range constraints
+* `@DecimalMin`, `@DecimalMax` - Set decimal range constraints with optional exclusive boundaries
+* `@Positive`, `@Negative` - Enforce positive or negative numeric values
 
-OpenAPI 3.1 introduces the `jsonSchemaDialect` property. This property specifieswhich JSON Schema dialect your OpenAPI document uses, ensuring compatibility with tools and validators that support specific JSON Schema versions.
-
-Below are the available dialects in OpenAPI 3.1:
-
-* *Default dialect*: `https://spec.openapis.org/oas/3.1/dialect/base` - This is used when no dialect is specified. It is a superset of JSON Schema 2020-12. It permits all standard JSON Schema 2020-12 keywords as well as OpenAPI-specific keywords.
-* *JSON Schema 2020-12*: `https://json-schema.org/draft/2020-12/schema` - Use this to restrict schemas to standard JSON Schema 2020-12. It ensures your OpenAPI documents compatibility with external systems that require strict adherence to the JSON Schema 2020-12 specification and do not understand OpenAPI extensions.
-
-==== Specifying the dialect programmatically
-
-You can set the JSON Schema dialect using the `OASModelReader` interface:
+*Example:*
 
 [source, java]
 ----
-package io.microprofile.tutorial.store.config;
-
-import org.eclipse.microprofile.openapi.OASFactory;
-import org.eclipse.microprofile.openapi.OASModelReader;
-import org.eclipse.microprofile.openapi.models.OpenAPI;
-
-public class CustomModelReader implements OASModelReader {
+public class Product {
+    @NotNull
+    @Positive
+    private Long id;
     
-    @Override
-    public OpenAPI buildModel() {
-        return OASFactory.createOpenAPI()
-            .openapi("3.1.0")
-            // Use default OpenAPI 3.1 dialect (recommended for most use cases). 
-            // Supports all JSON Schema 2020-12 keywords PLUS Open API specific extensions.
-            .jsonSchemaDialect("https://spec.openapis.org/oas/3.1/dialect/base")
-            
-            // Alternative: Use JSON Schema 2020-12 ONLY if you need strict compatibility
-            // with external tools that do not recognize OpenAPI-specific keywords.
-            // .jsonSchemaDialect("https://json-schema.org/draft/2020-12/schema")
-            
-            .info(OASFactory.createInfo()
-                .title("Product Catalog API")
-                .version("1.0.0")
-                .description("API for managing products in the e-commerce store"));
-    }
+    @NotBlank
+    @Size(min = 3, max = 100)
+    private String name;
+    
+    @DecimalMin("0.01")
+    @DecimalMax("999999.99")
+    private BigDecimal price;
 }
 ----
 
-==== Activating the model reader
+The generated schema includes validation constraints such as `minimum`, `maximum`, `minLength`, `maxLength`, and `pattern` based on the annotations. Disable Bean Validation processing using `mp.openapi.scan.beanvalidation=false` if needed.
 
-Configure the model reader in `microprofile-config.properties`:
+== Documenting asynchronous operations with callbacks
 
-[source, properties]
-----
-mp.openapi.model.reader=io.microprofile.tutorial.store.config.CustomModelReader
-----
+MicroProfile OpenAPI supports documenting callbacks—HTTP requests your API makes to client-provided URLs. This is useful for webhook notifications and asynchronous processing patterns.
 
-=== Extensible interface methods
+=== Using @Callback annotation
 
-MicroProfile OpenAPI provides methods on the `Extensible` interface: `getExtension(String)` and `hasExtension(String)`. These methods provide a convenient way to work with vendor extensions (custom properties prefixed with `x-`) in your OpenAPI model.
-
-==== Understanding vendor extensions
-
-Vendor extensions allow you to add custom metadata to your OpenAPI specification beyond the standard properties. Extensions must be prefixed with `x-` and can contain any valid JSON value. Common use cases include:
-
-* Custom timeout or rate limit configurations
-* Internal routing or gateway metadata
-* Documentation generation hints
-* Tool-specific processing instructions
-* Security or compliance annotations
-
-==== New convenience methods
-
-Prior to MicroProfile OpenAPI 4.1, checking for and retrieving extensions required working directly with the extensions map. The new methods simplify this process:
-
-* `hasExtension(String name)`: Returns `true` if the extension exists
-* `getExtension(String name)`: Returns the extension value or `null` if not found
-
-==== Mutable model collections
-
-MicroProfile OpenAPI 4.1 clarified that all collection-returning methods in model interfaces return mutable collections. This ensures consistent behavior when modifying the OpenAPI model programmatically:
+Document callbacks using the `@Callback` annotation. The client provides a callback URL, and your API calls that URL when processing completes:
 
 [source, java]
 ----
-@Override
-public Operation filterOperation(Operation operation) {
-    // Collections are guaranteed to be mutable in 4.1
-    List<SecurityRequirement> requirements = operation.getSecurity();
-    if (requirements == null) {
-        requirements = new ArrayList<>();
-        operation.setSecurity(requirements);
+@POST
+@Path("/process-async")
+@Operation(summary = "Process product asynchronously")
+@APIResponse(responseCode = "202", description = "Processing initiated")
+@Callback(
+    name = "productProcessed",
+    callbackUrlExpression = "{$request.body#/callbackUrl}",
+    operations = {
+        @CallbackOperation(
+            method = "post",
+            summary = "Product processing completed",
+            requestBody = @RequestBody(
+                description = "Processing result",
+                content = @Content(
+                    mediaType = MediaType.APPLICATION_JSON,
+                    schema = @Schema(implementation = ProcessResult.class)
+                )
+            )
+        )
     }
-    
-    requirements.add(
-        OASFactory.createSecurityRequirement().addScheme("apiKey")
-    );
-    
-    return operation;
+)
+public Response processProductAsync(AsyncProductRequest request) {
+    // Initiate async processing
+    return Response.accepted()
+                  .entity("{\"message\": \"Processing initiated\"}")
+                  .build();
 }
 ----
 
-Prior to this, implementations could return immutable collections, which would cause runtime errors when attempting modifications.
+*Key elements:*
 
-==== Adding extensions to operations
+* `callbackUrlExpression` - JSON Pointer to extract the callback URL from the request (e.g., `{$request.body#/callbackUrl}`)
+* `@CallbackOperation` - Defines the HTTP request your API will make to the client's URL
+* `method` - HTTP method for the callback (typically "post")
+* `requestBody` - Payload your API sends to the callback URL
 
-You can add vendor extensions to operations using the `@Extension` annotation:
+
+The callback pattern: (1) Client sends request with callback URL, (2) API responds immediately (202 Accepted), (3) API processes asynchronously, (4) API POSTs results to client's callback URL.
+
+== Using security schemes in OpenAPI documentation
+
+[IMPORTANT]
+====
+MicroProfile OpenAPI **documents** security requirements but does **not enforce** them. You must first implement access controls in your application using security frameworks (such as MicroProfile JWT, Jakarta Security, or your runtime's security features), and then use OpenAPI annotations to document how clients should authenticate with your API.
+====
+
+Security is a critical aspect of API documentation. MicroProfile OpenAPI 4.1 provides comprehensive support for documenting various security schemes including API keys, HTTP authentication, OAuth2, and OpenID Connect.
+
+=== Documenting security schemes
+
+Security schemes are defined at the application level using `@SecurityScheme` annotations:
+
+[source, java]
+----
+package io.microprofile.tutorial.store.product; 
+
+// ...
+
+@ApplicationPath("/api")
+@OpenAPIDefinition(
+    info = @Info(
+        title = "Secured Product API",
+        version = "1.0.0",
+        description = "Product API with multiple security schemes"
+    )
+)
+@SecuritySchemes({
+    @SecurityScheme(
+        securitySchemeName = "bearer",
+        type = SecuritySchemeType.HTTP,
+        description = "JWT Bearer token authentication",
+        scheme = "bearer",
+        bearerFormat = "JWT"
+    )
+})
+public class ProductRestApplication extends Application {
+}
+----
+
+This example shows Bearer token authentication. You can define multiple security schemes including API keys, OAuth2, and OpenID Connect.
+
+==== Applying security to operations
+
+Apply security requirements to individual operations using `@SecurityRequirement`:
 
 [source, java]
 ----
 @GET
 @Path("/{id}")
-@Produces(MediaType.APPLICATION_JSON)
-@Operation(
-    summary = "Get product by ID",
-    extensions = {
-        @Extension(name = "x-custom-timeout", value = "60"),
-        @Extension(name = "x-rate-limit", value = "100"),
-        @Extension(name = "x-cache-ttl", value = "300")
-    }
-)
-public Response getProductById(@PathParam("id") Long id) {
-    // Method implementation returns product details
+@SecurityRequirement(name = "bearer")
+public Response getProduct(@PathParam("id") Long id) {
     return Response.ok(productService.findById(id)).build();
 }
 ----
 
-*Generated OpenAPI specification with extensions:*
-[source, yaml]
-----
-paths:
-  /api/products/{id}:
-    get:
-      summary: Get product by ID
-      description: Retrieves detailed product information
-      x-custom-timeout: 60
-      x-rate-limit: 100
-      x-cache-ttl: 300
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Product found
-----
-
-==== Using extensible interface methods in filters
-
-OAS filters execute during OpenAPI document generation and allow you to programmatically modify the OpenAPI model before it is served. Filters prove useful when you need to add, modify, or remove content from the OpenAPI specification based on logic that cannot be expressed through annotations alone.
-
-An `OASFilter` allows you to:
-
-* Read existing extensions from your annotated code and make decisions based on their values
-* Add new extensions dynamically based on business logic or computed values
-* Modify the OpenAPI document programmatically at runtime
-* Enforce policies across all operations (for example, ensure all operations have certain metadata)
-* Integrate with external systems by reading configuration and adding appropriate extensions
-
-[NOTE]
-====
-Filter execution order:
-
-* The filter is called once for each filterable element in the OpenAPI model tree
-* **Descendant elements are always filtered before their ancestors** (bottom-up processing)
-* The `filterOpenAPI` method is **always called last**, after all other elements have been filtered
-* The order in which sibling elements are filtered is undefined
-
-This bottom-up approach ensures child elements are fully processed before their parents, allowing parent filters to make decisions based on their children's final state.
-====
-
-For example, the following filter reads the `x-custom-timeout` extension that was defined in the `@Operation` annotation and uses it to dynamically add another extension (`x-requires-approval`) if the timeout exceeds a threshold:
-
-[source, java]
-----
-package io.microprofile.tutorial.store.product.config;
-
-import org.eclipse.microprofile.openapi.models.Operation;
-import org.eclipse.microprofile.openapi.OASFilter;
-
-public class ExtensionFilter implements OASFilter {
-    
-    @Override
-    public Operation filterOperation(Operation operation) {
-        if (operation == null) {
-            return operation;
-        }
-        
-        try {
-            // Check if a custom timeout extension exists
-            Object timeout = operation.getExtension("x-custom-timeout");
-            if (timeout != null) {
-                int timeoutValue = Integer.parseInt(timeout.toString());
-                if (timeoutValue > 30) {
-                    operation.addExtension("x-requires-approval", "true");
-                }
-            }
-            
-            // Check for rate limiting configuration
-            Object rateLimit = operation.getExtension("x-rate-limit");
-            if (rateLimit != null) {
-                int rateLimitValue = Integer.parseInt(rateLimit.toString());
-                if (rateLimitValue > 500) {
-                    operation.addExtension("x-high-volume", "true");
-                }
-            }
-            
-            // Check for authentication requirements
-            Object authLevel = operation.getExtension("x-requires-auth");
-            if (authLevel != null && "admin".equals(authLevel.toString())) {
-                operation.addExtension("x-security-notice", 
-                    "This operation requires administrator privileges");
-            }
-            
-        } catch (Exception e) {
-            System.err.println("Error in ExtensionFilter: " + e.getMessage());
-            e.printStackTrace();
-        }
-        
-        return operation;
-    }
-}
-----
-
-Configure the filter in `microprofile-config.properties`:
-
-[source, properties]
-----
-mp.openapi.filter=io.microprofile.tutorial.store.product.config.ExtensionFilter
-----
-
-==== Practical use cases for filters
-
-Filters prove useful for:
-
-* *Dynamic documentation enrichment*: Add computed metadata based on businness logic (as demonstrated in the example, we added `x-requires-approval` to flag high timeout values)
-* *Validation*: Log warnings for operations missing required metadata
-* *Policy enforcement*: Ensure operations comply with organizational standards (for example, verify admin endpoints have appropriate security requirements).
-* *Metrics*: Collect statistics about API structure during document generation
-* *Tool integration*: Add vendor extensions that can be consumed by external tools, for example:
-  - API gateways: `x-rate-limit`, `x-timeout`
-  - Code generators: `x-client-name`, `x-operation-id`
-  - Monitoring: `x-monitoring-level`, `x-alert-threshold`
-  - Testing: `x-test-priority`, `x-mock-data`
-
-[NOTE]
-====
-Filters modify the OpenAPI document before it is served. They do not directly generate configuration files or code. Instead, they add metadata (often as vendor extensions) that other tools consume from the generated OpenAPI specification.
-====
-
-== Jakarta Bean Validation integration
-
-MicroProfile OpenAPI automatically processes Jakarta Bean Validation annotations and uses them to enhance the generated OpenAPI schemas with validation constraints. This integration eliminates the need to duplicate validation rules in both your code and OpenAPI documentation.
-
-=== Supported validation annotations
-
-The following table shows which Jakarta Bean Validation annotations affect OpenAPI schemas:
-
-[cols="1,1,2", options="header"]
-|===
-| Annotation | Schema Type | Generated Properties
-
-| `@NotEmpty`
-| `string`
-| `minLength: 1`
-
-| `@NotEmpty`
-| `array`
-| `minItems: 1`
-
-| `@NotEmpty`
-| `object`
-| `minProperties: 1`
-
-| `@NotBlank`
-| `string`
-| `pattern: \S` (requires non-whitespace)
-
-| `@Size(min=a, max=b)`
-| `string`
-| `minLength: a`, `maxLength: b`
-
-| `@Size(min=a, max=b)`
-| `array`
-| `minItems: a`, `maxItems: b`
-
-| `@Size(min=a, max=b)`
-| `object`
-| `minProperties: a`, `maxProperties: b`
-
-| `@DecimalMax(value=a)`
-| `number` or `integer`
-| `maximum: a`
-
-| `@DecimalMax(value=a, inclusive=false)`
-| `number` or `integer`
-| `exclusiveMaximum: a`
-
-| `@DecimalMin(value=a)`
-| `number` or `integer`
-| `minimum: a`
-
-| `@DecimalMin(value=a, inclusive=false)`
-| `number` or `integer`
-| `exclusiveMinimum: a`
-
-| `@Max(a)`
-| `number` or `integer`
-| `maximum: a`
-
-| `@Min(a)`
-| `number` or `integer`
-| `minimum: a`
-
-| `@Negative`
-| `number` or `integer`
-| `exclusiveMaximum: 0`
-
-| `@NegativeOrZero`
-| `number` or `integer`
-| `maximum: 0`
-
-| `@Positive`
-| `number` or `integer`
-| `exclusiveMinimum: 0`
-
-| `@PositiveOrZero`
-| `number` or `integer`
-| `minimum: 0`
-
-|===
-
-=== Example with validation annotations
-
-[source, java]
-----
-import jakarta.validation.constraints.*;
-
-public class Product {
-    
-    @NotNull
-    @Positive
-    @Schema(description = "Product ID")
-    private Long id;
-    
-    @NotBlank
-    @Size(min = 3, max = 100)
-    @Schema(description = "Product name")
-    private String name;
-    
-    @Size(max = 500)
-    @Schema(description = "Product description")
-    private String description;
-    
-    @NotNull
-    @DecimalMin(value = "0.01", inclusive = true)
-    @DecimalMax(value = "999999.99")
-    @Schema(description = "Product price in USD")
-    private BigDecimal price;
-    
-    @Min(0)
-    @Schema(description = "Available stock quantity")
-    private Integer stock;
-    
-    // Getters and setters...
-}
-----
-
-This generates the following OpenAPI schema:
-
-[source, yaml]
-----
-components:
-  schemas:
-    Product:
-      type: object
-      required:
-        - id
-        - name
-        - price
-      properties:
-        id:
-          type: integer
-          format: int64
-          description: Product ID
-          exclusiveMinimum: 0
-        name:
-          type: string
-          description: Product name
-          minLength: 3
-          maxLength: 100
-          pattern: \S
-        description:
-          type: string
-          description: Product description
-          maxLength: 500
-        price:
-          type: number
-          description: Product price in USD
-          minimum: 0.01
-          maximum: 999999.99
-        stock:
-          type: integer
-          format: int32
-          description: Available stock quantity
-          minimum: 0
-----
-
-=== Controlling Bean Validation processing
-
-Bean Validation annotation processing is enabled by default. You can disable it using the configuration property:
-
-[source, properties]
-----
-mp.openapi.scan.beanvalidation=false
-----
-
-[NOTE]
-====
-Bean Validation annotations only affect the schema when:
-
-* The annotation is applied to an element for which a schema is generated
-* The annotation's `groups` attribute is empty or includes `jakarta.validation.groups.Default`
-* The property hasn't been explicitly set using `@Schema` annotations
-====
-
-== Documenting asynchronous operations with callbacks
-
-MicroProfile OpenAPI provides support for documenting callbacks. Callbacks are useful for APIs where your service initiates an asynchronous process and notifies the client when it completes by making an HTTP request back to a URL provided by the client.
-
-=== Understanding callbacks
-
-A callback in OpenAPI describes an HTTP request that your API will make to the client. Common use cases of callbacks include:
-
-* *Webhook notifications*: Notify clients when long-running operations complete
-* *Event subscriptions*: Send events to client-provided endpoints
-* *Batch processing*: Alert clients when batch jobs finish
-
-The callback pattern works as follows:
-
-1. Client makes a request to your API and provides a callback URL
-2. Your API accepts the request and returns immediately (typically 202 Accepted)
-3. Your API processes the request asynchronously
-4. When complete, your API makes an HTTP request to the client's callback URL
-
-==== Documenting callbacks with `@Callback`
-
-The `@Callback` annotation documents the HTTP request your API will make back to the client:
-
-[source, java]
-----
-package io.microprofile.tutorial.store.product.resource;
-
-//...
-
-@Path("/products")
-@ApplicationScoped
-@Tag(name = "Products", description = "Async product operations")
-public class AsyncProductResource {
-
-    @POST
-    @Path("/process-async")
-    @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.APPLICATION_JSON)
-    @Operation(
-        summary = "Process product asynchronously",
-        description = "Initiates asynchronous product processing and calls back when complete"
-    )
-    @APIResponse(
-        responseCode = "202",
-        description = "Processing initiated"
-    )
-    @Callback(
-        name = "productProcessed",
-        callbackUrlExpression = "{$request.body#/callbackUrl}",
-        operations = {
-            @CallbackOperation(
-                method = "post",
-                summary = "Product processing completed",
-                description = "Called when async product processing is complete",
-                requestBody = @RequestBody(
-                    description = "Processing result",
-                    content = @Content(
-                        mediaType = MediaType.APPLICATION_JSON,
-                        schema = @Schema(implementation = ProcessResult.class)
-                    )
-                )
-            )
-        }
-    )
-    public Response processProductAsync(
-        @RequestBody(
-            description = "Product data and callback URL",
-            required = true,
-            content = @Content(
-                mediaType = MediaType.APPLICATION_JSON,
-                schema = @Schema(implementation = AsyncProductRequest.class)
-            )
-        ) AsyncProductRequest request
-    ) {
-        // Validate request
-        if (request.getCallbackUrl() == null || request.getProduct() == null) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                          .entity("Missing required fields")
-                          .build();
-        }
-        
-        // Initiate async processing
-        // In real implementation, trigger actual async processing here
-        
-        return Response.accepted()
-                      .entity("{\"message\": \"Processing initiated\"}")
-                      .build();
-    }
-}
-----
-
-Explanation: 
-
-* `@Callback`: Documents the callback operation
-
-*@Callback annotation parameters:*
-
-* `name`: Identifier for this callback (used in the OpenAPI spec)
-* `callbackUrlExpression`: JSON Pointer expression to extract the callback URL from the request
-  - `{$request.body#/callbackUrl}` means: "Use the `callbackUrl` field from the request body"
-* `operations`: Array of `@CallbackOperation` defining what HTTP requests your API will make
-
-* `@CallbackOperation`: Documents the HTTP request your API will make to the callback URL 
-
-*@CallbackOperation parameters:*
-
-* `method`: HTTP method your API will use (typically "post")
-* `summary`: Brief description of the callback
-* `requestBody`: Defines what your API will send to the client's callback URL
-
-* `@RequestBody`: Describes the JSON payload sent to the callback
-
-==== Request and response models
-
-The implementation for `AsyncProductRequest` is as follows: 
-
-[source, java]
-----
-package io.microprofile.tutorial.store.product.entity;
-
-// ...
-
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Schema(description = "Async product processing request")
-public class AsyncProductRequest {
-    
-    @Valid
-    @NotNull
-    @Schema(description = "Product to process", required = true)
-    private Product product;
-    
-    @NotNull
-    @Schema(
-        description = "URL to call when processing completes", 
-        required = true,
-        example = "https://client.example.com/webhooks/product-processed"
-    )
-    private String callbackUrl;
-}
-----
-
-The `ProcessResult` class is implemented as follows: 
-
-[source, java]
-----
-package io.microprofile.tutorial.store.product.entity;
-
-// ...
-
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Schema(description = "Product processing result")
-public class ProcessResult {
-    
-    @Schema(description = "ID of the processed product", example = "12345")
-    private Long productId;
-    
-    @Schema(description = "Processing status", example = "SUCCESS")
-    private ProcessingStatus status;
-    
-    @Schema(description = "Result message", example = "Product processed successfully")
-    private String message;
-    
-    @Schema(description = "Processing timestamp", example = "2024-02-04T10:30:00Z")
-    private String timestamp;
-    
-    @Schema(description = "Processing status values")
-    public enum ProcessingStatus {
-        SUCCESS,
-        FAILED,
-        PARTIAL
-    }
-}
-----
-
-==== Generated OpenAPI specification
-
-The callback is documented in the OpenAPI specification as below:
-
-[source, yaml]
-----
-
-paths:
-  /api/products/process-async:
-      post:
-        summary: Process product asynchronously
-        description: Initiates asynchronous product processing and calls back when complete
-        tags:
-        - Products
-        requestBody:
-          description: Product data and callback URL
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AsyncProductRequest'
-          required: true
-        responses:
-          "202":
-            description: Processing initiated
-        callbacks:
-          productProcessed:
-            '{$request.body#/callbackUrl}':
-              post:
-                summary: Product processing completed
-                description: Called when async product processing is complete
-                requestBody:
-                  description: Processing result
-                  content:
-                    application/json:
-                      schema:
-                        $ref: '#/components/schemas/ProcessResult'
-                  required: true
-
-components:
-  schemas:
-    AsyncProductRequest:
-      description: Async product processing request
-      type: object
-      required:
-      - product
-      - callbackUrl
-      properties:
-        product:
-          description: Product to process
-          type: object
-          $ref: '#/components/schemas/Product'
-        callbackUrl:
-          type: string
-          description: URL to call when processing completes
-          examples:
-          - https://client.example.com/webhooks/product-processed
-
-----
-
-=== Callback process flow sequence
-
-The following sequence demonstrates the callback pattern:
-
-*Step 1: Client initiates async processing*
-
-[source, bash]
-----
-POST /api/products/process-async
-Content-Type: application/json
-
-{
-  "product": {
-    "id": 12345,
-    "name": "Wireless Mouse",
-    "price": 29.99
-  },
-  "callbackUrl": "https://client.example.com/webhooks/product-processed"
-}
-----
-
-*Step 2: API responds immediately*
-
-[source, bash]
-----
-HTTP/1.1 202 Accepted
-Content-Type: application/json
-
-{
-  "message": "Processing initiated"
-}
-----
-
-*Step 3: API processes asynchronously*
-
-The system processes the request in the background.
-
-*Step 4: API calls client's callback URL when complete*
-
-[source, bash]
-----
-POST https://client.example.com/webhooks/product-processed
-Content-Type: application/json
-
-{
-  "productId": 12345,
-  "status": "SUCCESS",
-  "message": "Product processed successfully",
-  "timestamp": "2024-02-04T10:30:00Z"
-}
-----
-
-=== Webhook subscription pattern with callbacks
-
-[NOTE]
-====
-This section demonstrates a webhook subscription pattern using operation callbacks (`@Callback`). This is different from OpenAPI v3.1's webhooks feature, which documents callbacks configured through out-of-band mechanisms. MicroProfile OpenAPI supports operation callbacks via the `@Callback` annotation. For documenting OpenAPI v3.1 webhooks, you can use the `webhooks` property in the `@OpenAPIDefinition` annotation (added in MicroProfile OpenAPI 4.0) or static OpenAPI files.
-====
-
-For more complex scenarios with multiple event types, you can use webhooks. This code example shows a webhook subscription system with different event types:
-
-[source, java]
-----
-package io.microprofile.tutorial.store.product.resource;
-
-// ...
-
-@Path("/webhooks")
-@ApplicationScoped
-@Tag(
-    name = "Webhooks",
-    description = """
-        Manage webhook subscriptions for product event notifications.
-        
-        Subscribe to receive HTTP POST callbacks when products are created, updated, deleted,
-        or when stock levels change. Each subscription includes a secret for verifying webhook signatures.
-        """
-)
-public class WebhookResource {
-    
-    @POST
-    @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.APPLICATION_JSON)
-    @Operation(
-        summary = "Subscribe to product webhook events",
-        description = """
-            Create a webhook subscription to receive real-time product event notifications.
-            
-            ## How It Works
-            1. POST your subscription with a valid HTTPS callback URL
-            2. Receive a unique secret for verifying webhook signatures
-            3. Your callback URL will receive POST requests when subscribed events occur
-            """
-    )
-    @SecurityRequirement(name = "bearerAuth")
+The generated OpenAPI document includes security requirements that describe how clients must authenticate. Swagger UI displays these requirements and allows users to provide credentials before testing secured endpoints.
     @APIResponses({
         @APIResponse(
             responseCode = "201",
