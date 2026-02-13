@@ -219,6 +219,15 @@ curl -H "Accept: application/json" http://localhost:9080/openapi
 http://localhost:9080/openapi?format=JSON
 ----
 
+[NOTE]
+====
+**Context root behavior:**
+
+The `/openapi` endpoint is provided at the root of the server, not relative to your application's context path. If your application is deployed with a context root (e.g., `/myapp`), the OpenAPI endpoint remains at `/openapi`, not `/myapp/openapi`.
+
+However, the generated OpenAPI document will include server URLs that reflect your application's deployment context. For example, if you define `@ApplicationPath("/api")` and deploy to context `/myapp`, the server URL in the generated spec will be `/myapp/api`.
+====
+
 When you access the `\http://localhost:9080/openapi` URL, you see the API documentation that MicroProfile OpenAPI generated:
 
 [source, yaml]
@@ -578,19 +587,23 @@ mp.openapi.servers.path./products=https://products-api.example.com/v1
 mp.openapi.schema.java.util.Date={"name":"EpochMillis","type":"number","format":"int64","description":"Milliseconds since January 1, 1970, 00:00:00 GMT"}
 ----
 
-== Features in MicroProfile OpenAPI 4.0
+== Features in MicroProfile OpenAPI 4.x
 
-MicroProfile OpenAPI 4.0 introduces several enhancements that improve developer productivity and align with the OpenAPI v3.1 specification. These features simplify API documentation, add support for modern Java language features, and provide better schema validation capabilities.
+This chapter documents features introduced in MicroProfile OpenAPI 4.0 and refined in 4.1.
 
 [NOTE]
 ====
-MicroProfile OpenAPI 4.0 was a major release that introduced OpenAPI v3.1 support, which brings many improvements to API documentation capabilities. The subsequent 4.1 release added clarifications to the specification, including:
+**Version history:**
 
-* Requirement that all collection-returning methods in model interfaces must return mutable collections
-* Clarifications on annotation scanning behavior for Jakarta REST subresource locators
-* Refinements to `@Schema` and `@RequestBody` annotation semantics
+* **MicroProfile OpenAPI 4.0** (March 2024): Major release introducing OpenAPI v3.1 support, webhooks via `@PathItem`, and new schema properties for JSON Schema 2020-12 compliance.
 
-This chapter covers features available in MicroProfile OpenAPI 4.1 and later, including the specification-level improvements that come from OpenAPI v3.1 adoption.
+* **MicroProfile OpenAPI 4.1** (March 2025): Clarification release that added:
+  - Requirement that all collection-returning methods in model interfaces must return mutable collections
+  - Clarifications on annotation scanning behavior for Jakarta REST subresource locators
+  - Refinements to `@Schema` and `@RequestBody` annotation semantics
+  - New convenience methods: `hasExtension()` and `getExtension()`
+
+Unless otherwise noted, this chapter covers features available in both 4.0 and 4.1.
 ====
 
 === OpenAPI v3.1 specification support
@@ -879,6 +892,18 @@ An `OASFilter` allows you to:
 * Modify the OpenAPI document programmatically at runtime
 * Enforce policies across all operations (for example, ensure all operations have certain metadata)
 * Integrate with external systems by reading configuration and adding appropriate extensions
+
+[NOTE]
+====
+Filter execution order:
+
+* The filter is called once for each filterable element in the OpenAPI model tree
+* **Descendant elements are always filtered before their ancestors** (bottom-up processing)
+* The `filterOpenAPI` method is **always called last**, after all other elements have been filtered
+* The order in which sibling elements are filtered is undefined
+
+This bottom-up approach ensures child elements are fully processed before their parents, allowing parent filters to make decisions based on their children's final state.
+====
 
 For example, the following filter reads the `x-custom-timeout` extension that was defined in the `@Operation` annotation and uses it to dynamically add another extension (`x-requires-approval`) if the timeout exceeds a threshold:
 
@@ -1994,7 +2019,6 @@ import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement
 // .. 
 @Path("/products")
 @ApplicationScoped
-@Schema(description = "Product resource")
 @Tag(
     name = "Products",
     description = "Product catalog operations"
