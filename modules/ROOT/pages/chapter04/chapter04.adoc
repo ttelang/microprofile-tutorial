@@ -21,7 +21,7 @@ This chapter covers the following topics:
 
 == OpenAPI Specification
 
-The OpenAPI Specification (OAS), formerly known as Swagger, defines a standard format for describing and publishing REST APIs. It provides a language-agnostic interface to RESTful APIs. API providers use OAS to create machine-readable documents that describe their endpoints, request and response schemas, authentication requirements, and other API characteristics. This standardization enables powerful tooling: Integrated Development Environments (IDEs) can automatically generate client code. Testing frameworks can then verify your API's functionality against its specification. Furthermore, Documentation tools can build interactive API explorers, all stemming from a single OpenAPI document.
+The OpenAPI Specification (OAS), formerly known as Swagger, defines a standard format for describing and publishing REST APIs. It provides a language-agnostic interface to RESTful APIs. API providers use OAS to create machine-readable documents that describe their endpoints, request and response schemas, authentication requirements, and other API characteristics. This standardization enables powerful tooling: Integrated Development Environments (IDEs) can automatically generate client code. Testing frameworks can then verify your API's functionality against its specification. Documentation tools can build interactive API explorers, all stemming from a single OpenAPI document.
 
 [NOTE]
 ====
@@ -130,8 +130,10 @@ public class ProductResource {
     @APIResponse(
         responseCode = "200",
         description = "Successful, list of products found",
-        content = @Content(mediaType = "application/json",
-        schema = @Schema(implementation = Product.class)
+        content = @Content(
+                      mediaType = "application/json",
+                      schema = @Schema(implementation = Product.class)
+        )
     ),
     @APIResponse(
         responseCode = "400",
@@ -319,7 +321,7 @@ You can use MicroProfile OpenAPI annotations to document any Jakarta RESTful Web
 
 All of these annotations are defined in the `org.eclipse.microprofile.openapi.annotations` package.
 
-== New features in MicroProfile OpenAPI 4.0
+== Features in MicroProfile OpenAPI 4.0
 
 MicroProfile OpenAPI 4.0 introduces several enhancements that improve developer productivity and align with the OpenAPI v3.1 specification. These features simplify API documentation, add support for modern Java language features, and provide better schema validation capabilities.
 
@@ -336,7 +338,7 @@ This chapter covers features available in MicroProfile OpenAPI 4.1 and later, in
 
 === OpenAPI v3.1 specification support
 
-MicroProfile OpenAPI 4.1 fully supports the OpenAPI v3.1 specification, which brings several important improvements.
+MicroProfile OpenAPI 4.0 introduced full support for the OpenAPI v3.1 specification, which brings several important improvements.
 
 ==== JSON Schema 2020-12 alignment
 
@@ -461,9 +463,9 @@ components:
 
 Use `@NotNull` validation annotations or `@Schema(required = true)` to explicitly mark components as required in the generated specification. For nullable components, you can either use `@Schema(nullable = true)` or wrap the type in `Optional<T>` to indicate they can accept null values. In this example, `@NotNull` annotations mark `id`, `name`, and `displayOrder` as required, while `parentId` is marked as nullable for root categories that have no parent.
 
-=== JSON Schema Dialect Support
+=== JSON Schema dialect support
 
-MicroProfile OpenAPI 4.1 introduces the `jsonSchemaDialect` property. This property defines the default meta-schema used to validate and interpret the JSON schema objects within your OpenAPI document. 
+OpenAPI 3.1 introduces the `jsonSchemaDialect` property. This property specifieswhich JSON Schema dialect your OpenAPI document uses, ensuring compatibility with tools and validators that support specific JSON Schema versions.
 
 Below are the available dialects in OpenAPI 3.1:
 
@@ -515,7 +517,7 @@ mp.openapi.model.reader=io.microprofile.tutorial.store.config.CustomModelReader
 
 === Extensible interface methods
 
-MicroProfile OpenAPI 4.1 adds two new methods to the `Extensible` interface: `getExtension(String)` and `hasExtension(String)`. These methods provide a more convenient way to work with vendor extensions (custom properties prefixed with `x-`) in your OpenAPI model.
+MicroProfile OpenAPI provides methods on the `Extensible` interface: `getExtension(String)` and `hasExtension(String)`. These methods provide a convenient way to work with vendor extensions (custom properties prefixed with `x-`) in your OpenAPI model.
 
 ==== Understanding vendor extensions
 
@@ -536,7 +538,7 @@ Prior to MicroProfile OpenAPI 4.1, checking for and retrieving extensions requir
 
 ==== Mutable model collections
 
-Version 4.1 requires that all collection-returning methods in model interfaces return mutable collections. This ensures consistent behavior when modifying the OpenAPI model programmatically:
+MicroProfile OpenAPI 4.1 clarified that all collection-returning methods in model interfaces return mutable collections. This ensures consistent behavior when modifying the OpenAPI model programmatically:
 
 [source, java]
 ----
@@ -557,7 +559,7 @@ public Operation filterOperation(Operation operation) {
 }
 ----
 
-Prior to version 4.1, implementations could return immutable collections, which would cause runtime errors when attempting modifications.
+Prior to this, implementations could return immutable collections, which would cause runtime errors when attempting modifications.
 
 ==== Adding extensions to operations
 
@@ -695,9 +697,9 @@ Filters prove useful for:
 Filters modify the OpenAPI document before it is served. They do not directly generate configuration files or code. Instead, they add metadata (often as vendor extensions) that other tools consume from the generated OpenAPI specification.
 ====
 
-== Documenting asynchronous operations
+== Documenting asynchronous operations with callbacks
 
-MicroProfile OpenAPI 4.1 supports documenting asynchronous operations that use callbacks. Callbacks are useful for APIs where your service initiates an asynchronous process and notifies the client when it completes by making an HTTP request back to a URL provided by the client.
+MicroProfile OpenAPI provides support for documenting callbacks. Callbacks are useful for APIs where your service initiates an asynchronous process and notifies the client when it completes by making an HTTP request back to a URL provided by the client.
 
 === Understanding callbacks
 
@@ -714,7 +716,7 @@ The callback pattern works as follows:
 3. Your API processes the request asynchronously
 4. When complete, your API makes an HTTP request to the client's callback URL
 
-=== Documenting callbacks with `@Callback`
+==== Documenting callbacks with `@Callback`
 
 The `@Callback` annotation documents the HTTP request your API will make back to the client:
 
@@ -722,7 +724,7 @@ The `@Callback` annotation documents the HTTP request your API will make back to
 ----
 package io.microprofile.tutorial.store.product.resource;
 
-// ...
+//...
 
 @Path("/products")
 @ApplicationScoped
@@ -776,8 +778,8 @@ public class AsyncProductResource {
                           .build();
         }
         
-        // Initiate async processing (for demo, just return accepted)
-        // In real implementation, you would trigger async processing here
+        // Initiate async processing
+        // In real implementation, trigger actual async processing here
         
         return Response.accepted()
                       .entity("{\"message\": \"Processing initiated\"}")
@@ -807,15 +809,15 @@ Explanation:
 
 * `@RequestBody`: Describes the JSON payload sent to the callback
 
-=== Request and response models
+==== Request and response models
 
-The implementation for `AsyncProductRequest` is as below:
+The implementation for `AsyncProductRequest` is as follows: 
 
 [source, java]
 ----
 package io.microprofile.tutorial.store.product.entity;
 
-// ... 
+// ...
 
 @Data
 @NoArgsConstructor
@@ -838,7 +840,7 @@ public class AsyncProductRequest {
 }
 ----
 
-The `ProcessResult` class is implemented as below: 
+The `ProcessResult` class is implemented as follows: 
 
 [source, java]
 ----
@@ -873,7 +875,7 @@ public class ProcessResult {
 }
 ----
 
-=== Generated OpenAPI specification
+==== Generated OpenAPI specification
 
 The callback is documented in the OpenAPI specification as below:
 
@@ -965,7 +967,7 @@ Content-Type: application/json
 }
 ----
 
-*Step 3: API processes asynchronously (takes time)*
+*Step 3: API processes asynchronously*
 
 The system processes the request in the background.
 
@@ -984,9 +986,14 @@ Content-Type: application/json
 }
 ----
 
-=== Webhook event subscriptions
+=== Webhook subscription pattern with callbacks
 
-For more complex scenarios with multiple event types, you can use webhooks. The code example shows a webhook subscription system with different event types:
+[NOTE]
+====
+This section demonstrates a webhook subscription pattern using operation callbacks (`@Callback`). This is different from OpenAPI v3.1's webhooks feature, which documents callbacks configured through out-of-band mechanisms. MicroProfile OpenAPI currently supports operation callbacks via the `@Callback` annotation. For documenting OpenAPI v3.1 webhooks you may use static OpenAPI files.
+====
+
+For more complex scenarios with multiple event types, you can use webhooks. This code example shows a webhook subscription system with different event types:
 
 [source, java]
 ----
@@ -1289,9 +1296,14 @@ When you document callbacks in your OpenAPI specification, you provide:
 
 == Using security schemes in OpenAPI documentation
 
+[IMPORTANT]
+====
+MicroProfile OpenAPI **documents** security requirements but does **not enforce** them. You must first implement access controls in your application using security frameworks (such as MicroProfile JWT, Jakarta Security, or your runtime's security features), and then use OpenAPI annotations to document how clients should authenticate with your API.
+====
+
 Security is a critical aspect of API documentation. MicroProfile OpenAPI 4.1 provides comprehensive support for documenting various security schemes including API keys, HTTP authentication, OAuth2, and OpenID Connect.
 
-== Documenting security schemes
+=== Documenting security schemes
 
 Security schemes are defined at the application level using `@SecurityScheme` annotations:
 
@@ -1344,9 +1356,9 @@ public class ProductRestApplication extends Application {
 }
 ----
 
-=== Applying security to operations
+==== Applying security to operations
 
-You can apply security requirements to individual operations or to entire resource classes:
+You can apply security requirements to individual operations or to entire resource classes.
 
 [source, java]
 ----
@@ -1441,7 +1453,7 @@ public class ProductResource {
 }
 ----
 
-=== Generated OpenAPI document
+==== Generated OpenAPI document
 
 The security schemes and requirements are documented in the OpenAPI specification:
 
@@ -1533,13 +1545,13 @@ paths:
           description: Forbidden - Token lacks required write:products scope
 ----
 
-=== Security in swagger UI
+==== Security in Swagger UI
 
-When viewing the documented API in Swagger UI, security schemes appear in several ways:
+When you view the documented API in Swagger UI, security schemes appear in several ways:
 
-* A lock icon appears next to secured operations
-* An "Authorize" button allows testers to input credentials
-* Required scopes are displayed for each operation
+* A lock icon (🔒) appears next to secured operations
+* An Authorize button allows testers to input credentials
+* Required scopes display for each operation
 * Operations can be tested with provided authentication
 
 This makes it easy for API consumers to understand authentication requirements and test secured endpoints interactively.
@@ -1593,7 +1605,7 @@ Having finished this chapter, you can now:
 
 === Practical applications
 
-MicroProfile OpenAPI 4.1's alignment with OpenAPI v3.1 guarentees your API documentation adheres to the latest standards in the API landscape. This annotation-driven approach keeps documentation in sync with your implementation, thereby avoiding the common problem of outdated specifications. The generated OpenAPI documents facilities:
+MicroProfile OpenAPI 4.1's alignment with OpenAPI v3.1 ensures your API documentation adheres to the latest standards in the API landscape. This annotation-driven approach keeps documentation in sync with your implementation, thereby avoiding the common problem of outdated specifications. The generated OpenAPI documents enable:
 
 * Automatic client SDK generation across multiple programming languages
 * Interactive API exploration via Swagger UI
@@ -1601,6 +1613,6 @@ MicroProfile OpenAPI 4.1's alignment with OpenAPI v3.1 guarentees your API docum
 * Contract testing and validation frameworks
 * API discovery and cataloging in enterprise environments
 
-This specification streamlines API documentation, transforming it from a manual, error-prone chore into an automated, reliable process that evolves in tandem with your code.
+This specification transforms API documentation from a manual, error-prone task into an automated, reliable process that evolves seamlessly with your code.
 
-With these learnings, your APIs should be now well-documented, and discoverable.
+Your APIs should be now well-documented, and discoverable.
