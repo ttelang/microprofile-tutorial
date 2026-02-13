@@ -88,6 +88,28 @@ However, for most applications, annotations alone provide sufficient documentati
 
 Use the `mp.openapi.scan.exclude.packages` and `mp.openapi.scan.exclude.classes` configuration properties to exclude specific resources from documentation. This approach proves useful for internal or administrative endpoints you do not want to expose in your public API specification.
 
+=== Processing order and precedence
+
+MicroProfile OpenAPI processes documentation from multiple sources and merges them in a specific order. Understanding this order helps you predict how different documentation mechanisms interact and override each other.
+
+The specification mandates the following processing order:
+
+1. **Configuration values**: The implementation reads all `mp.openapi.*` configuration properties.
+
+2. **Model reader**: If configured via `mp.openapi.model.reader`, the OASModelReader creates an initial OpenAPI model tree.
+
+3. **Static OpenAPI file**: The implementation loads any static OpenAPI document from `META-INF/openapi.{yml,yaml,json}` and merges it with the model from step 2.
+
+4. **Annotations**: The implementation scans Jakarta REST resources for OpenAPI annotations and merges them with the model from step 3.
+
+5. **Filter**: If configured via `mp.openapi.filter`, the OASFilter receives callbacks for each element in the model tree and can modify or remove elements.
+
+Each step adds to or overrides the OpenAPI model built in previous steps. For example:
+
+* Annotations can override elements defined in static files
+* Filters can modify or remove any elements from the final model
+* Configuration properties (like `mp.openapi.servers`) override any server definitions from other sources
+
 == Using MicroProfile OpenAPI in your project
 
 To use MicroProfile OpenAPI in your project, add the following Maven coordinates:
@@ -301,7 +323,7 @@ You can use MicroProfile OpenAPI annotations to document any Jakarta RESTful Web
 | A container for multiple `@APIResponse` annotations, allowing documentation of different responses for a single API operation.
 
 | `@RequestBody`
-| Describes the request body of an HTTP request, specifying the content of the body and whether it is required.
+| Describes the request body of an HTTP request, specifying the content of the body and whether it is required. In MicroProfile OpenAPI 4.0 and later, request bodies are required by default (`required=true`). To make a request body optional, explicitly set `required=false`.
 
 | `@Schema`
 | Provides schema details for a response or request body, specifying the data type, format, and constraints.
@@ -337,6 +359,101 @@ You can use MicroProfile OpenAPI annotations to document any Jakarta RESTful Web
 
 All of these annotations are defined in the `org.eclipse.microprofile.openapi.annotations` package.
 
+== Configuration properties
+
+MicroProfile OpenAPI provides several configuration properties to control its behavior. These properties are configured via MicroProfile Config, typically in `microprofile-config.properties`.
+
+[NOTE]
+====
+Configuration property names are available as constants in the `org.eclipse.microprofile.openapi.OASConfig` class for type-safe access in Java code.
+====
+
+The following table lists the core configuration properties:
+
+[cols="1,3,1", options="header"]
+|===
+| Property | Description | Default
+
+| `mp.openapi.model.reader`
+| Fully qualified name of the OASModelReader implementation class
+| None
+
+| `mp.openapi.filter`
+| Fully qualified name of the OASFilter implementation class
+| None
+
+| `mp.openapi.scan.disable`
+| Disable annotation scanning
+| `false`
+
+| `mp.openapi.scan.packages`
+| Comma-separated list of packages to scan (including subpackages)
+| All packages
+
+| `mp.openapi.scan.classes`
+| Comma-separated list of specific classes to scan
+| All classes
+
+| `mp.openapi.scan.exclude.packages`
+| Comma-separated list of packages to exclude from scanning
+| None
+
+| `mp.openapi.scan.exclude.classes`
+| Comma-separated list of classes to exclude from scanning
+| None
+
+| `mp.openapi.scan.beanvalidation`
+| Enable Jakarta Bean Validation annotation processing
+| `true`
+
+| `mp.openapi.servers`
+| Comma-separated list of global server URLs
+| None
+
+| `mp.openapi.servers.path.{path}`
+| Alternative servers for a specific path
+| None
+
+| `mp.openapi.servers.operation.{operationId}`
+| Alternative servers for a specific operation (requires `operationId`)
+| None
+
+| `mp.openapi.schema.{className}`
+| JSON-formatted schema definition for a specific class
+| None
+
+|===
+
+=== Configuration examples
+
+*Exclude packages from scanning:*
+
+[source, properties]
+----
+mp.openapi.scan.exclude.packages=io.myapp.internal,io.myapp.admin
+----
+
+*Configure custom servers:*
+
+[source, properties]
+----
+mp.openapi.servers=https://api.example.com/v1,https://api-staging.example.com/v1
+----
+
+*Override servers for a specific path:*
+
+[source, properties]
+----
+mp.openapi.servers.path./products=https://products-api.example.com/v1
+----
+
+*Define a schema for a class:*
+
+[source, properties]
+----
+mp.openapi.schema.java.util.Date={"name":"EpochMillis","type":"number","format":"int64","description":"Milliseconds since January 1, 1970, 00:00:00 GMT"}
+----
+
 == Features in MicroProfile OpenAPI 4.0
 
 MicroProfile OpenAPI 4.0 introduces several enhancements that improve developer productivity and align with the OpenAPI v3.1 specification. These features simplify API documentation, add support for modern Java language features, and provide better schema validation capabilities.
@@ -369,6 +486,11 @@ You can now use standard JSON Schema validation tools to test your API schemas i
 ==== Improved nullable type handling
 
 OpenAPI v3.1 eliminates the proprietary `nullable: true` keyword in favor of JSON Schema's standard approach using type arrays (`type: ["string", "null"]`).
+
+MicroProfile OpenAPI 4.1 supports both approaches for backward compatibility:
+
+* Use `@Schema(nullable = true)` in your Java code (converted to type arrays in the generated spec)
+* Or directly use type arrays via `@Schema(type = {SchemaType.STRING, SchemaType.NULL})`
 
 *Before (OpenAPI v3.0):*
 [source, yaml]
