@@ -1688,7 +1688,7 @@ IMPORTANT: Runtime-specific multipart annotations (`@MultipartForm`, `@PartType`
 
 . *Use EntityPart for New Code* - The standard API ensures portability across all Jakarta EE 10-compliant runtimes
 
-. *Close Input Streams* - Always close file streams after creating `EntityPart` instances to prevent resource leaks
+. *Close Input Streams* - EntityPart implementations handle stream closure internally; however, for explicit resource management, use try-with-resources when creating streams externally
 
 . *Specify Media Types* - Set accurate `Content-Type` values for proper server-side processing
 
@@ -2151,7 +2151,7 @@ The `header()` method enables programmatic header injection during client constr
 // Add authorization header at build time
 ProductClient client = RestClientBuilder.newBuilder()
     .baseUri("http://localhost:8080/api")
-    .header("Authorization", "Bearer eyJhbGciOiJIUzI1...")
+    .header("Authorization", "Bearer " + jwtToken)
     .header("X-API-Version", "v1")
     .header("X-Request-ID", UUID.randomUUID().toString())
     .build(ProductClient.class);
@@ -2796,7 +2796,34 @@ public class LoggingFilter implements ClientRequestFilter {
 }
 ----
 
-For response filters (`ClientResponseFilter`), filters are executed in descending priority order (opposite of request filters).
+For response filters (`ClientResponseFilter`), filters are executed in descending priority order (opposite of request filters):
+
+[source,java]
+----
+@Priority(300)  // Executes FIRST for responses
+public class ResponseLoggingFilter implements ClientResponseFilter {
+    @Override
+    public void filter(ClientRequestContext req, ClientResponseContext res) throws IOException {
+        logger.info("Received response: {} {}", res.getStatus(), res.getStatusInfo());
+    }
+}
+
+@Priority(200)  // Executes SECOND for responses
+public class CacheHeaderFilter implements ClientResponseFilter {
+    @Override
+    public void filter(ClientRequestContext req, ClientResponseContext res) throws IOException {
+        // Process cache headers
+    }
+}
+
+@Priority(100)  // Executes LAST for responses
+public class MetricsFilter implements ClientResponseFilter {
+    @Override
+    public void filter(ClientRequestContext req, ClientResponseContext res) throws IOException {
+        // Record metrics after all other processing
+    }
+}
+----
 
 ==== Standard Priority Constants
 
