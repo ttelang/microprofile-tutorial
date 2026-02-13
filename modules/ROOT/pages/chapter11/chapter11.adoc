@@ -128,6 +128,170 @@ The alignment with Jakarta EE 10 and RESTful Web Services 3.1 delivers several k
 
 By embracing Jakarta EE 10, MicroProfile Rest Client 4.0 positions itself as the standard solution for type-safe REST client development in modern enterprise Java applications.
 
+== What's New in MicroProfile REST Client 4.0
+
+// Updated for MicroProfile REST Client 4.0
+MicroProfile REST Client 4.0 introduces targeted enhancements focused on developer productivity and API simplicity while maintaining full backward compatibility with version 3.0. This release aligns with Jakarta EE 10 and RESTful Web Services 3.1, delivering a modern, standards-compliant framework for type-safe REST client development.
+
+=== Key Improvements
+
+==== Simplified Base URI Configuration
+
+The `RestClientBuilder` now includes a `baseUri(String uri)` method that accepts a String parameter directly, eliminating the need to construct URI objects manually:
+
+[source,java]
+----
+// MicroProfile REST Client 3.0 - Required URI object
+ProductClient client = RestClientBuilder.newBuilder()
+    .baseUri(URI.create("http://localhost:8080/api"))
+    .build(ProductClient.class);
+
+// MicroProfile REST Client 4.0 - String parameter accepted
+ProductClient client = RestClientBuilder.newBuilder()
+    .baseUri("http://localhost:8080/api")  // Simpler!
+    .build(ProductClient.class);
+----
+
+This enhancement reduces boilerplate code and improves readability for programmatic client creation.
+
+==== Programmatic Header Configuration
+
+A new `header(String name, Object value)` method enables dynamic header injection at client build time:
+
+[source,java]
+----
+// Add headers programmatically during client construction
+ProductClient client = RestClientBuilder.newBuilder()
+    .baseUri("http://localhost:8080/api")
+    .header("Authorization", "Bearer " + token)
+    .header("X-Request-ID", requestId)
+    .build(ProductClient.class);
+----
+
+Headers configured via this method are merged with headers specified through:
+- `@ClientHeaderParam` annotations on the interface
+- `@HeaderParam` annotations on method parameters
+- `ClientHeadersFactory` implementations
+
+This provides maximum flexibility for header management, supporting both static declarations and runtime-computed values.
+
+==== Enhanced Multipart Data Processing
+
+The specification clarifies multipart data handling using the Jakarta RESTful Web Services 3.1 `EntityPart` API. This standardized approach simplifies file uploads and mixed-content requests:
+
+[source,java]
+----
+import jakarta.ws.rs.core.EntityPart;
+import java.util.List;
+
+@POST
+@Path("/upload")
+@Consumes(MediaType.MULTIPART_FORM_DATA)
+void uploadFiles(List<EntityPart> parts) throws IOException;
+----
+
+The `EntityPart` API provides a consistent, implementation-independent mechanism for multipart processing across all Jakarta EE 10-compliant runtimes.
+
+==== Clarified Priority Handling for Filters and Interceptors
+
+Version 4.0 provides explicit guidance on using `@Priority` annotations to control execution order for custom request/response filters and interceptors:
+
+[source,java]
+----
+@Priority(100)  // Executes first
+public class AuthenticationFilter implements ClientRequestFilter { ... }
+
+@Priority(200)  // Executes second
+public class LoggingFilter implements ClientRequestFilter { ... }
+----
+
+Lower priority values execute first, following Jakarta RESTful Web Services conventions. Standard priority constants from `jakarta.ws.rs.Priorities` can be used for consistency.
+
+=== Migration from Version 3.0
+
+Migrating from MicroProfile REST Client 3.0 to 4.0 requires minimal changes:
+
+==== Namespace Updates (Jakarta EE 10)
+
+Update all package imports from `javax.*` to `jakarta.*`:
+
+[source,java]
+----
+// Before (MicroProfile 3.0 / Jakarta EE 9)
+import javax.ws.rs.GET;
+import javax.inject.Inject;
+import javax.enterprise.context.ApplicationScoped;
+
+// After (MicroProfile 4.0 / Jakarta EE 10)
+import jakarta.ws.rs.GET;
+import jakarta.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+----
+
+This is the only breaking change and affects all Jakarta EE APIs used in your application.
+
+==== Leveraging New Features (Optional)
+
+Existing code continues to work without modification. New features are opt-in:
+
+- Replace `baseUri(URI.create(url))` with `baseUri(url)` for cleaner code
+- Use `header(name, value)` instead of custom filters for simple header injection
+- Adopt `EntityPart` API for standardized multipart processing
+
+==== No Behavioral Changes
+
+Version 4.0 maintains identical runtime behavior to 3.0:
+- CDI injection semantics unchanged
+- Configuration property handling unchanged
+- Exception mapping behavior unchanged
+- Async execution model unchanged
+
+=== Impact on Existing Applications
+
+==== Zero Impact for Pure Configuration Changes
+
+Applications using only CDI injection and MicroProfile Config require no code changes beyond updating Maven/Gradle dependencies and Jakarta namespace imports.
+
+==== Low Impact for Programmatic Clients
+
+Applications using `RestClientBuilder` can adopt new methods incrementally:
+- Existing `baseUri(URI)` calls remain valid
+- New `baseUri(String)` and `header()` methods can be introduced gradually
+
+==== Medium Impact for Custom Multipart Handling
+
+Applications with custom multipart implementations may benefit from migrating to the standardized `EntityPart` API for improved portability across runtimes.
+
+=== Breaking Changes
+
+MicroProfile REST Client 4.0 introduces NO breaking changes within the REST Client specification itself. The only breaking change is the Jakarta EE 10 namespace migration (`javax.*` to `jakarta.*`), which affects all Jakarta EE APIs uniformly.
+
+=== Compatibility Matrix
+
+|===
+|Component |Version Required
+
+|MicroProfile Platform
+|7.0+
+
+|Jakarta EE
+|10.0+
+
+|Jakarta RESTful Web Services
+|3.1+
+
+|Jakarta CDI
+|4.0+
+
+|Jakarta JSON Binding
+|3.0+
+
+|Java SE
+|11, 17, 21 (LTS releases)
+|===
+
+NOTE: MicroProfile REST Client 4.0 is NOT compatible with Jakarta EE 9 or earlier. Applications must upgrade to Jakarta EE 10 to use this version.
+
 == Key Features of MicroProfile Rest Client
 
 The MicroProfile Rest Client simplifies consuming RESTful services in Java microservices with the following key features:
@@ -1382,118 +1546,157 @@ NOTE: XML support requires a JAXB (Jakarta XML Binding) implementation on the cl
 
 === Working with Multipart Data
 
-Multipart data is essential for file uploads and mixed-content requests where you need to send both JSON data and binary files in a single request.
+// Updated for MicroProfile REST Client 4.0
 
-==== Uploading Files with Multipart Form Data
+Multipart data enables sending files, JSON metadata, and other mixed content in a single HTTP request. MicroProfile REST Client 4.0 aligns with Jakarta RESTful Web Services 3.1, providing standardized multipart processing through the `EntityPart` API.
 
-To upload files, use the `multipart/form-data` content type with Jakarta RESTful Web Services multipart support:
+==== Using EntityPart for File Uploads
 
-[source, java]
+The Jakarta RESTful Web Services 3.1 `EntityPart` API provides a consistent, portable mechanism for multipart data handling across all compliant runtimes:
+
+[source,java]
 ----
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
-import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Consumes;
-import jakarta.ws.rs.FormParam;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.EntityPart;
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
+import java.io.IOException;
+import java.util.List;
+
+@RegisterRestClient(configKey = "file-service")
+@Path("/uploads")
+public interface FileUploadClient {
+
+    @POST
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    void uploadFiles(List<EntityPart> parts) throws IOException;
+}
+----
+
+Building `EntityPart` instances for upload:
+
+[source,java]
+----
+import jakarta.ws.rs.core.EntityPart;
+import jakarta.ws.rs.core.MediaType;
+import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
-@RegisterRestClient(configKey = "product-service")
-@Path("/products")
-public interface ProductServiceClient {
-
-    @POST
-    @Path("/{id}/image")
-    @Consumes(MediaType.MULTIPART_FORM_DATA)
-    void uploadProductImage(
-        @PathParam("id") Long productId,
-        @FormParam("file") InputStream fileData,
-        @FormParam("filename") String filename
-    );
-}
-----
-
-==== Using Multipart Form Data Objects
-
-For complex multipart requests, create a dedicated multipart form class:
-
-[source, java]
-----
-import jakarta.ws.rs.FormParam;
-import jakarta.ws.rs.core.MediaType;
-import org.jboss.resteasy.annotations.providers.multipart.PartType;
-import java.io.File;
-
-public class ProductUploadForm {
-    
-    @FormParam("productData")
-    @PartType(MediaType.APPLICATION_JSON)
-    private Product product;
-    
-    @FormParam("image")
-    @PartType("image/png")
-    private File imageFile;
-    
-    @FormParam("document")
-    @PartType(MediaType.APPLICATION_OCTET_STREAM)
-    private byte[] documentData;
-    
-    // Constructors, getters, and setters omitted
-}
-----
-
-Using the multipart form in your client interface:
-
-[source, java]
-----
-import jakarta.ws.rs.POST;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.Consumes;
-import jakarta.ws.rs.core.MediaType;
-import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
-import org.jboss.resteasy.annotations.providers.multipart.MultipartForm;
-
-@RegisterRestClient(configKey = "product-service")
-@Path("/products")
-public interface ProductServiceClient {
-
-    @POST
-    @Consumes(MediaType.MULTIPART_FORM_DATA)
-    Product createProductWithFiles(@MultipartForm ProductUploadForm form);
-}
-----
-
-Usage example:
-
-[source, java]
-----
-import jakarta.inject.Inject;
-import org.eclipse.microprofile.rest.client.inject.RestClient;
-import java.io.File;
-
-public class ProductService {
+public class FileUploadService {
     
     @Inject
     @RestClient
-    private ProductServiceClient productClient;
+    private FileUploadClient fileClient;
     
-    public void uploadProduct() {
-        Product product = new Product();
-        product.setName("New Product");
-        product.setDescription("Product description");
+    public void uploadMultipleFiles(Path file1, Path file2) throws IOException {
+        List<EntityPart> parts = new ArrayList<>();
         
-        ProductUploadForm form = new ProductUploadForm();
-        form.setProduct(product);
-        form.setImageFile(new File("/path/to/image.png"));
+        // Add first file
+        parts.add(EntityPart.withName("file1")
+                .fileName(file1.getFileName().toString())
+                .content(Files.newInputStream(file1))
+                .mediaType(MediaType.APPLICATION_OCTET_STREAM_TYPE)
+                .build());
         
-        Product createdProduct = productClient.createProductWithFiles(form);
-        System.out.println("Created product with ID: " + createdProduct.getId());
+        // Add second file
+        parts.add(EntityPart.withName("file2")
+                .fileName(file2.getFileName().toString())
+                .content(Files.newInputStream(file2))
+                .mediaType(MediaType.APPLICATION_OCTET_STREAM_TYPE)
+                .build());
+        
+        // Upload files
+        fileClient.uploadFiles(parts);
     }
 }
 ----
 
-IMPORTANT: Multipart support requires provider-specific annotations (e.g., `@MultipartForm` from RESTEasy). Ensure your runtime includes the necessary multipart processing libraries.
+==== Mixing Files and JSON Data
+
+`EntityPart` supports mixing binary files with JSON metadata in a single request:
+
+[source,java]
+----
+import jakarta.json.Json;
+import jakarta.json.JsonObject;
+import java.io.StringReader;
+
+public void uploadProductWithImage(Product product, Path imagePath) throws IOException {
+    List<EntityPart> parts = new ArrayList<>();
+    
+    // Add JSON metadata
+    JsonObject productJson = Json.createObjectBuilder()
+            .add("name", product.getName())
+            .add("price", product.getPrice())
+            .add("category", product.getCategory())
+            .build();
+    
+    parts.add(EntityPart.withName("metadata")
+            .content(new StringReader(productJson.toString()))
+            .mediaType(MediaType.APPLICATION_JSON_TYPE)
+            .build());
+    
+    // Add image file
+    parts.add(EntityPart.withName("image")
+            .fileName(imagePath.getFileName().toString())
+            .content(Files.newInputStream(imagePath))
+            .mediaType(MediaType.valueOf("image/png"))
+            .build());
+    
+    fileClient.uploadFiles(parts);
+}
+----
+
+==== Multipart Headers and Custom Media Types
+
+Configure custom headers and media types for each part:
+
+[source,java]
+----
+EntityPart customPart = EntityPart.withName("document")
+        .fileName("report.pdf")
+        .content(documentStream)
+        .mediaType(MediaType.valueOf("application/pdf"))
+        .header("Content-Description", "Monthly Sales Report")
+        .header("X-Document-Version", "1.2")
+        .build();
+----
+
+==== Legacy Multipart Support
+
+While the `EntityPart` API is recommended for Jakarta EE 10 applications, runtime-specific annotations may still be used for backward compatibility:
+
+[source,java]
+----
+// RESTEasy-specific (legacy approach)
+import org.jboss.resteasy.annotations.providers.multipart.MultipartForm;
+
+@POST
+@Consumes(MediaType.MULTIPART_FORM_DATA)
+Product createProduct(@MultipartForm ProductUploadForm form);
+----
+
+IMPORTANT: Runtime-specific multipart annotations (`@MultipartForm`, `@PartType`) reduce portability. Prefer the standard `EntityPart` API for new development to ensure compatibility across Jakarta EE 10 runtimes.
+
+==== Best Practices for Multipart Processing
+
+. *Use EntityPart for New Code* - The standard API ensures portability across all Jakarta EE 10-compliant runtimes
+
+. *Close Input Streams* - EntityPart implementations handle stream closure internally; however, for explicit resource management, use try-with-resources when creating streams externally
+
+. *Specify Media Types* - Set accurate `Content-Type` values for proper server-side processing
+
+. *Handle Large Files Carefully* - Consider streaming for large file uploads to avoid memory issues
+
+. *Validate File Types* - Implement client-side validation before upload to reduce server load
+
+TIP: When uploading files from disk, use `Files.newInputStream(path)` with try-with-resources to ensure proper stream closure even if exceptions occur during upload.
 
 === Handling JSON Arrays and Collections
 
@@ -1791,6 +1994,54 @@ public interface ProductServiceClient {
 
 IMPORTANT: Checked exceptions from exception mappers are only thrown if the client method explicitly declares them in its `throws` clause. Unchecked exceptions (extending `RuntimeException`) are always thrown.
 
+==== Exception Mapping Across Subresource Interfaces
+
+// Updated for MicroProfile REST Client 4.0
+
+Exception mappers registered on a parent interface apply to all methods, including those defined in sub-resource interfaces:
+
+[source,java]
+----
+@RegisterRestClient(configKey = "api-service")
+@RegisterProvider(GlobalExceptionMapper.class)
+@Path("/api")
+public interface ApiClient {
+    
+    @Path("/products")
+    ProductSubResource products();
+    
+    @Path("/orders")
+    OrderSubResource orders();
+}
+
+// Sub-resource interface
+@Path("/products")
+public interface ProductSubResource {
+    @GET
+    @Path("/{id}")
+    Product getProduct(@PathParam("id") Long id);
+}
+----
+
+In this example, `GlobalExceptionMapper` handles exceptions for:
+- Direct methods on `ApiClient`
+- Methods on `ProductSubResource` accessed via `products()`
+- Methods on `OrderSubResource` accessed via `orders()`
+
+This ensures consistent error handling across all operations, regardless of interface hierarchy.
+
+==== Best Practices for Subresource Exception Handling
+
+. *Register Global Mappers on Root Interface* - Apply common exception handling at the top level
+
+. *Use Specific Mappers for Subresources* - Override with specialized mappers when needed
+
+. *Document Mapper Scope* - Clearly indicate which mappers apply to which interfaces
+
+. *Test Subresource Paths* - Verify exception mapping works correctly for nested resource access
+
+TIP: For complex API hierarchies, create a base exception mapper interface that all sub-mappers extend, ensuring consistent error response structures across your entire API client.
+
 === Best Practices for Exception Mapping
 
 . *Be Specific with Status Codes* - Map common status codes (401, 403, 404, 503) to domain-specific exceptions
@@ -1865,6 +2116,85 @@ public class InventoryService {
 - Any exceptions are caught and handled appropriately, returning `false` in case of failure.
 
 This approach is especially useful for *utility services*, *batch jobs*, or environments where REST client configuration must be *dynamic or conditional*, and manual client lifecycle management is necessary.
+
+==== New in MicroProfile REST Client 4.0: Simplified API Methods
+
+// Updated for MicroProfile REST Client 4.0
+
+MicroProfile REST Client 4.0 introduces two convenience methods to `RestClientBuilder` that streamline programmatic client creation:
+
+===== baseUri(String uri) Method
+
+The new `baseUri(String)` method accepts a String parameter directly, eliminating the need to construct URI objects:
+
+[source,java]
+----
+// Before (MicroProfile 3.0) - Required URI object
+ProductClient client = RestClientBuilder.newBuilder()
+    .baseUri(URI.create("http://localhost:8080/api"))
+    .build(ProductClient.class);
+
+// After (MicroProfile 4.0) - String parameter accepted
+ProductClient client = RestClientBuilder.newBuilder()
+    .baseUri("http://localhost:8080/api")
+    .build(ProductClient.class);
+----
+
+This enhancement reduces boilerplate and improves code readability. The existing `baseUri(URI)` method remains fully supported for backward compatibility.
+
+===== header(String name, Object value) Method
+
+The `header()` method enables programmatic header injection during client construction:
+
+[source,java]
+----
+// Add authorization header at build time
+ProductClient client = RestClientBuilder.newBuilder()
+    .baseUri("http://localhost:8080/api")
+    .header("Authorization", "Bearer " + jwtToken)
+    .header("X-API-Version", "v1")
+    .header("X-Request-ID", UUID.randomUUID().toString())
+    .build(ProductClient.class);
+----
+
+Headers configured via `header()` are sent with every request made by the client. These headers are merged with:
+- Headers from `@ClientHeaderParam` annotations
+- Headers from `@HeaderParam` method parameters  
+- Headers from `ClientHeadersFactory` implementations
+
+IMPORTANT: The `header()` method throws `NullPointerException` if the value parameter is `null`. Always validate header values before calling this method.
+
+===== Complete Example with New Methods
+
+[source,java]
+----
+import org.eclipse.microprofile.rest.client.RestClientBuilder;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+
+public class ModernClientFactory {
+    
+    public static ProductClient createSecureClient(String token) {
+        return RestClientBuilder.newBuilder()
+                // New baseUri(String) method - cleaner syntax
+                .baseUri("https://api.example.com/products")
+                
+                // New header() method - programmatic header injection
+                .header("Authorization", "Bearer " + token)
+                .header("X-Client-Version", "2.0")
+                .header("X-Request-ID", UUID.randomUUID().toString())
+                
+                // Existing configuration methods  
+                .connectTimeout(5, TimeUnit.SECONDS)
+                .readTimeout(10, TimeUnit.SECONDS)
+                .register(ProductExceptionMapper.class)
+                
+                .build(ProductClient.class);
+    }
+}
+----
+
+These new methods significantly reduce the verbosity of programmatic client creation while maintaining the power and flexibility of the builder pattern.
 
 TIP: When building MicroProfile REST clients programmatically (using `RestClientBuilder`), ensure that your client interface extends `AutoCloseable` and uses try-with-resources to release resources automatically.
 
@@ -2430,57 +2760,142 @@ ProductServiceClient client = RestClientBuilder.newBuilder()
 
 === Using Priority to Control Execution Order
 
-When multiple filters or interceptors are registered, use `@Priority` to control execution order:
+// Updated for MicroProfile REST Client 4.0
 
-[source, java]
+The `@Priority` annotation controls the execution order of registered filters and interceptors. Understanding priority handling is crucial for implementing complex request/response processing chains.
+
+==== Priority Execution Model
+
+For request filters (`ClientRequestFilter`), filters are executed in ascending priority order:
+
+[source,java]
 ----
-import jakarta.annotation.Priority;
-import jakarta.ws.rs.client.ClientRequestContext;
-import jakarta.ws.rs.client.ClientRequestFilter;
-import java.io.IOException;
-
-// Executed first (lowest priority number)
-@Priority(100)
+@Priority(100)  // Executes FIRST
 public class AuthenticationFilter implements ClientRequestFilter {
     @Override
-    public void filter(ClientRequestContext requestContext) throws IOException {
-        // Add authentication header first
-        requestContext.getHeaders().add("Authorization", "Bearer token");
+    public void filter(ClientRequestContext ctx) throws IOException {
+        ctx.getHeaders().add("Authorization", "Bearer token");
     }
 }
 
-// Executed second
-@Priority(200)
-public class CorrelationIdFilter implements ClientRequestFilter {
+@Priority(200)  // Executes SECOND
+public class RequestIdFilter implements ClientRequestFilter {
     @Override
-    public void filter(ClientRequestContext requestContext) throws IOException {
-        // Add correlation ID after authentication
-        requestContext.getHeaders().add("X-Correlation-ID", generateId());
-    }
-    
-    private String generateId() {
-        return java.util.UUID.randomUUID().toString();
+    public void filter(ClientRequestContext ctx) throws IOException {
+        ctx.getHeaders().add("X-Request-ID", UUID.randomUUID().toString());
     }
 }
 
-// Executed last (highest priority number)
-@Priority(300)
-public class RequestLoggingFilter implements ClientRequestFilter {
+@Priority(300)  // Executes LAST
+public class LoggingFilter implements ClientRequestFilter {
     @Override
-    public void filter(ClientRequestContext requestContext) throws IOException {
-        // Log request with all headers in place
-        System.out.println("Request: " + requestContext.getMethod() + " " + requestContext.getUri());
+    public void filter(ClientRequestContext ctx) throws IOException {
+        // Logs request with all headers in place
+        logger.info("Sending {} to {}", ctx.getMethod(), ctx.getUri());
     }
 }
 ----
 
-Lower priority values execute first. Standard priority values:
+For response filters (`ClientResponseFilter`), filters are executed in descending priority order (opposite of request filters):
 
-* `Priorities.AUTHENTICATION` = 1000
-* `Priorities.AUTHORIZATION` = 2000
-* `Priorities.HEADER_DECORATOR` = 3000
-* `Priorities.ENTITY_CODER` = 4000
-* `Priorities.USER` = 5000
+[source,java]
+----
+@Priority(300)  // Executes FIRST for responses
+public class ResponseLoggingFilter implements ClientResponseFilter {
+    @Override
+    public void filter(ClientRequestContext req, ClientResponseContext res) throws IOException {
+        logger.info("Received response: {} {}", res.getStatus(), res.getStatusInfo());
+    }
+}
+
+@Priority(200)  // Executes SECOND for responses
+public class CacheHeaderFilter implements ClientResponseFilter {
+    @Override
+    public void filter(ClientRequestContext req, ClientResponseContext res) throws IOException {
+        // Process cache headers
+    }
+}
+
+@Priority(100)  // Executes LAST for responses
+public class MetricsFilter implements ClientResponseFilter {
+    @Override
+    public void filter(ClientRequestContext req, ClientResponseContext res) throws IOException {
+        // Record metrics after all other processing
+    }
+}
+----
+
+==== Standard Priority Constants
+
+Jakarta RESTful Web Services defines standard priority constants in `jakarta.ws.rs.Priorities`:
+
+|===
+|Constant |Value |Purpose
+
+|`Priorities.AUTHENTICATION`
+|1000
+|Security authentication filters
+
+|`Priorities.AUTHORIZATION`
+|2000
+|Security authorization filters
+
+|`Priorities.HEADER_DECORATOR`
+|3000
+|Header manipulation filters
+
+|`Priorities.ENTITY_CODER`
+|4000
+|Entity encoding/decoding interceptors
+
+|`Priorities.USER`
+|5000
+|Application-specific filters
+|===
+
+Use these constants for consistent priority handling:
+
+[source,java]
+----
+import jakarta.ws.rs.Priorities;
+import jakarta.annotation.Priority;
+
+@Priority(Priorities.AUTHENTICATION)
+public class BearerTokenFilter implements ClientRequestFilter {
+    // Executes in the authentication phase
+}
+
+@Priority(Priorities.HEADER_DECORATOR)  
+public class CorsHeaderFilter implements ClientRequestFilter {
+    // Executes after authentication
+}
+----
+
+==== Explicit Priority Registration
+
+Priority can be specified at registration time, overriding annotation values:
+
+[source,java]
+----
+// Annotation-based priority
+@RegisterProvider(value = LoggingFilter.class, priority = 300)
+public interface ProductClient { ... }
+
+// Programmatic priority registration
+ProductClient client = RestClientBuilder.newBuilder()
+    .baseUri("http://localhost:8080/api")
+    .register(AuthFilter.class, 100)     // Priority 100
+    .register(LoggingFilter.class, 300)  // Priority 300
+    .build(ProductClient.class);
+----
+
+Registration-time priority values override `@Priority` annotations on the class.
+
+==== Default Priority Behavior
+
+If no priority is specified (no `@Priority` annotation and no registration priority), the filter/interceptor receives the default priority of `Priorities.USER` (5000), causing it to execute last.
+
+IMPORTANT: Always specify explicit priorities for filters involved in security, authentication, or header manipulation to ensure correct execution order. Relying on default priorities can lead to subtle bugs when filters are added or removed.
 
 === Complete Example: Secure REST Client with Filters
 
