@@ -364,6 +364,21 @@ You can use MicroProfile OpenAPI annotations to document any Jakarta RESTful Web
 | `@Server` 
 | Describes a server that hosts the API, specifying URL and description, which can be global or specific to operations or paths.
 
+| `@PathItem`
+| Describes operations available at a specific path. Primarily used to document webhooks in `@OpenAPIDefinition` or to define reusable path items in the `@Components` section.
+
+| `@PathItemOperation`
+| Used within `@PathItem` to describe individual operations (GET, POST, etc.) for a path. Useful for webhook documentation.
+
+| `@DependentRequired`
+| Used within `@Schema` to specify properties that become required when another property is present. Implements JSON Schema's `dependentRequired` keyword.
+
+| `@DependentSchema`
+| Used within `@Schema` to specify additional validation rules that apply when a specific property is present. Implements JSON Schema's `dependentSchemas` keyword.
+
+| `@PatternProperty`
+| Used within `@Schema` to define validation rules for properties whose names match a regular expression. Implements JSON Schema's `patternProperties` keyword.
+
 |===
 
 All of these annotations are defined in the `org.eclipse.microprofile.openapi.annotations` package.
@@ -1717,6 +1732,100 @@ When you document callbacks in your OpenAPI specification, you provide:
 * Validation: Schema validation ensures your callbacks send correct data
 * Code generation: Tools can generate callback handler code for clients
 
+=== Documenting webhooks with @PathItem
+
+MicroProfile OpenAPI 4.0 added support for documenting webhooks directly using the `webhooks` property in `@OpenAPIDefinition`. Webhooks represent out-of-band callbacks that your API will call, but unlike operation callbacks, they are not directly tied to a specific API operation.
+
+[source, java]
+----
+import org.eclipse.microprofile.openapi.annotations.OpenAPIDefinition;
+import org.eclipse.microprofile.openapi.annotations.PathItem;
+import org.eclipse.microprofile.openapi.annotations.PathItemOperation;
+import org.eclipse.microprofile.openapi.annotations.media.Content;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
+
+@OpenAPIDefinition(
+    info = @Info(
+        title = "Product Events API",
+        version = "1.0.0",
+        description = "API with webhook notifications"
+    ),
+    webhooks = {
+        @PathItem(
+            name = "productCreated",
+            description = "Webhook sent when a new product is created",
+            post = @PathItemOperation(
+                summary = "Product Created Event",
+                description = "Sent to registered webhook URLs when a product is created",
+                requestBody = @RequestBody(
+                    description = "Product creation event data",
+                    content = @Content(
+                        mediaType = "application/json",
+                        schema = @Schema(implementation = ProductEvent.class)
+                    )
+                )
+            )
+        ),
+        @PathItem(
+            name = "productUpdated",
+            description = "Webhook sent when a product is updated",
+            post = @PathItemOperation(
+                summary = "Product Updated Event",
+                description = "Sent to registered webhook URLs when a product is updated",
+                requestBody = @RequestBody(
+                    description = "Product update event data",
+                    content = @Content(
+                        mediaType = "application/json",
+                        schema = @Schema(implementation = ProductEvent.class)
+                    )
+                )
+            )
+        )
+    }
+)
+public class ProductApplication extends Application {
+}
+----
+
+This generates a `webhooks` section in the OpenAPI specification:
+
+[source, yaml]
+----
+openapi: 3.1.0
+webhooks:
+  productCreated:
+    post:
+      summary: Product Created Event
+      description: Sent to registered webhook URLs when a product is created
+      requestBody:
+        description: Product creation event data
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductEvent'
+  
+  productUpdated:
+    post:
+      summary: Product Updated Event
+      description: Sent to registered webhook URLs when a product is updated
+      requestBody:
+        description: Product update event data
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductEvent'
+----
+
+[NOTE]
+====
+The difference between webhooks and callbacks:
+
+* **Callbacks** (`@Callback`): Documented on specific API operations. The callback URL is provided as part of the request to that operation.
+
+* **Webhooks** (`@PathItem` in `@OpenAPIDefinition.webhooks`): Documented at the API level. Webhook URLs are configured through a separate registration mechanism (not shown in the OpenAPI spec).
+====
+
 == Using security schemes in OpenAPI documentation
 
 [IMPORTANT]
@@ -1782,6 +1891,97 @@ public class ProductRestApplication extends Application {
 ==== Applying security to operations
 
 You can apply security requirements to individual operations or to entire resource classes.
+
+===== Understanding security requirement annotations
+
+MicroProfile OpenAPI provides three annotations for documenting security requirements:
+
+* **`@SecurityRequirement`**: Documents a single security scheme requirement. Use this when an operation requires one specific authentication method.
+
+* **`@SecurityRequirements`**: Documents alternative security schemes where **any one** can satisfy the requirement (OR logic). Use this when clients can choose between different authentication methods.
+
+* **`@SecurityRequirementsSet`** (added in MicroProfile OpenAPI 3.1): Documents multiple security schemes that **all must** be satisfied (AND logic). Use this when an operation requires multiple authentication methods simultaneously.
+
+*Example with single requirement:*
+
+[source, java]
+----
+import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
+
+// Requires bearer token authentication
+@GET
+@Path("/{id}")
+@SecurityRequirement(name = "bearerAuth")
+public Response getProduct(@PathParam("id") Long id) {
+    // Implementation
+}
+----
+
+*Example with alternative requirements (OR logic):*
+
+[source, java]
+----
+import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirements;
+import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
+
+// Client can authenticate with EITHER apiKey OR bearerAuth
+@GET
+@Path("/public-data")
+@SecurityRequirements({
+    @SecurityRequirement(name = "apiKey"),
+    @SecurityRequirement(name = "bearerAuth")
+})
+public Response getPublicData() {
+    // Implementation
+}
+----
+
+*Example with multiple requirements (AND logic):*
+
+[source, java]
+----
+import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirementsSet;
+import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
+
+// Client MUST provide BOTH apiKey AND bearerAuth
+@DELETE
+@Path("/admin/{id}")
+@SecurityRequirementsSet({
+    @SecurityRequirement(name = "apiKey"),
+    @SecurityRequirement(name = "bearerAuth")
+})
+public Response deleteProduct(@PathParam("id") Long id) {
+    // Implementation
+}
+----
+
+The generated OpenAPI specification reflects these requirements:
+
+[source, yaml]
+----
+paths:
+  /products/{id}:
+    get:
+      # Single requirement
+      security:
+        - bearerAuth: []
+  
+  /products/public-data:
+    get:
+      # Alternative requirements (OR) - client can use either
+      security:
+        - apiKey: []
+        - bearerAuth: []
+  
+  /products/admin/{id}:
+    delete:
+      # Multiple requirements (AND) - client must use both
+      security:
+        - apiKey: []
+          bearerAuth: []
+----
+
+*Complete example with all patterns:*
 
 [source, java]
 ----
