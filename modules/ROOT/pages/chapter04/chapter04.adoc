@@ -332,7 +332,7 @@ You can use MicroProfile OpenAPI annotations to document any Jakarta RESTful Web
 | A container for multiple `@APIResponse` annotations, allowing documentation of different responses for a single API operation.
 
 | `@RequestBody`
-| Describes the request body of an HTTP request, specifying the content of the body and whether it is required. In MicroProfile OpenAPI 4.0 and later, request bodies are required by default (`required=true`). To make a request body optional, explicitly set `required=false`.
+| Describes the request body of an HTTP request, specifying the content of the body and whether it is required. In MicroProfile OpenAPI 4.0 and later, request bodies are required by default (`required=true`). To make a request body optional, explicitly set `required=false`. Note: If migrating from earlier versions, review your API documentation to ensure optional request bodies are explicitly marked as `required=false`.
 
 | `@RequestBodySchema`
 | Convenience annotation that simplifies documenting request bodies. Instead of using `@RequestBody` with nested `@Content` and `@Schema`, you can directly specify the implementation class: `@RequestBodySchema(MyClass.class)`.
