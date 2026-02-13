@@ -65,7 +65,7 @@ MicroProfile OpenAPI provides multiple approaches to generate OpenAPI documentat
 
 Add annotations to your Jakarta REST resources to generate documentation with MicroProfile OpenAPI. This annotation-driven approach keeps your documentation synchronized with your code. When you update an endpoint, you update its documentation at the same time.
 
-Annotate your Jakarta REST classes and methods with OpenAPI annotations. MicroProfile OpenAPI scans your application at build time, discovers annotated endpoints, and generates a complete OpenAPI specification automatically.
+Annotate your Jakarta REST classes and methods with OpenAPI annotations. MicroProfile OpenAPI scans your application at deployment time, discovers annotated endpoints, and generates a complete OpenAPI specification automatically.
 
 This approach offers several benefits:
 
@@ -163,10 +163,10 @@ These annotations enrich the `ProductResource` class with metadata necessary for
 
 [NOTE]
 ====
-Annotation scanning is enabled by default. If you need to disable it, you can set `mp.openapi.scan.disabled=true` in your `microprofile-config.properties` file.
+Annotation scanning is enabled by default. If you need to disable it, you can set `mp.openapi.scan.disable=true` in your `microprofile-config.properties` file.
 ====
 
-Next, let us build and run the application.
+Build and run the application.
 
 == Viewing the generated documentation
 
@@ -179,7 +179,23 @@ http://<hostname>:<port>/openapi/
 
 Replace `<hostname>` and `<port>` with the actual hostname and port used by your runtime (for example, `localhost:9080`). 
 
-The `/openapi` endpoint returns the OpenAPI specification generated from the annotations in your source code. It returns information in YAML format.
+The `/openapi` endpoint returns the OpenAPI specification generated from the annotations in your source code. By default, it returns the specification in YAML format.
+
+To receive the specification in JSON format instead, you can:
+
+* Set the `Accept` HTTP header to `application/json`:
++
+[source, bash]
+----
+curl -H "Accept: application/json" http://localhost:9080/openapi
+----
+
+* Use the `format` query parameter:
++
+[source]
+----
+http://localhost:9080/openapi?format=JSON
+----
 
 When you access the `\http://localhost:9080/openapi` URL, you see the API documentation that MicroProfile OpenAPI generated:
 
@@ -990,7 +1006,7 @@ Content-Type: application/json
 
 [NOTE]
 ====
-This section demonstrates a webhook subscription pattern using operation callbacks (`@Callback`). This is different from OpenAPI v3.1's webhooks feature, which documents callbacks configured through out-of-band mechanisms. MicroProfile OpenAPI currently supports operation callbacks via the `@Callback` annotation. For documenting OpenAPI v3.1 webhooks you may use static OpenAPI files.
+This section demonstrates a webhook subscription pattern using operation callbacks (`@Callback`). This is different from OpenAPI v3.1's webhooks feature, which documents callbacks configured through out-of-band mechanisms. MicroProfile OpenAPI supports operation callbacks via the `@Callback` annotation. For documenting OpenAPI v3.1 webhooks, you can use the `webhooks` property in the `@OpenAPIDefinition` annotation (added in MicroProfile OpenAPI 4.0) or static OpenAPI files.
 ====
 
 For more complex scenarios with multiple event types, you can use webhooks. This code example shows a webhook subscription system with different event types:
