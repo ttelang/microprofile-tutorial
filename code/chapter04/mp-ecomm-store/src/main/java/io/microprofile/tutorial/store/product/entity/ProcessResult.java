@@ -23,13 +23,6 @@ public class ProcessResult {
     
     @Schema(description = "Processing timestamp", example = "2024-02-04T10:30:00Z")
     private String timestamp;
-
-    public ProcessResult(Long productId, ProcessingStatus status, String message) {
-        this.productId = productId;
-        this.status = status;
-        this.message = message;
-        this.timestamp = Instant.now().toString();
-    }
     
     @Schema(description = "Processing status values")
     public enum ProcessingStatus {

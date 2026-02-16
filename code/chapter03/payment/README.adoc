@@ -1,0 +1,732 @@
+= MicroProfile Payment Service
+:toc:
+:icons: font
+:source-highlighter: highlight.js
+:imagesdir: images
+:url-quickstart: https://openliberty.io/guides/
+
+== Overview
+
+The MicroProfile Payment Service is a Jakarta EE 10 and MicroProfile 7.1 application that provides a RESTful API for processing payment transactions in an e-commerce platform. It demonstrates the use of modern Jakarta EE features including CDI, Jakarta RESTful Web Services, and CDI interceptors for cross-cutting concerns like logging.
+
+== Features
+
+* RESTful API using Jakarta RESTful Web Services
+* Payment validation and processing
+* Refund processing capabilities
+* CDI (Contexts and Dependency Injection) for component management
+* Logging interceptor for automatic method entry/exit logging with execution time tracking
+* Running on Open Liberty for lightweight deployment
+
+== Project Structure
+
+[source]
+----
+payment/
+├── src/
+│   ├── main/
+│   │   ├── java/
+│   │   │   └── io/microprofile/tutorial/store/payment/
+│   │   │       ├── entity/      # Domain models (PaymentDetails)
+│   │   │       ├── resource/    # REST endpoints
+│   │   │       ├── service/     # Business logic
+│   │   │       └── interceptor/ # Logging interceptor
+│   │   ├── liberty/
+│   │   │   └── config/
+│   │   │       └── server.xml  # Liberty server configuration
+│   │   └── webapp/
+│   │       └── WEB-INF/
+│   │           ├── web.xml
+│   │           └── beans.xml    # CDI configuration
+│   └── test/
+│       └── java/               # Unit and integration tests
+└── pom.xml                     # Project build configuration
+----
+
+== Architecture
+
+This application follows a layered architecture:
+
+1. *REST Resources* (`/resource`) - Provides HTTP endpoints for clients
+2. *Services* (`/service`) - Implements business logic and validation
+3. *Entities* (`/entity`) - Domain models for payment data
+
+== Liberty Server Configuration
+
+The Open Liberty server should be configured in `src/main/liberty/config/server.xml`:
+
+[source,xml]
+----
+<server description="MicroProfile Payment Service">
+    <featureManager>
+        <platform>jakartaEE-10.0</platform>
+        <platform>microProfile-7.1</platform>
+        <feature>restfulWS</feature>
+        <feature>jsonb</feature>
+        <feature>cdi</feature>
+    </featureManager>
+
+    <application location="payment.war" contextRoot="payment"/>
+
+    <httpEndpoint httpPort="${default.http.port}" httpsPort="${default.https.port}"
+        id="defaultHttpEndpoint" host="*" />
+</server>
+----
+
+== Building and Running
+
+=== Prerequisites
+
+* JDK 21 or higher
+* Maven 3.9.x or higher
+* Docker (optional, for containerization)
+
+=== Development Mode
+
+To run the application in development mode with hot reload:
+
+[source,bash]
+----
+mvn liberty:dev
+----
+
+This will start the server on port 9080 (configured in pom.xml).
+
+=== Building the Application
+
+To build the application:
+
+[source,bash]
+----
+mvn clean package
+----
+
+This will create a WAR file in the `target/` directory.
+
+=== Running the Tests
+
+To run the tests:
+
+[source,bash]
+----
+mvn test
+----
+
+=== Deployment
+
+The application can be deployed to any Jakarta EE 10 compliant server. With Liberty:
+
+[source,bash]
+----
+mvn liberty:run
+----
+
+== API Endpoints
+
+The API is accessible at the base path `/payment/api`.
+
+=== Payments API
+
+|===
+| Method | Path | Description | Status Codes
+
+| POST   | `/payments/process`  | Process a payment | 200 OK, 400 Bad Request, 500 Internal Server Error
+| POST   | `/payments/validate` | Validate payment details | 200 OK, 400 Bad Request
+| POST   | `/payments/refund`   | Process a refund | 200 OK, 400 Bad Request, 500 Internal Server Error
+|===
+
+== Request/Response Examples
+
+=== Process a payment
+
+Request:
+[source]
+----
+POST /payment/api/payments/process
+Content-Type: application/json
+----
+
+[source,json]
+----
+{
+  "cardNumber": "4111111111111111",
+  "cardHolderName": "John Doe",
+  "expiryDate": "12/25",
+  "securityCode": "123",
+  "amount": 99.99
+}
+----
+
+Response (Success):
+[source]
+----
+HTTP/1.1 200 OK
+Content-Type: application/json
+----
+
+[source,json]
+----
+{
+  "status": "success",
+  "message": "Payment processed successfully"
+}
+----
+
+Response (Validation Failed):
+[source]
+----
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+----
+
+[source,json]
+----
+{
+  "status": "failed",
+  "message": "Payment validation failed"
+}
+----
+
+=== Validate payment details
+
+Request:
+[source]
+----
+POST /payment/api/payments/validate
+Content-Type: application/json
+----
+
+[source,json]
+----
+{
+  "cardNumber": "4111111111111111",
+  "cardHolderName": "John Doe",
+  "expiryDate": "12/25",
+  "securityCode": "123",
+  "amount": 99.99
+}
+----
+
+Response (Valid):
+[source]
+----
+HTTP/1.1 200 OK
+Content-Type: application/json
+----
+
+[source,json]
+----
+{
+  "valid": true,
+  "message": "Payment details are valid"
+}
+----
+
+Response (Invalid):
+[source]
+----
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+----
+
+[source,json]
+----
+{
+  "valid": false,
+  "message": "Payment details are invalid"
+}
+----
+
+=== Process a refund
+
+Request:
+[source]
+----
+POST /payment/api/payments/refund?amount=50.00
+Content-Type: application/json
+----
+
+Response (Success):
+[source]
+----
+HTTP/1.1 200 OK
+Content-Type: application/json
+----
+
+[source,json]
+----
+{
+  "status": "success",
+  "message": "Refund processed successfully"
+}
+----
+
+Response (Invalid Amount):
+[source]
+----
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+----
+
+[source,json]
+----
+{
+  "status": "failed",
+  "message": "Invalid refund amount"
+}
+----
+
+== Payment Validation Rules
+
+The service validates payment details based on the following rules:
+
+* *Card Number*: Must not be empty and at least 13 characters long
+* *Card Holder Name*: Must not be empty
+* *Expiry Date*: Must be in MM/YY format (e.g., "12/25")
+* *Security Code*: Must be 3 or 4 digits
+* *Amount*: Must be greater than zero
+
+== Technology Stack
+
+* Jakarta EE 10
+* MicroProfile 7.1
+* Open Liberty
+* Lombok
+* JUnit 5
+* Mockito
+
+== Testing the API
+
+=== Using the Test Script
+
+The easiest way to test all payment API endpoints is to use the provided test script:
+
+[source,bash]
+----
+cd /workspaces/microprofile-tutorial/code/chapter03/payment
+./test-api.sh
+----
+
+This interactive script will guide you through testing all payment operations including:
+
+* Validating payment details (valid and invalid scenarios)
+* Processing payments (successful and failed)
+* Processing refunds (valid and invalid amounts)
+
+The script pauses between each test, allowing you to review the responses.
+
+=== Using curl
+
+==== Process a Payment
+
+Process a valid payment:
+[source,bash]
+----
+curl -X POST http://localhost:9080/payment/api/payments/process \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cardNumber": "4111111111111111",
+    "cardHolderName": "John Doe",
+    "expiryDate": "12/25",
+    "securityCode": "123",
+    "amount": 99.99
+  }'
+----
+
+Expected Response (Success):
+[source,json]
+----
+{
+  "status": "success",
+  "message": "Payment processed successfully"
+}
+----
+
+Process an invalid payment (card number too short):
+[source,bash]
+----
+curl -X POST http://localhost:9080/payment/api/payments/process \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cardNumber": "4111",
+    "cardHolderName": "John Doe",
+    "expiryDate": "12/25",
+    "securityCode": "123",
+    "amount": 99.99
+  }'
+----
+
+Expected Response (Failure):
+[source,json]
+----
+{
+  "status": "failed",
+  "message": "Payment validation failed"
+}
+----
+
+==== Validate Payment Details
+
+Validate payment details without processing:
+[source,bash]
+----
+curl -X POST http://localhost:9080/payment/api/payments/validate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cardNumber": "4111111111111111",
+    "cardHolderName": "John Doe",
+    "expiryDate": "12/25",
+    "securityCode": "123",
+    "amount": 99.99
+  }'
+----
+
+Expected Response (Valid):
+[source,json]
+----
+{
+  "valid": true,
+  "message": "Payment details are valid"
+}
+----
+
+Validate invalid payment details (wrong expiry format):
+[source,bash]
+----
+curl -X POST http://localhost:9080/payment/api/payments/validate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cardNumber": "4111111111111111",
+    "cardHolderName": "John Doe",
+    "expiryDate": "13-2025",
+    "securityCode": "123",
+    "amount": 99.99
+  }'
+----
+
+Expected Response (Invalid):
+[source,json]
+----
+{
+  "valid": false,
+  "message": "Payment details are invalid"
+}
+----
+
+==== Process a Refund
+
+Process a valid refund:
+[source,bash]
+----
+curl -X POST "http://localhost:9080/payment/api/payments/refund?amount=50.00" \
+  -H "Content-Type: application/json"
+----
+
+Expected Response (Success):
+[source,json]
+----
+{
+  "status": "success",
+  "message": "Refund processed successfully"
+}
+----
+
+Process an invalid refund (zero amount):
+[source,bash]
+----
+curl -X POST "http://localhost:9080/payment/api/payments/refund?amount=0" \
+  -H "Content-Type: application/json"
+----
+
+Expected Response (Failure):
+[source,json]
+----
+{
+  "status": "failed",
+  "message": "Invalid refund amount"
+}
+----
+
+==== Additional Test Cases
+
+Test with 4-digit security code (American Express):
+[source,bash]
+----
+curl -X POST http://localhost:9080/payment/api/payments/process \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cardNumber": "378282246310005",
+    "cardHolderName": "Bob Johnson",
+    "expiryDate": "03/26",
+    "securityCode": "1234",
+    "amount": 299.99
+  }'
+----
+
+Test with larger amount:
+[source,bash]
+----
+curl -X POST http://localhost:9080/payment/api/payments/process \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cardNumber": "5555555555554444",
+    "cardHolderName": "Jane Smith",
+    "expiryDate": "06/27",
+    "securityCode": "456",
+    "amount": 1500.00
+  }'
+----
+
+== Logging Interceptor
+
+The Payment Service demonstrates CDI interceptors through the `@Logged` annotation. This is a powerful Jakarta EE feature that allows you to inject cross-cutting concerns (like logging) into your code **without manually writing repetitive logging code**.
+
+=== Why Use Interceptors?
+
+**Without Interceptors** (Manual Logging):
+[source,java]
+----
+public class PaymentService {
+    private static final Logger LOGGER = Logger.getLogger(PaymentService.class.getName());
+    
+    public boolean processPayment(PaymentDetails details) {
+        LOGGER.info("Processing payment for amount: " + details.getAmount());
+        long startTime = System.currentTimeMillis();
+        
+        try {
+            boolean result = // ... business logic ...
+            LOGGER.info("Payment processed, result: " + result + 
+                       ", time: " + (System.currentTimeMillis() - startTime) + "ms");
+            return result;
+        } catch (Exception e) {
+            LOGGER.severe("Exception: " + e.getMessage());
+            throw e;
+        }
+    }
+}
+----
+
+**With Interceptors** (Clean Business Logic):
+[source,java]
+----
+@ApplicationScoped
+@Logged  // One annotation handles all logging!
+public class PaymentService {
+    
+    public boolean processPayment(PaymentDetails details) {
+        // Pure business logic - no logging code needed
+        return // ... business logic ...
+    }
+}
+----
+
+=== Benefits
+
+* ✅ *Cleaner Code*: Your business logic isn't cluttered with logging statements
+* ✅ *Consistency*: All logged methods follow the same format
+* ✅ *Maintainability*: Change logging behavior in one place (the interceptor)
+* ✅ *Automatic Metrics*: Execution time tracking without manual timing code
+* ✅ *Exception Handling*: Automatic exception logging
+* ✅ *DRY Principle*: Don't Repeat Yourself - logging logic is centralized
+
+=== How to Use
+
+==== 1. Apply to Entire Class
+
+Add the `@Logged` annotation to any class that you want to have all methods logged:
+
+[source,java]
+----
+import io.microprofile.tutorial.store.payment.interceptor.Logged;
+
+@ApplicationScoped
+@Logged
+public class PaymentService {
+    // All public methods in this class will be automatically logged
+    
+    public boolean processPayment(PaymentDetails details) {
+        // Interceptor logs: entry, parameters, exit, result, execution time
+        return validateAndProcess(details);
+    }
+}
+----
+
+==== 2. Apply to Individual Methods
+
+Add the `@Logged` annotation to specific methods:
+
+[source,java]
+----
+import io.microprofile.tutorial.store.payment.interceptor.Logged;
+
+@ApplicationScoped
+public class MyService {
+    
+    @Logged
+    public void criticalOperation() {
+        // This method will be logged
+    }
+    
+    public void utilityMethod() {
+        // This method will NOT be logged
+    }
+}
+----
+
+=== What Gets Logged Automatically
+
+The `@Logged` interceptor automatically captures:
+
+1. **Method Entry**: Method name and parameter values
+2. **Method Exit**: Return value (or void)
+3. **Execution Time**: How long the method took in milliseconds
+4. **Exceptions**: Any exceptions thrown with stack traces
+
+==== Example Log Output
+
+When you call `paymentService.processPayment(details)`, you see:
+
+[listing]
+----
+INFO: Entering method: processPayment with parameters: [PaymentDetails{amount=99.99, cardNumber=4111...}]
+INFO: Exiting method: processPayment with result: true in 42ms
+----
+
+When validation fails:
+
+[listing]
+----
+INFO: Entering method: validatePaymentDetails with parameters: [PaymentDetails{amount=-10.00, ...}]
+INFO: Exiting method: validatePaymentDetails with result: false in 3ms
+----
+
+When an exception occurs:
+
+[listing]
+----
+INFO: Entering method: processPayment with parameters: [PaymentDetails{...}]
+SEVERE: Exception in method: processPayment after 17ms: java.lang.IllegalStateException: Payment gateway unavailable
+    at io.microprofile.tutorial.store.payment.service.PaymentService.processPayment(PaymentService.java:45)
+    ...
+----
+
+=== Implementation Details
+
+==== 1. The Interceptor Binding Annotation
+
+[source,java]
+----
+@InterceptorBinding
+@Target({TYPE, METHOD})
+@Retention(RUNTIME)
+public @interface Logged {
+}
+----
+
+==== 2. The Interceptor Implementation
+
+[source,java]
+----
+@Interceptor
+@Logged
+@Priority(Interceptor.Priority.APPLICATION)
+public class LoggingInterceptor {
+    
+    @AroundInvoke
+    public Object logMethodCall(InvocationContext context) throws Exception {
+        // Automatically called before and after every @Logged method
+        String methodName = context.getMethod().getName();
+        Object[] params = context.getParameters();
+        
+        LOGGER.info("Entering method: " + methodName + " with parameters: " + Arrays.toString(params));
+        
+        long startTime = System.currentTimeMillis();
+        try {
+            Object result = context.proceed(); // Execute the actual method
+            long duration = System.currentTimeMillis() - startTime;
+            LOGGER.info("Exiting method: " + methodName + " with result: " + result + " in " + duration + "ms");
+            return result;
+        } catch (Exception e) {
+            long duration = System.currentTimeMillis() - startTime;
+            LOGGER.severe("Exception in method: " + methodName + " after " + duration + "ms: " + e);
+            throw e;
+        }
+    }
+}
+----
+
+==== 3. CDI Configuration (beans.xml)
+
+The interceptor must be registered in `src/main/webapp/WEB-INF/beans.xml`:
+
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="https://jakarta.ee/xml/ns/jakartaee"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/beans_4_0.xsd"
+       version="4.0"
+       bean-discovery-mode="all">
+    <interceptors>
+        <class>io.microprofile.tutorial.store.payment.interceptor.LoggingInterceptor</class>
+    </interceptors>
+</beans>
+----
+
+=== Testing the Interceptor
+
+Run the Payment Service and watch the logs:
+
+[source,bash]
+----
+mvn liberty:dev
+----
+
+Make a test request:
+
+[source,bash]
+----
+curl -X POST http://localhost:9080/payment/api/payments/process \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cardNumber": "4111111111111111",
+    "cardHolderName": "John Doe",
+    "expiryDate": "12/25",
+    "securityCode": "123",
+    "amount": 99.99
+  }'
+----
+
+You'll see interceptor logs in the console **without any manual logging code in your service methods**!
+
+=== Key Takeaway
+
+The Payment Service code is **clean and focused on business logic**. All logging is handled declaratively by the `@Logged` annotation. This demonstrates one of the core principles of CDI interceptors: **separation of concerns**.
+
+== Common Issues
+
+* *404 Not Found*: Ensure you're using the correct context root (`/payment`) and API base path (`/api`).
+* *500 Internal Server Error*: Check server logs for exceptions.
+* *Port conflicts*: The payment service runs on port 9080 by default. Make sure this port is available.
+
+== Security Considerations
+
+**Important**: This is a demonstration service for educational purposes. In a production environment, you should:
+
+* Never log full credit card numbers
+* Use PCI-compliant payment gateways
+* Implement proper encryption for sensitive data
+* Use HTTPS for all payment-related communications
+* Implement proper authentication and authorization
+* Store payment data securely according to PCI DSS standards
+* Implement rate limiting to prevent abuse
+* Add proper input sanitization and validation
+
+== Next Steps
+
+To enhance this service, consider:
+
+* Implementing idempotency for payment requests
+* Adding transaction logging and audit trails
+* Implementing retry logic for failed payments
+* (Optional) Adding webhook support for async payment notifications

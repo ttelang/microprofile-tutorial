@@ -110,7 +110,7 @@ public class WebhookResource {
         ),
         @APIResponse(responseCode = "401", description = "Unauthorized - API key required")
     })
-    // This is the key feature: @Callback documents all webhook events using annotations only
+    // @Callback documents all webhook events
     @Callback(
         name = "productEvents",
         callbackUrlExpression = "{$request.body#/callbackUrl}",

@@ -4,8 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
-
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -14,5 +12,5 @@ public class PaymentDetails {
     private String cardHolderName;
     private String expiryDate; // Format MM/YY
     private String securityCode;
-    private BigDecimal amount;
+    private java.math.BigDecimal amount;
 }

@@ -19,6 +19,7 @@ public class ProductService {
 
     @Inject
     @JPA
+    // @InMemory
     private ProductRepositoryInterface repository;
 
     /**
