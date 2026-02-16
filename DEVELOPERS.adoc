@@ -10,7 +10,7 @@ toc::[]
 
 ## Overview
 
-The MicroProfile Tutorial includes a comprehensive e-commerce application built with Jakarta EE 10 and MicroProfile 6.1. The application demonstrates real-world usage of MicroProfile features through a multi-service architecture including catalog, inventory, user, payment, and order services.
+The MicroProfile Tutorial includes a comprehensive e-commerce application built with Jakarta EE 10 and MicroProfile 7.1. The application demonstrates real-world usage of MicroProfile features through a multi-service architecture including catalog, inventory, user, payment, and order services.
 
 ## Code Organization
 
@@ -55,8 +55,8 @@ Before working with the code, ensure you have the following installed:
 
 #### Required Software
 
-* **Java Development Kit (JDK) 17 or later**
-* **Maven 3.8 or later** - For building the applications
+* **Java Development Kit (JDK) 21 or later**
+* **Maven 3.9.12 or later** - For building the applications
 * **Git** - For cloning the repository
 
 #### Development Environment Setup
@@ -99,17 +99,20 @@ java -version
 ##### Recommended IDEs and Extensions
 
 **Visual Studio Code:**
+
 * Java Extension Pack
 * Language Support for Java by Red Hat
 * Liberty Tools for VS Code
 * AsciiDoc extension (for viewing documentation)
 
 **IntelliJ IDEA:**
+
 * Built-in Java and Maven support
 * MicroProfile plugin (available in the marketplace)
 * Liberty plugin (available in the marketplace)
 
 **Eclipse:**
+
 * Eclipse IDE for Enterprise Java and Web Developers
 * Liberty Developer Tools
 

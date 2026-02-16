@@ -6,13 +6,13 @@
 
 == Overview
 
-This project demonstrates a MicroProfile-based e-commerce microservice. It provides REST endpoints for product management and showcases Jakarta EE 10 and MicroProfile 6.1 features in a practical application.
+This project demonstrates a MicroProfile-based e-commerce microservice. It provides REST endpoints for product management and showcases Jakarta EE 10 and MicroProfile 7.1 features in a practical application.
 
 == Development Environment
 
 This project includes a GitHub Codespace configuration with:
 
-* JDK 17 via SDKMAN
+* JDK 21 via SDKMAN
 * Maven build tools
 * VS Code extensions for Java and MicroProfile development
 
@@ -49,7 +49,7 @@ java -version
 
 [source]
 ----
-mp-ecomm-store/
+catalog/
 ├── src/
 │   ├── main/
 │   │   ├── java/
@@ -74,7 +74,7 @@ mp-ecomm-store/
 |===
 |Endpoint |Method |Description
 
-|`/mp-ecomm-store/api/products`
+|`/catalog/api/products`
 |GET
 |Returns a list of products in JSON format
 |===
@@ -82,7 +82,7 @@ mp-ecomm-store/
 == Technology Stack
 
 * Jakarta EE 10
-* MicroProfile 6.1
+* MicroProfile 7.1
 * Open Liberty
 * Lombok
 * JUnit 5
@@ -126,7 +126,7 @@ This starts Open Liberty server in development mode with hot reloading enabled, 
 
 Once the server is running, you can access:
 
-* Products Endpoint: http://<hostname>:5050/mp-ecomm-store/api/products
+* Products Endpoint: http://<hostname>:5050/catalog/api/products
 
 Replace <hostname> with _localhost_ or the hostname of the system, where you are running this code.
 

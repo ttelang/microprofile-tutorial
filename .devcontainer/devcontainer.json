@@ -36,18 +36,5 @@
 		}
 	},
 
-	"postCreateCommand": "npm install && gem install asciidoctor-pdf",
-
-	"forwardPorts": [8080, 9080],
-
-	"portsAttributes": {
-		"8080": {
-			"label": "Documentation Site",
-			"onAutoForward": "notify"
-		},
-		"9080": {
-			"label": "MicroProfile App",
-			"onAutoForward": "notify"
-		}
-	}
+	"postCreateCommand": "npm install && gem install asciidoctor-pdf"
 }
