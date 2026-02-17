@@ -3,6 +3,7 @@ package io.microprofile.tutorial.store.payment.service;
 import io.microprofile.tutorial.store.payment.entity.PaymentDetails;
 import io.microprofile.tutorial.store.payment.interceptor.Logged;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import java.math.BigDecimal;
 
 /**
@@ -18,6 +19,9 @@ import java.math.BigDecimal;
 @ApplicationScoped
 @Logged  // This annotation enables automatic logging for all methods
 public class PaymentService {
+    
+    @Inject
+    private IdempotencyService idempotencyService;
 
     /**
      * Processes a payment.
@@ -34,6 +38,37 @@ public class PaymentService {
         
         // Simulate payment processing
         return true;
+    }
+    
+    /**
+     * Processes a payment with idempotency support.
+     * This method ensures that duplicate payment requests with the same paymentId
+     * are handled safely and consistently.
+     *
+     * @param paymentId Unique payment identifier
+     * @param paymentDetails Payment details to process
+     * @return IdempotencyService result or newly processed payment result
+     */
+    public io.microprofile.tutorial.store.payment.entity.IdempotencyRecord 
+            processPaymentIdempotent(String paymentId, PaymentDetails paymentDetails) {
+        // Check if this payment was already processed
+        var existingRecord = idempotencyService.getExistingRecord(paymentId);
+        
+        if (existingRecord.isPresent()) {
+            // Payment already processed - return cached result
+            return existingRecord.get();
+        }
+        
+        // Process the payment
+        boolean success = processPayment(paymentDetails);
+        String message = success ? "Payment processed successfully" : "Payment validation failed";
+        
+        // Store the result for future idempotency checks
+        idempotencyService.storeRecord(paymentId, paymentDetails, success, message);
+        
+        // Return the newly created record
+        return idempotencyService.getExistingRecord(paymentId)
+                .orElseThrow(() -> new IllegalStateException("Failed to store idempotency record"));
     }
     
     /**

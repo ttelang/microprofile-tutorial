@@ -1,0 +1,810 @@
+= Implementing Idempotency in RESTful Payment Services: A Step-by-Step Guide
+:toc:
+:icons: font
+:source-highlighter: highlight.js
+:author: MicroProfile Tutorial
+:date: February 17, 2026
+
+== Introduction
+
+Have you ever clicked "Pay Now" on a website, watched the spinner for what felt like an eternity, and then clicked it again because nothing happened? You're not alone. But what if that first click actually went through, and you just got charged twice?
+
+This is the duplicate payment problem, and it's a nightmare scenario for both customers and businesses. The culprit? Network timeouts, slow responses, and impatient users. The solution? *Idempotency*.
+
+In this blog post, we'll walk through implementing idempotency in a RESTful payment service using Jakarta EE and MicroProfile. We'll start with a simple approach, discover its shortcomings through real-world scenarios, and then evolve it into a production-ready solution with conflict detection.
+
+== What is Idempotency?
+
+In mathematics, an idempotent operation is one that produces the same result no matter how many times you apply it. In REST APIs, idempotency means:
+
+[quote]
+Multiple identical requests should have the same effect as a single request.
+
+For payment services, this translates to: "Charging a customer multiple times for the same payment request should be impossible."
+
+== The Problem: Why We Need Idempotency
+
+Let's look at a typical payment flow that can go wrong:
+
+[source,plantuml]
+----
+@startuml
+actor Client
+participant "Payment API" as API
+database "Payment Processor" as Processor
+
+Client -> API: POST /payments (cardNumber, amount)
+API -> Processor: Process $100 payment
+note right: Network timeout!
+Client -> API: POST /payments (same card, $100)
+API -> Processor: Process $100 payment AGAIN
+note right: Customer charged twice! 💸💸
+@enduml
+----
+
+**Common scenarios that cause duplicate payments:**
+
+1. **Network Timeouts**: Client doesn't receive response, retries
+2. **Slow Processing**: User clicks "Pay" multiple times
+3. **Mobile App Issues**: Poor connectivity causes automatic retries
+4. **Integration Errors**: Bug in client code sends duplicate requests
+
+== Our Initial Payment Service
+
+Let's start with a basic payment service without idempotency:
+
+[source,java]
+----
+@ApplicationScoped
+@Path("/payments")
+public class PaymentResource {
+
+    @Inject
+    private PaymentService paymentService;
+
+    @POST
+    @Path("/process")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response processPayment(PaymentDetails paymentDetails) {
+        boolean success = paymentService.processPayment(paymentDetails);
+        
+        if (success) {
+            return Response.ok()
+                .entity("{\"status\": \"success\"}")
+                .build();
+        } else {
+            return Response.status(400)
+                .entity("{\"status\": \"failed\"}")
+                .build();
+        }
+    }
+}
+----
+
+**Problem:** Every POST request processes a new payment. No duplicate detection!
+
+== Approach #1: Simple Idempotency - Track Payment IDs
+
+Our first step: use the HTTP PUT method (inherently idempotent) and track which payment IDs we've already processed.
+
+=== Step 1: Add Payment ID to Request
+
+First, let's modify our `PaymentDetails` entity to include a unique identifier:
+
+[source,java]
+----
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class PaymentDetails {
+    private String paymentId;      // NEW: Unique identifier
+    private String cardNumber;
+    private String cardHolderName;
+    private String expiryDate;
+    private String securityCode;
+    private BigDecimal amount;
+}
+----
+
+=== Step 2: Create Simple Idempotency Service
+
+Now let's create a service that tracks which payment IDs have been processed:
+
+[source,java]
+----
+@ApplicationScoped
+@Logged
+public class IdempotencyServiceSimple {
+    
+    // Thread-safe Set to track processed payment IDs
+    private final Set<String> processedPaymentIds = 
+        Collections.newSetFromMap(new ConcurrentHashMap<>());
+    
+    /**
+     * Check if a payment ID has already been processed.
+     */
+    public boolean isAlreadyProcessed(String paymentId) {
+        return processedPaymentIds.contains(paymentId);
+    }
+    
+    /**
+     * Mark a payment ID as processed.
+     */
+    public void markAsProcessed(String paymentId) {
+        processedPaymentIds.add(paymentId);
+    }
+}
+----
+
+**Key Points:**
+- Uses `ConcurrentHashMap` for thread-safety
+- Stores only payment IDs (memory efficient)
+- Simple API: check and mark
+
+=== Step 3: Update REST Endpoint to Use PUT
+
+Now let's create a PUT endpoint that uses our simple idempotency service:
+
+[source,java]
+----
+@ApplicationScoped
+@Path("/payments")
+public class PaymentResource {
+
+    @Inject
+    private PaymentService paymentService;
+    
+    @Inject
+    private IdempotencyServiceSimple idempotencyService;
+
+    @PUT
+    @Path("/simple/{paymentId}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response processPaymentIdempotent(
+            @PathParam("paymentId") String paymentId,
+            PaymentDetails paymentDetails) {
+        
+        // Check if already processed
+        if (idempotencyService.isAlreadyProcessed(paymentId)) {
+            return Response.ok()
+                .entity("{\"status\": \"already_processed\"}")
+                .build();
+        }
+        
+        // Set payment ID and process
+        paymentDetails.setPaymentId(paymentId);
+        boolean success = paymentService.processPayment(paymentDetails);
+        
+        // Mark as processed
+        idempotencyService.markAsProcessed(paymentId);
+        
+        return Response.ok()
+            .entity(String.format("{\"status\": \"%s\"}", 
+                success ? "success" : "failed"))
+            .build();
+    }
+}
+----
+
+=== Step 4: Testing the Simple Approach
+
+Let's test it with curl:
+
+[source,bash]
+----
+# First request - payment processed
+curl -X PUT http://localhost:9080/payment/api/payments/simple/abc-123 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cardNumber": "4111111111111111",
+    "cardHolderName": "John Doe",
+    "amount": 100.00
+  }'
+
+# Response: {"status": "success"}
+
+# Retry - no duplicate processing!
+curl -X PUT http://localhost:9080/payment/api/payments/simple/abc-123 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cardNumber": "4111111111111111",
+    "cardHolderName": "John Doe",
+    "amount": 100.00
+  }'
+
+# Response: {"status": "already_processed"}
+----
+
+✅ **Success!** The second request didn't process the payment again.
+
+=== Benefits of Simple Approach
+
+✅ **Prevents duplicate processing** - Core goal achieved!
+✅ **Simple implementation** - Only ~50 lines of code
+✅ **Low memory usage** - Stores only payment IDs (~64 bytes each)
+✅ **Thread-safe** - Uses ConcurrentHashMap
+✅ **Easy to understand** - Straightforward logic
+
+== The Shortcomings: What Could Go Wrong?
+
+Our simple approach *prevents duplicate processing*, but it has critical flaws. Let's explore them with real-world scenarios.
+
+=== Problem #1: Inconsistent Client Experience
+
+**Scenario:** Network timeout on first request
+
+[source]
+----
+Request 1: PUT /payments/simple/xyz-789
+           (Network timeout, no response received)
+           Actual result: Payment successful ✓
+
+Retry:     PUT /payments/simple/xyz-789
+           Response: "already_processed"
+           
+❌ Problem: Different responses!
+   - First request (if received): "success"
+   - Retry: "already_processed"
+   - Client doesn't know if original payment succeeded or failed!
+----
+
+**Impact on Client:**
+[source,javascript]
+----
+// Client code struggles to handle this
+if (response.status === "success") {
+    showSuccessPage();
+} else if (response.status === "already_processed") {
+    // Wait, did the payment succeed? Show success or error?
+    // We don't know! 😕
+}
+----
+
+=== Problem #2: No Conflict Detection
+
+**Scenario:** Accidentally reusing payment ID with different amount
+
+[source]
+----
+Request 1: PUT /payments/simple/order-456
+           Body: {"amount": 100.00}
+           Response: {"status": "success"}
+           ✓ Customer charged $100
+
+Request 2: PUT /payments/simple/order-456
+           Body: {"amount": 200.00}  ← Different amount!
+           Response: {"status": "already_processed"}
+           
+❌ Problem: No warning that payment details don't match!
+   - Client thinks $200 payment went through
+   - Actually customer was only charged $100
+   - Financial discrepancy!
+----
+
+=== Problem #3: No Audit Trail
+
+**Questions we can't answer:**
+- When was payment ID "abc-123" processed?
+- What was the result (success or failure)?
+- What were the original payment details?
+- How many retries were attempted?
+
+**Business Impact:**
+- Cannot debug customer complaints
+- Cannot detect fraud patterns
+- Cannot generate accurate reports
+
+=== Problem #4: No Automatic Expiration
+
+[source,java]
+----
+// Our Set keeps growing forever!
+processedPaymentIds.size() // 1,000,000+ after a year
+----
+
+**Problems:**
+- Memory leak - Set grows indefinitely
+- Cannot reuse payment IDs (even after months)
+- Eventually: OutOfMemoryError
+
+=== Summary of Simple Approach Limitations
+
+|===
+| Issue | Simple Approach | Impact
+
+| Response consistency | ❌ Different responses | Client confusion
+| Conflict detection | ❌ No validation | Financial errors
+| Audit trail | ❌ No history | Cannot debug
+| Auto-expiration | ❌ Grows forever | Memory leak
+| Original result | ❌ Not stored | Can't return cached response
+|===
+
+== Approach #2: Full Idempotency with Conflict Detection
+
+Now let's build a production-ready solution that solves all these problems!
+
+=== Step 1: Create Complete Idempotency Record
+
+Instead of just storing IDs, let's store the complete request and response:
+
+[source,java]
+----
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class IdempotencyRecord {
+    private String paymentId;
+    private PaymentDetails requestDetails;  // Store original request
+    private boolean success;                // Store result
+    private String responseMessage;         // Store response
+    private LocalDateTime timestamp;        // When processed
+    private LocalDateTime expiresAt;        // Auto-expiration
+}
+----
+
+**Why this structure?**
+- `requestDetails` - Compare with new requests (conflict detection)
+- `success` & `responseMessage` - Return exact same response
+- `timestamp` - Audit trail
+- `expiresAt` - Automatic cleanup
+
+=== Step 2: Build Full Idempotency Service
+
+[source,java]
+----
+@ApplicationScoped
+@Logged
+public class IdempotencyService {
+    
+    // Store complete records, not just IDs
+    private final Map<String, IdempotencyRecord> idempotencyCache = 
+        new ConcurrentHashMap<>();
+    
+    private static final long EXPIRY_HOURS = 24;
+    
+    /**
+     * Get existing record if present and not expired.
+     * Returns Optional with complete record (not just boolean!)
+     */
+    public Optional<IdempotencyRecord> getExistingRecord(String paymentId) {
+        IdempotencyRecord record = idempotencyCache.get(paymentId);
+        
+        if (record == null) {
+            return Optional.empty();
+        }
+        
+        // Check expiration
+        if (LocalDateTime.now().isAfter(record.getExpiresAt())) {
+            idempotencyCache.remove(paymentId);
+            return Optional.empty();
+        }
+        
+        return Optional.of(record);
+    }
+    
+    /**
+     * Store complete payment record for future lookups.
+     */
+    public void storeRecord(String paymentId, 
+                           PaymentDetails requestDetails,
+                           boolean success, 
+                           String responseMessage) {
+        LocalDateTime now = LocalDateTime.now();
+        IdempotencyRecord record = new IdempotencyRecord(
+            paymentId,
+            requestDetails,
+            success,
+            responseMessage,
+            now,
+            now.plusHours(EXPIRY_HOURS)  // Auto-expire after 24 hours
+        );
+        
+        idempotencyCache.put(paymentId, record);
+    }
+    
+    /**
+     * CRITICAL: Check if request details match original.
+     * This prevents accidental ID reuse with different amounts!
+     */
+    public boolean requestDetailsMatch(IdempotencyRecord record, 
+                                      PaymentDetails newDetails) {
+        PaymentDetails stored = record.getRequestDetails();
+        
+        return equals(stored.getCardNumber(), newDetails.getCardNumber()) &&
+               equals(stored.getCardHolderName(), newDetails.getCardHolderName()) &&
+               equals(stored.getExpiryDate(), newDetails.getExpiryDate()) &&
+               equals(stored.getSecurityCode(), newDetails.getSecurityCode()) &&
+               stored.getAmount().compareTo(newDetails.getAmount()) == 0;
+    }
+    
+    private boolean equals(String s1, String s2) {
+        return s1 != null ? s1.equals(s2) : s2 == null;
+    }
+}
+----
+
+**Key Improvements:**
+1. Returns `Optional<IdempotencyRecord>` (not just boolean)
+2. Stores complete request for comparison
+3. Implements conflict detection via `requestDetailsMatch()`
+4. Auto-expires after 24 hours
+
+=== Step 3: Update Payment Service
+
+[source,java]
+----
+@ApplicationScoped
+@Logged
+public class PaymentService {
+    
+    @Inject
+    private IdempotencyService idempotencyService;
+    
+    /**
+     * Process payment with full idempotency support.
+     */
+    public IdempotencyRecord processPaymentIdempotent(
+            String paymentId, 
+            PaymentDetails paymentDetails) {
+        
+        // Check if already processed
+        var existingRecord = idempotencyService.getExistingRecord(paymentId);
+        
+        if (existingRecord.isPresent()) {
+            // Return cached record - client gets same response!
+            return existingRecord.get();
+        }
+        
+        // Process the payment
+        boolean success = processPayment(paymentDetails);
+        String message = success ? 
+            "Payment processed successfully" : 
+            "Payment validation failed";
+        
+        // Store complete record
+        idempotencyService.storeRecord(
+            paymentId, 
+            paymentDetails, 
+            success, 
+            message
+        );
+        
+        // Return the newly stored record
+        return idempotencyService.getExistingRecord(paymentId)
+            .orElseThrow(() -> new IllegalStateException(
+                "Failed to store idempotency record"));
+    }
+    
+    // ... existing processPayment() method
+}
+----
+
+=== Step 4: Create Production-Ready REST Endpoint
+
+[source,java]
+----
+@ApplicationScoped
+@Path("/payments")
+public class PaymentResource {
+
+    @Inject
+    private PaymentService paymentService;
+    
+    @Inject
+    private IdempotencyService idempotencyService;
+
+    @PUT
+    @Path("/{paymentId}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response processPaymentIdempotent(
+            @PathParam("paymentId") String paymentId,
+            PaymentDetails paymentDetails) {
+        
+        // Validate payment ID
+        if (paymentId == null || paymentId.trim().isEmpty()) {
+            return Response.status(400)
+                .entity("{\"status\": \"failed\", " +
+                       "\"message\": \"Payment ID is required\"}")
+                .build();
+        }
+        
+        paymentDetails.setPaymentId(paymentId);
+        
+        // Check if already processed
+        var existingRecord = idempotencyService.getExistingRecord(paymentId);
+        
+        if (existingRecord.isPresent()) {
+            IdempotencyRecord record = existingRecord.get();
+            
+            // CONFLICT DETECTION: Verify request details match
+            if (!idempotencyService.requestDetailsMatch(record, paymentDetails)) {
+                return Response.status(409)  // 409 Conflict
+                    .entity("{\"status\": \"conflict\", " +
+                           "\"message\": \"Payment ID already used " +
+                           "with different payment details\"}")
+                    .build();
+            }
+            
+            // Return EXACT same response as original
+            return Response
+                .status(record.isSuccess() ? 200 : 400)
+                .entity(String.format(
+                    "{\"status\": \"%s\", \"message\": \"%s\", \"cached\": true}",
+                    record.isSuccess() ? "success" : "failed",
+                    record.getResponseMessage()))
+                .build();
+        }
+        
+        // Process payment for first time
+        IdempotencyRecord record = 
+            paymentService.processPaymentIdempotent(paymentId, paymentDetails);
+        
+        return Response
+            .status(record.isSuccess() ? 200 : 400)
+            .entity(String.format(
+                "{\"status\": \"%s\", \"message\": \"%s\", \"cached\": false}",
+                record.isSuccess() ? "success" : "failed",
+                record.getResponseMessage()))
+            .build();
+    }
+}
+----
+
+**Key Features:**
+1. ✅ Returns 409 Conflict if details don't match
+2. ✅ Returns exact same response on retry (includes "cached" flag)
+3. ✅ Proper HTTP status codes
+4. ✅ Clear error messages
+
+=== Step 5: Testing Full Implementation
+
+Let's test all scenarios:
+
+**Scenario 1: Normal flow with retry**
+[source,bash]
+----
+# First request
+curl -X PUT http://localhost:9080/payment/api/payments/abc-123 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cardNumber": "4111111111111111",
+    "cardHolderName": "Jane Smith",
+    "amount": 150.00
+  }'
+
+# Response:
+# {"status": "success", 
+#  "message": "Payment processed successfully", 
+#  "cached": false}
+
+# Network timeout, client retries
+curl -X PUT http://localhost:9080/payment/api/payments/abc-123 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cardNumber": "4111111111111111",
+    "cardHolderName": "Jane Smith",
+    "amount": 150.00
+  }'
+
+# Response (IDENTICAL to first):
+# {"status": "success", 
+#  "message": "Payment processed successfully", 
+#  "cached": true}
+#
+# ✅ Client gets consistent response!
+# ✅ No duplicate charge!
+----
+
+**Scenario 2: Conflict detection**
+[source,bash]
+----
+# Try to reuse same ID with different amount
+curl -X PUT http://localhost:9080/payment/api/payments/abc-123 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cardNumber": "4111111111111111",
+    "cardHolderName": "Jane Smith",
+    "amount": 200.00
+  }'
+
+# Response (HTTP 409 Conflict):
+# {"status": "conflict",
+#  "message": "Payment ID already used with different payment details"}
+#
+# ✅ Conflict detected!
+# ✅ Prevents financial discrepancy!
+----
+
+== Comparing Both Approaches
+
+Let's summarize what we've learned:
+
+|===
+| Feature | Simple Approach | Full Approach
+
+| *Implementation* | ~50 lines | ~150 lines
+| *Memory per payment* | ~64 bytes | ~500 bytes
+| *Prevents duplicates* | ✅ Yes | ✅ Yes
+| *Consistent responses* | ❌ No | ✅ Yes
+| *Conflict detection* | ❌ No | ✅ Yes
+| *Audit trail* | ❌ No | ✅ Yes
+| *Auto-expiration* | ❌ No | ✅ Yes (24h)
+| *Client experience* | ⚠️ Inconsistent | ✅ Seamless
+| *Production-ready* | ❌ No | ✅ Yes
+| *Debugging capability* | ❌ Poor | ✅ Excellent
+|===
+
+=== When to Use Each Approach
+
+**Use Simple Approach:**
+- 📚 Learning projects and tutorials
+- 🔧 Simple internal tools
+- 🧪 Non-critical operations
+- 💡 Understanding basic concepts
+
+**Use Full Approach (Recommended):**
+- 💰 Production payment systems
+- 🌐 External APIs
+- 💳 Financial transactions
+- 🏢 Enterprise applications
+- 🔒 When audit trail is required
+
+== Best Practices for Idempotency
+
+=== 1. Generate Strong Idempotency Keys
+
+**Use UUIDs or GUIDs:**
+[source,java]
+----
+// Good: UUID v4
+String paymentId = UUID.randomUUID().toString();
+// Example: "550e8400-e29b-41d4-a716-446655440000"
+
+// Also good: Order ID + timestamp
+String paymentId = orderId + "-" + System.currentTimeMillis();
+----
+
+**Don't use:**
+- Sequential numbers (easy to guess)
+- User IDs alone (not unique per payment)
+- Short random strings (collision risk)
+
+=== 2. Set Appropriate TTL
+
+[source,java]
+----
+// Too short - users may retry after expiration
+private static final long EXPIRY_HOURS = 1; // ❌
+
+// Good for payments - industry standard
+private static final long EXPIRY_HOURS = 24; // ✅
+
+// Alternative: longer for critical operations
+private static final long EXPIRY_HOURS = 72; // ✅
+----
+
+**Industry standards:**
+- Stripe: 24 hours
+- PayPal: 72 hours
+- Square: 24 hours
+
+=== 3. Return Meaningful HTTP Status Codes
+
+[source]
+----
+200 OK          - Payment processed (or cached result)
+400 Bad Request - Payment validation failed
+409 Conflict    - Payment ID reused with different details
+----
+
+=== 4. Client Retry Strategy
+
+**Implement exponential backoff:**
+[source,javascript]
+----
+async function processPayment(paymentId, paymentDetails) {
+    const maxRetries = 3;
+    let delay = 1000; // Start with 1 second
+    
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            const response = await fetch(
+                `/payments/${paymentId}`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify(paymentDetails)
+                }
+            );
+            
+            if (response.ok) {
+                return await response.json();
+            }
+            
+            if (response.status === 409) {
+                // Conflict - don't retry
+                throw new Error('Payment ID conflict');
+            }
+            
+        } catch (error) {
+            if (i === maxRetries - 1) throw error;
+            
+            await sleep(delay);
+            delay *= 2; // Exponential backoff
+        }
+    }
+}
+----
+
+=== 5. Monitor Idempotency Metrics
+
+Track these metrics in production:
+
+[source,java]
+----
+// Add metrics to your IdempotencyService
+@Counted(name = "idempotency.hits")
+public Optional<IdempotencyRecord> getExistingRecord(String paymentId) {
+    // ... existing code
+}
+
+@Counted(name = "idempotency.conflicts")
+public boolean requestDetailsMatch(...) {
+    // ... existing code
+}
+----
+
+**Key metrics to monitor:**
+- Cache hit rate (how many retries?)
+- Conflict rate (accidental ID reuse?)
+- Average retry delay
+- Cache size over time
+
+== Conclusion
+
+We've journeyed from a basic payment service with no duplicate protection to a production-ready implementation with full idempotency support. Here's what we learned:
+
+**The Simple Approach** taught us:
+- How to track processed payment IDs
+- Why PUT method is ideal for idempotency
+- That preventing duplicates is just the beginning
+
+**The Full Approach** showed us:
+- How to return consistent responses
+- Why conflict detection is critical
+- The importance of audit trails
+- How to build production-ready systems
+
+**Key Takeaways:**
+
+1. 🎯 **Idempotency is not optional** for financial systems
+2. 🔄 **Store complete records**, not just IDs
+3. ⚔️ **Detect conflicts** to prevent financial errors
+4. 📊 **Maintain audit trails** for debugging
+5. ⏰ **Implement auto-expiration** to control memory
+6. 🧪 **Test retry scenarios** thoroughly
+
+**Next Steps:**
+
+- Consider adding idempotency to all your payment endpoints
+- Implement metrics and monitoring
+- Add database persistence for long-term storage
+- Consider distributed caching (Redis, Hazelcast) for multi-instance deployments
+
+== Additional Resources
+
+- RFC 7231: HTTP/1.1 Semantics (Idempotent Methods)
+- Stripe API Documentation: Idempotent Requests
+- MicroProfile OpenAPI Specification
+- Jakarta REST (JAX-RS) 3.1 Specification
+
+---
+
+**Want to see the complete working code?** Check out the MicroProfile Tutorial repository on GitHub:
+https://github.com/microprofile/microprofile-tutorial
+
+**Have questions or feedback?** Open an issue or reach out to the MicroProfile community!
+
+Happy coding! 🚀

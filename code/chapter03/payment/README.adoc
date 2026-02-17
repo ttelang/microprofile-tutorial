@@ -7,15 +7,17 @@
 
 == Overview
 
-The MicroProfile Payment Service is a Jakarta EE 10 and MicroProfile 7.1 application that provides a RESTful API for processing payment transactions in an e-commerce platform. It demonstrates the use of modern Jakarta EE features including CDI, Jakarta RESTful Web Services, and CDI interceptors for cross-cutting concerns like logging.
+The MicroProfile Payment Service is a Jakarta EE 10 and MicroProfile 7.1 application that provides a RESTful API for processing payment transactions in an e-commerce platform. It demonstrates the use of modern Jakarta EE features including CDI (Context and Dependency Injection), Jakarta RESTful Web Services, and CDI interceptors for cross-cutting concerns like logging.
 
 == Features
 
 * RESTful API using Jakarta RESTful Web Services
 * Payment validation and processing
 * Refund processing capabilities
+* **Idempotency support for payment requests using PUT method**
 * CDI (Contexts and Dependency Injection) for component management
 * Logging interceptor for automatic method entry/exit logging with execution time tracking
+* In-memory caching of payment results for idempotency (24-hour TTL)
 * Running on Open Liberty for lightweight deployment
 
 == Project Structure
@@ -27,9 +29,9 @@ payment/
 │   ├── main/
 │   │   ├── java/
 │   │   │   └── io/microprofile/tutorial/store/payment/
-│   │   │       ├── entity/      # Domain models (PaymentDetails)
+│   │   │       ├── entity/      # Domain models (PaymentDetails, IdempotencyRecord)
 │   │   │       ├── resource/    # REST endpoints
-│   │   │       ├── service/     # Business logic
+│   │   │       ├── service/     # Business logic (PaymentService, IdempotencyService)
 │   │   │       └── interceptor/ # Logging interceptor
 │   │   ├── liberty/
 │   │   │   └── config/
@@ -47,9 +49,11 @@ payment/
 
 This application follows a layered architecture:
 
-1. *REST Resources* (`/resource`) - Provides HTTP endpoints for clients
-2. *Services* (`/service`) - Implements business logic and validation
-3. *Entities* (`/entity`) - Domain models for payment data
+1. *Entities* (`/entity`) - Domain models for payment data
+2. Repository* (`/repository`) - Data access layer for interacting with the database.
+3. *Services* (`/service`) - Implements business logic and validation
+4. *REST Resources* (`/resource`) - Provides HTTP endpoints for clients
+5. *Interceptors* (`/interceptor`) - Cross-cutting concerns like logging are handled through CDI interceptors, keeping the business logic clean and focused.  
 
 == Liberty Server Configuration
 
@@ -60,7 +64,6 @@ The Open Liberty server should be configured in `src/main/liberty/config/server.
 <server description="MicroProfile Payment Service">
     <featureManager>
         <platform>jakartaEE-10.0</platform>
-        <platform>microProfile-7.1</platform>
         <feature>restfulWS</feature>
         <feature>jsonb</feature>
         <feature>cdi</feature>
@@ -80,6 +83,8 @@ The Open Liberty server should be configured in `src/main/liberty/config/server.
 * JDK 21 or higher
 * Maven 3.9.x or higher
 * Docker (optional, for containerization)
+* Kubernetes cluster (optional, for deployment)
+* Google Cloud account (optional, for cloud deployment) or AWS account (optional, for cloud deployment) or Azure account (optional, for cloud deployment)
 
 === Development Mode
 
@@ -112,6 +117,24 @@ To run the tests:
 mvn test
 ----
 
+=== Testing Idempotency
+
+A test script is provided to demonstrate the idempotency feature:
+
+[source,bash]
+----
+./test-idempotency.sh
+----
+
+This script will:
+
+1. Send a payment request with a specific payment ID
+2. Retry the same request (should return cached result)
+3. Try to use the same payment ID with different details (should return 409 Conflict)
+4. Send a new payment with a different payment ID
+
+Make sure the application is running before executing the test script.
+
 === Deployment
 
 The application can be deployed to any Jakarta EE 10 compliant server. With Liberty:
@@ -130,10 +153,58 @@ The API is accessible at the base path `/payment/api`.
 |===
 | Method | Path | Description | Status Codes
 
-| POST   | `/payments/process`  | Process a payment | 200 OK, 400 Bad Request, 500 Internal Server Error
-| POST   | `/payments/validate` | Validate payment details | 200 OK, 400 Bad Request
-| POST   | `/payments/refund`   | Process a refund | 200 OK, 400 Bad Request, 500 Internal Server Error
+| POST   | `/payments/process`      | Process a payment (non-idempotent) | 200 OK, 400 Bad Request, 500 Internal Server Error
+| PUT    | `/payments/{paymentId}`  | Process a payment with idempotency | 200 OK, 400 Bad Request, 409 Conflict
+| POST   | `/payments/validate`     | Validate payment details | 200 OK, 400 Bad Request
+| POST   | `/payments/refund`       | Process a refund | 200 OK, 400 Bad Request, 500 Internal Server Error
 |===
+
+== Idempotency Support
+
+This service implements idempotency for payment processing using the HTTP PUT method. This ensures that duplicate payment requests (due to network retries, client errors, etc.) are handled safely without charging the customer multiple times.
+
+[NOTE]
+====
+📖 **Want to learn how to implement idempotency from scratch?**
+
+Check out our comprehensive step-by-step guide: link:IDEMPOTENCY_BLOG.adoc[Implementing Idempotency in RESTful Payment Services]
+
+This blog post walks through:
+
+* Why idempotency is critical for payment systems
+* Building a simple implementation and discovering its limitations
+* Evolving to a production-ready solution with conflict detection
+* Best practices and real-world scenarios
+
+Perfect for understanding the "why" and "how" behind the implementation!
+====
+
+=== How It Works
+
+1. **Client provides a unique payment ID**: When making a payment request, the client generates a unique identifier (UUID/GUID recommended) and includes it in the URL path.
+
+2. **First request processed normally**: On the first request with a given payment ID, the payment is processed and the complete result is cached for 24 hours.
+
+3. **Subsequent requests return cached result**: If the same payment ID is used again within 24 hours, the EXACT same response is returned without reprocessing the payment.
+
+4. **Conflict detection**: If the same payment ID is used with different payment details (amount, card number, etc.), a 409 Conflict status is returned.
+
+=== Benefits
+
+* **Prevents duplicate charges**: Multiple identical requests will only result in a single payment
+* **Network retry safety**: Clients can safely retry failed requests without risk of double-charging
+* **Consistent client experience**: Retries return the exact same response as the original request
+* **Conflict detection**: Prevents accidental ID reuse with different payment amounts
+* **RESTful design**: Uses PUT method which is inherently idempotent per HTTP specification
+* **Audit trail**: Complete request/response history for debugging and compliance
+
+=== Best Practices
+
+* Use UUIDs or GUIDs for payment IDs (e.g., `550e8400-e29b-41d4-a716-446655440000`)
+* Store payment IDs on the client side to enable safe retries
+* Don't reuse payment IDs for different payment amounts or card details
+* Implement retry logic with exponential backoff on network failures
+* Monitor cache hit rates and conflict rates in production
 
 == Request/Response Examples
 
@@ -184,6 +255,109 @@ Content-Type: application/json
 {
   "status": "failed",
   "message": "Payment validation failed"
+}
+----
+
+=== Process a payment with idempotency (PUT method)
+
+Request (First time):
+[source]
+----
+PUT /payment/api/payments/550e8400-e29b-41d4-a716-446655440000
+Content-Type: application/json
+----
+
+[source,json]
+----
+{
+  "cardNumber": "4111111111111111",
+  "cardHolderName": "Jane Smith",
+  "expiryDate": "12/25",
+  "securityCode": "456",
+  "amount": 150.00
+}
+----
+
+Response (First request - payment processed):
+[source]
+----
+HTTP/1.1 200 OK
+Content-Type: application/json
+----
+
+[source,json]
+----
+{
+  "status": "success",
+  "message": "Payment processed successfully",
+  "cached": false
+}
+----
+
+Request (Retry with same payment ID and details):
+[source]
+----
+PUT /payment/api/payments/550e8400-e29b-41d4-a716-446655440000
+Content-Type: application/json
+----
+
+[source,json]
+----
+{
+  "cardNumber": "4111111111111111",
+  "cardHolderName": "Jane Smith",
+  "expiryDate": "12/25",
+  "securityCode": "456",
+  "amount": 150.00
+}
+----
+
+Response (Cached result - payment not reprocessed):
+[source]
+----
+HTTP/1.1 200 OK
+Content-Type: application/json
+----
+
+[source,json]
+----
+{
+  "status": "success",
+  "message": "Payment processed successfully",
+  "cached": true
+}
+----
+
+Request (Same payment ID with different details):
+[source]
+----
+PUT /payment/api/payments/550e8400-e29b-41d4-a716-446655440000
+Content-Type: application/json
+----
+
+[source,json]
+----
+{
+  "cardNumber": "4111111111111111",
+  "cardHolderName": "Jane Smith",
+  "expiryDate": "12/25",
+  "securityCode": "456",
+  "amount": 200.00
+}
+----
+
+Response (Conflict - same ID with different amount):
+[source]
+----
+HTTP/1.1 409 Conflict
+Content-Type: application/json
+----
+
+[source,json]
+----
+{
+  "status": "conflict",
+  "message": "Payment ID already used with different payment details"
 }
 ----
 
@@ -288,12 +462,15 @@ The service validates payment details based on the following rules:
 
 == Technology Stack
 
-* Jakarta EE 10
-* MicroProfile 7.1
-* Open Liberty
-* Lombok
-* JUnit 5
-* Mockito
+* Jakarta EE 10 - Core platform for building enterprise applications
+* MicroProfile 7.1 - Provides APIs for building microservices
+* Open Liberty - Lightweight, cloud-native runtime for Jakarta EE and MicroProfile applications
+* Lombok - Reduces boilerplate code for data classes
+* JUnit 5 - Testing framework for unit and integration tests
+* Mockito - Mocking framework for unit tests
+* Docker - Containerization platform (optional)
+* Kubernetes - Container orchestration platform (optional)
+* Google Cloud / AWS / Azure - Cloud platforms for deployment (optional) 
 
 == Testing the API
 

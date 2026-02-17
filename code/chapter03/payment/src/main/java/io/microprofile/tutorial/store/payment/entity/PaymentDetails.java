@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class PaymentDetails {
+    private String paymentId; // Unique identifier for idempotency support
     private String cardNumber;
     private String cardHolderName;
     private String expiryDate; // Format MM/YY
