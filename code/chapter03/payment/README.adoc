@@ -15,6 +15,7 @@ The MicroProfile Payment Service is a Jakarta EE 10 and MicroProfile 7.1 applica
 * Payment validation and processing
 * Refund processing capabilities
 * **Idempotency support for payment requests using PUT method**
+* **Transaction logging and comprehensive audit trails**
 * CDI (Contexts and Dependency Injection) for component management
 * Logging interceptor for automatic method entry/exit logging with execution time tracking
 * In-memory caching of payment results for idempotency (24-hour TTL)
@@ -159,6 +160,18 @@ The API is accessible at the base path `/payment/api`.
 | POST   | `/payments/refund`       | Process a refund | 200 OK, 400 Bad Request, 500 Internal Server Error
 |===
 
+=== Audit Trail API
+
+|===
+| Method | Path | Description | Status Codes
+
+| GET    | `/audit/records`              | Get all audit records | 200 OK
+| GET    | `/audit/payment/{paymentId}`  | Get audit records for a specific payment | 200 OK, 404 Not Found
+| GET    | `/audit/operation/{type}`     | Get audit records by operation type | 200 OK, 400 Bad Request
+| GET    | `/audit/status/{status}`      | Get audit records by status | 200 OK, 400 Bad Request
+| GET    | `/audit/stats`                | Get audit statistics summary | 200 OK
+|===
+
 == Idempotency Support
 
 This service implements idempotency for payment processing using the HTTP PUT method. This ensures that duplicate payment requests (due to network retries, client errors, etc.) are handled safely without charging the customer multiple times.
@@ -205,6 +218,212 @@ Perfect for understanding the "why" and "how" behind the implementation!
 * Don't reuse payment IDs for different payment amounts or card details
 * Implement retry logic with exponential backoff on network failures
 * Monitor cache hit rates and conflict rates in production
+
+== Transaction Logging and Audit Trails
+
+The Payment Service includes comprehensive audit trail functionality to track all payment operations for compliance, troubleshooting, and security monitoring. Every payment operation is automatically logged with detailed information.
+
+=== What Gets Audited
+
+Every payment operation creates an audit record that captures:
+
+* **Audit ID**: Unique identifier for the audit record
+* **Payment ID**: Associated payment transaction ID (if applicable)
+* **Operation Type**: Type of operation performed (PAYMENT_PROCESS, PAYMENT_VALIDATE, PAYMENT_REFUND, IDEMPOTENT_PAYMENT, IDEMPOTENT_CACHE_HIT)
+* **Timestamp**: When the operation occurred
+* **Status**: Operation result (SUCCESS, FAILED, VALIDATION_ERROR, CONFLICT, SYSTEM_ERROR)
+* **Masked Card Number**: Last 4 digits only (e.g., "\**** **** **** 1234")
+* **Cardholder Name**: Name on the card
+* **Amount**: Transaction amount
+* **Duration**: How long the operation took (in milliseconds)
+* **Message**: Detailed description of what happened
+* **Cached Response**: Whether the response was served from cache (for idempotent requests)
+* **Client Identifier**: IP address or client ID (for tracking request origin)
+
+=== Security and Compliance
+
+The audit trail system follows security best practices:
+
+* **Card numbers are always masked** - Only the last 4 digits are stored
+* **CVV/Security codes are never logged** - These sensitive values are excluded
+* **Immutable records** - Audit records cannot be modified once created
+* **Separate audit logger** - Uses dedicated `PaymentAudit` logger for easy filtering
+* **Comprehensive coverage** - All operations (success and failure) are audited
+
+=== Audit API Endpoints
+
+Query and analyze audit trails using these endpoints:
+
+==== Get All Audit Records
+
+[source,bash]
+----
+GET /payment/api/audit/records
+----
+
+Returns all audit records sorted by timestamp (newest first).
+
+Response:
+[source,json]
+----
+{
+  "totalRecords": 15,
+  "records": [
+    {
+      "auditId": "a1b2c3d4-...",
+      "paymentId": "550e8400-...",
+      "operationType": "PAYMENT_PROCESS",
+      "timestamp": "2026-02-17T14:30:45.123",
+      "status": "SUCCESS",
+      "maskedCardNumber": "**** **** **** 1234",
+      "cardHolderName": "John Doe",
+      "amount": 99.99,
+      "message": "Payment processed successfully",
+      "durationMs": 45,
+      "cachedResponse": false
+    }
+  ]
+}
+----
+
+==== Get Audit Records by Payment ID
+
+[source,bash]
+----
+GET /payment/api/audit/payment/{paymentId}
+----
+
+Returns all audit records associated with a specific payment transaction.
+
+==== Get Audit Records by Operation Type
+
+[source,bash]
+----
+GET /payment/api/audit/operation/{operationType}
+----
+
+Valid operation types:
+* `PAYMENT_PROCESS` - Payment processing operations
+* `PAYMENT_VALIDATE` - Payment validation operations
+* `PAYMENT_REFUND` - Refund operations
+* `IDEMPOTENT_PAYMENT` - Idempotent payment (first request)
+* `IDEMPOTENT_CACHE_HIT` - Idempotent payment (cached response)
+
+Example:
+[source,bash]
+----
+GET /payment/api/audit/operation/PAYMENT_VALIDATE
+----
+
+==== Get Audit Records by Status
+
+[source,bash]
+----
+GET /payment/api/audit/status/{status}
+----
+
+Valid statuses:
+* `SUCCESS` - Operation completed successfully
+* `FAILED` - Operation failed
+* `VALIDATION_ERROR` - Input validation error
+* `CONFLICT` - Idempotency conflict (same ID, different details)
+* `SYSTEM_ERROR` - System or internal error
+
+Example:
+[source,bash]
+----
+GET /payment/api/audit/status/VALIDATION_ERROR
+----
+
+==== Get Audit Statistics
+
+[source,bash]
+----
+GET /payment/api/audit/stats
+----
+
+Returns summary statistics including:
+* Total audit records
+* Count by operation type
+* Count by status
+* Count of cached responses
+
+Response:
+[source,json]
+----
+{
+  "totalRecords": 15,
+  "byOperationType": {
+    "PAYMENT_PROCESS": 5,
+    "PAYMENT_VALIDATE": 7,
+    "PAYMENT_REFUND": 2,
+    "IDEMPOTENT_PAYMENT": 0,
+    "IDEMPOTENT_CACHE_HIT": 1
+  },
+  "byStatus": {
+    "SUCCESS": 10,
+    "FAILED": 0,
+    "VALIDATION_ERROR": 5,
+    "CONFLICT": 0,
+    "SYSTEM_ERROR": 0
+  },
+  "cachedResponses": 1
+}
+----
+
+=== Testing Audit Trails
+
+A test script is provided to demonstrate the audit trail functionality:
+
+[source,bash]
+----
+./test-audit.sh
+----
+
+This script will:
+
+1. Perform various payment operations (process, validate, refund)
+2. Test both successful and failed operations
+3. Test idempotent requests and cache hits
+4. Query audit records by different criteria
+5. Display audit statistics
+
+Make sure the application is running before executing the test script.
+
+=== Audit Logging Configuration
+
+The audit system uses a dedicated logger `PaymentAudit` that can be configured separately in `server.xml`:
+
+[source,xml]
+----
+<logging consoleLogLevel="INFO" 
+         traceSpecification="*=info:PaymentAudit=all"
+         maxFileSize="50"
+         maxFiles="5" />
+----
+
+This configuration:
+* Sets general logging to INFO level
+* Enables ALL logging for the PaymentAudit logger
+* Rotates log files at 50MB
+* Keeps up to 5 log files
+
+Audit log entries appear in the format:
+[source]
+----
+[INFO] AUDIT: [2026-02-17T14:30:45.123] PAYMENT_PROCESS - PaymentId: 550e8400-..., Status: SUCCESS, Card: **** **** **** 1234, Amount: 99.99, Duration: 45ms, Message: Payment processed successfully
+----
+
+=== Use Cases
+
+The audit trail system supports various use cases:
+
+* **Compliance and Regulatory Requirements**: Maintain complete transaction history for financial audits
+* **Security Monitoring**: Detect suspicious patterns or fraudulent activity
+* **Troubleshooting**: Debug payment failures by reviewing detailed operation logs
+* **Performance Analysis**: Analyze operation durations to identify bottlenecks
+* **Customer Support**: Trace customer payment issues through complete audit history
+* **Business Analytics**: Extract insights about payment patterns and success rates
 
 == Request/Response Examples
 
