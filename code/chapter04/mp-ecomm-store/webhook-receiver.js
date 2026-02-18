@@ -1,6 +1,14 @@
 // Simple webhook receiver for testing MicroProfile OpenAPI webhooks
 // Demonstrates webhook signature verification
 //
+// ⚠️  IMPORTANT: This is a TEST/DEVELOPMENT tool, NOT for production use.
+// Production webhook receivers should implement:
+//   - Rate limiting (e.g., using express-rate-limit)
+//   - IP whitelisting
+//   - Request size limits
+//   - Proper error handling and monitoring
+//   - See WEBHOOK_SECURITY_BEST_PRACTICES.adoc for details
+//
 // Usage:
 //   1. Install dependencies: npm install express body-parser crypto
 //   2. Run: node webhook-receiver.js
