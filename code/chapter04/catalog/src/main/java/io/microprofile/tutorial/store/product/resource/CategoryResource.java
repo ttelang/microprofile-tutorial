@@ -283,7 +283,7 @@ public class CategoryResource {
      * <p>This record provides a structured representation of ProductCategory enum
      * with all its details for API responses.
      */
-    @Schema(description = "Category information with metadata")
+    @Schema(description = "Category details including name, display name, and description")
     public record CategoryInfo(
         @Schema(
             description = "Category enum name (e.g., ELECTRONICS, BOOKS)",

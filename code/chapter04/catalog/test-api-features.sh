@@ -5,8 +5,8 @@
 
 set -e
 
-BASE_URL="http://localhost:5050/mp-ecomm-store/api"
-OPENAPI_URL="http://localhost:5050/mp-ecomm-store/openapi"
+BASE_URL="http://localhost:5050/catalog/api"
+OPENAPI_URL="http://localhost:5050/catalog/openapi"
 WEBHOOK_ENDPOINT="${BASE_URL}/webhooks"
 
 # Colors
@@ -151,11 +151,11 @@ echo -e "${BLUE}Test 12: Verify OpenAPI Callbacks Documentation${NC}"
 echo "Checking if callbacks are documented in OpenAPI spec..."
 echo ""
 
-if curl -s -H "Accept: application/json" http://localhost:5050/openapi | jq -e '.paths."/api/webhooks".post.callbacks' > /dev/null; then
+if curl -s -H "Accept: application/json" ${OPENAPI_URL} | jq -e '.paths."/api/webhooks".post.callbacks' > /dev/null; then
     echo -e "${GREEN}✓ Callbacks found in OpenAPI spec!${NC}"
     echo ""
     echo "Callback events documented:"
-    curl -s -H "Accept: application/json" http://localhost:5050/openapi | \
+    curl -s -H "Accept: application/json" ${OPENAPI_URL} | \
         jq -r '.paths."/api/webhooks".post.callbacks.productEvents["{$request.body#/callbackUrl}"].post.summary' 2>/dev/null || \
         echo "  (Unable to parse callback details - but they exist in spec)"
 else
@@ -221,7 +221,7 @@ echo ""
 echo "The @Callback annotation documents these webhook events:"
 echo ""
 
-curl -s -H "Accept: application/json" http://localhost:5050/openapi | \
+curl -s -H "Accept: application/json" ${OPENAPI_URL} | \
     jq -r '.paths."/api/webhooks".post.callbacks.productEvents["{$request.body#/callbackUrl}"].post.requestBody.content."application/json".examples | to_entries[] | "Event: \(.key)\n  Type: \(.value.value.eventType)\n  Example ID: \(.value.value.eventId)\n"' \
     2>/dev/null || echo "(Examples available in OpenAPI spec)"
 
