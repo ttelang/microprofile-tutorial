@@ -694,6 +694,186 @@ Server logs can be found at:
 target/liberty/wlp/usr/servers/defaultServer/logs/
 ----
 
+== Logging Interceptor
+
+The catalog service includes a logging interceptor that provides automatic method entry/exit logging with execution time tracking. It's implemented using CDI interceptors and merged from the mp-ecomm-store project.
+
+=== How to Use
+
+==== 1. Apply to Entire Class
+
+Add the `@Logged` annotation to any class that you want to have all methods logged:
+
+[source,java]
+----
+import io.microprofile.tutorial.store.interceptor.Logged;
+
+@ApplicationScoped
+@Logged
+public class MyService {
+    // All methods in this class will be logged
+}
+----
+
+==== 2. Apply to Individual Methods
+
+Add the `@Logged` annotation to specific methods:
+
+[source,java]
+----
+import io.microprofile.tutorial.store.interceptor.Logged;
+
+@ApplicationScoped
+public class MyService {
+    
+    @Logged
+    public void loggedMethod() {
+        // This method will be logged
+    }
+    
+    public void nonLoggedMethod() {
+        // This method will NOT be logged
+    }
+}
+----
+
+=== Log Format
+
+The interceptor logs the following information:
+
+==== Method Entry
+[listing]
+----
+INFO: Entering method: com.example.MyService.myMethod with parameters: [param1, param2]
+----
+
+==== Method Exit (Success)
+[listing]
+----
+INFO: Exiting method: com.example.MyService.myMethod, execution time: 42ms, result: resultValue
+----
+
+==== Method Exit (Exception)
+[listing]
+----
+SEVERE: Exception in method: com.example.MyService.myMethod, execution time: 17ms, exception: Something went wrong
+----
+
+=== Configuration
+
+The logging interceptor uses the standard Java logging framework. The `logging.properties` file in `src/main/resources` configures the logging level and handlers.
+
+[source,properties]
+----
+# Global logging properties
+handlers=java.util.logging.ConsoleHandler
+.level=INFO
+
+# Configure the console handler
+java.util.logging.ConsoleHandler.level=INFO
+java.util.logging.ConsoleHandler.formatter=java.util.logging.SimpleFormatter
+
+# Simplified format for the logs
+java.util.logging.SimpleFormatter.format=[%1$tF %1$tT] %4$s %2$s - %5$s %6$s%n
+
+# Set logging level for our application packages
+io.microprofile.tutorial.store.level=INFO
+----
+
+=== LoggingDemoService Implementation
+
+A demonstration class `LoggingDemoService` is provided to showcase how the logging interceptor works. You can find this class in the `io.microprofile.tutorial.store.demo` package.
+
+==== Demo Features
+
+* Selective method logging with `@Logged` annotation
+* Example of both logged and non-logged methods in the same class
+* Exception handling demonstration
+
+[source,java]
+----
+@ApplicationScoped
+public class LoggingDemoService {
+    
+    // This method will be logged because of the @Logged annotation
+    @Logged
+    public String loggedMethod(String input) {
+        return "Processed: " + input;
+    }
+    
+    // This method will NOT be logged since it doesn't have the @Logged annotation
+    public String nonLoggedMethod(String input) {
+        return "Silently processed: " + input;
+    }
+    
+    @Logged
+    public void methodWithException() throws Exception {
+        throw new Exception("This exception will be logged by the interceptor");
+    }
+}
+----
+
+=== Customizing the Interceptor
+
+You can customize the LoggingInterceptor by:
+
+1. Modifying the log format in the `logMethodCall` method
+2. Changing the log level for different events
+3. Adding filters to exclude certain parameter types or large return values
+4. Adding MDC (Mapped Diagnostic Context) information for tracking requests across methods
+
+== API Test Script
+
+A comprehensive test script `test-api.sh` is provided to test all CRUD operations automatically. This script demonstrates all API endpoints with proper error handling and validation.
+
+=== Using the Test Script
+
+1. **Make the script executable:**
++
+[source,bash]
+----
+chmod +x test-api.sh
+----
+
+2. **Start your Liberty server:**
++
+[source,bash]
+----
+mvn liberty:dev
+----
+
+3. **Run the test script in another terminal:**
++
+[source,bash]
+----
+./test-api.sh
+----
+
+=== What the Script Tests
+
+The `test-api.sh` script performs the following operations in sequence:
+
+1. **Initial State**: Gets all products to show the starting data
+2. **Get by ID**: Retrieves a specific product (ID: 1)
+3. **Create Product**: Adds a new AirPods product (ID: 3)
+4. **Verify Creation**: Gets all products to confirm the new product was added
+5. **Get New Product**: Retrieves the newly created product by ID
+6. **Update Product**: Updates an existing product (changes iPhone to iPhone Pro)
+7. **Verify Update**: Gets the updated product to confirm changes
+8. **Delete Product**: Removes the AirPods product (ID: 3)
+9. **Verify Deletion**: Gets all products to confirm deletion
+10. **Error Testing**: Tests 404 responses for non-existent products
+
+The script pauses between each operation, allowing you to review the response and understand the API behavior.
+
+=== Script Features
+
+* **Interactive**: Pauses between operations for review
+* **Comprehensive**: Tests all CRUD operations and error scenarios
+* **Educational**: Shows the exact curl commands being executed
+* **Error Handling**: Demonstrates proper API error responses
+* **Real-time Feedback**: Displays JSON responses for each operation
+
 == Resources
 
 * https://microprofile.io/[MicroProfile]
