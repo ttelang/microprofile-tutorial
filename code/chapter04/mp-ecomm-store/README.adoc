@@ -7,7 +7,7 @@ toc::[]
 
 == Overview
 
-This project is a MicroProfile-based e-commerce application developed using Jakarta EE 10 and MicroProfile 6.1. It demonstrates modern Java enterprise development practices including REST API design, loose coupling, dependency injection, and unit testing strategies.
+This project is a MicroProfile-based e-commerce application developed using Jakarta EE 10 and MicroProfile 7.1. It demonstrates modern Java enterprise development practices including REST API design, loose coupling, dependency injection, and unit testing strategies.
 
 The application follows a layered architecture with separate resource (controller) and service layers for products. It also includes a Logging Interceptor implemented with CDI, which automatically logs method entry, exit, execution time, and exceptions for annotated classes and methods.
 
@@ -20,7 +20,7 @@ The application follows a layered architecture with separate resource (controlle
 == Technology Stack
 
 * *Jakarta EE 10*: Core enterprise Java platform
-* *MicroProfile 6.1*: Microservices specifications
+* *MicroProfile 7.1*: Microservices specifications
 * *Open Liberty*: Lightweight application server
 * *JUnit 5*: Testing framework
 * *Maven*: Build and dependency management
@@ -355,7 +355,7 @@ The project includes several key dependencies:
 <dependency>
     <groupId>org.eclipse.microprofile</groupId>
     <artifactId>microprofile</artifactId>
-    <version>6.1</version>
+    <version>7.1</version>
     <type>pom</type>
     <scope>provided</scope>
 </dependency>
