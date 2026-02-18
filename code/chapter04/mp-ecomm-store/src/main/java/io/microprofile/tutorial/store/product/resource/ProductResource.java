@@ -3,9 +3,9 @@ package io.microprofile.tutorial.store.product.resource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.Optional;
 
 import io.microprofile.tutorial.store.product.entity.Product;
+import io.microprofile.tutorial.store.product.entity.ProductCategory;
 import io.microprofile.tutorial.store.product.service.WebhookService;
 
 import org.eclipse.microprofile.openapi.annotations.Operation;
@@ -65,7 +65,7 @@ public class ProductResource {
         p1.setDescription("Apple iPhone 15 Pro with 256GB storage");
         p1.setPrice(999.99);
         p1.setSku("APL-IPH15P-256");
-        p1.setCategory("ELECTRONICS");
+        p1.setCategory(ProductCategory.ELECTRONICS);
         p1.setStockQuantity(50);
         p1.setInStock(true);
         
@@ -75,7 +75,7 @@ public class ProductResource {
         p2.setDescription("Apple MacBook Air with M3 chip, 13-inch display");
         p2.setPrice(1299.99);
         p2.setSku("APL-MBA-M3-13");
-        p2.setCategory("ELECTRONICS");
+        p2.setCategory(ProductCategory.ELECTRONICS);
         p2.setStockQuantity(25);
         p2.setInStock(true);
         
@@ -85,7 +85,7 @@ public class ProductResource {
         p3.setDescription("Samsung Galaxy S24 Ultra with 512GB storage");
         p3.setPrice(1199.99);
         p3.setSku("SAM-GAL-S24-512");
-        p3.setCategory("ELECTRONICS");
+        p3.setCategory(ProductCategory.ELECTRONICS);
         p3.setStockQuantity(30);
         p3.setInStock(true);
 
@@ -157,8 +157,7 @@ public class ProductResource {
             schema = @Schema(
                 type = SchemaType.INTEGER,
                 format = "int64",
-                minimum = "1",
-                example = "1"
+                minimum = "1"
             )
         )
         @PathParam("id") Long id
@@ -268,8 +267,7 @@ public class ProductResource {
                 minLength = 1,
                 maxLength = 100,
                 pattern = "^[a-zA-Z0-9\\\\s\\\\-]+$",
-                nullable = true,
-                example = "iPhone"
+                nullable = true
             )
         )
         @QueryParam("name") String name,
@@ -283,8 +281,7 @@ public class ProductResource {
                 exclusiveMinimum = true,
                 maximum = "999999.99",
                 multipleOf = 0.01,
-                nullable = true,
-                example = "500.00"
+                nullable = true
             )
         )
         @QueryParam("minPrice") Double minPrice,
@@ -297,22 +294,19 @@ public class ProductResource {
                 minimum = "0.01",
                 maximum = "999999.99",
                 multipleOf = 0.01,
-                nullable = true,
-                example = "2000.00"
+                nullable = true
             )
         )
         @QueryParam("maxPrice") Double maxPrice,
         
         @Parameter(
-            description = "Product category - must be one of predefined categories",
+            description = "Product category - Type-safe enum value for filtering products",
             schema = @Schema(
-                type = SchemaType.STRING,
-                enumeration = {"ELECTRONICS", "CLOTHING", "BOOKS", "HOME_GARDEN", "SPORTS", "TOYS", "FOOD", "BEAUTY"},
-                nullable = true,
-                example = "ELECTRONICS"
+                implementation = ProductCategory.class,
+                nullable = true
             )
         )
-        @QueryParam("category") String category,
+        @QueryParam("category") String categoryParam,
         
         @Parameter(
             description = "Page number for pagination (zero-based)",
@@ -320,8 +314,7 @@ public class ProductResource {
                 type = SchemaType.INTEGER,
                 format = "int32",
                 minimum = "0",
-                defaultValue = "0",
-                example = "0"
+                defaultValue = "0"
             )
         )
         @QueryParam("page") @DefaultValue("0") Integer page,
@@ -333,17 +326,29 @@ public class ProductResource {
                 format = "int32",
                 minimum = "1",
                 maximum = "100",
-                defaultValue = "20",
-                example = "20"
+                defaultValue = "20"
             )
         )
         @QueryParam("size") @DefaultValue("20") Integer size
     ) {
+        // Convert category string to enum for filtering
+        ProductCategory category = null;
+        if (categoryParam != null) {
+            try {
+                category = ProductCategory.fromString(categoryParam);
+            } catch (IllegalArgumentException e) {
+                return Response.status(Response.Status.BAD_REQUEST)
+                        .entity("Invalid category: " + categoryParam)
+                        .build();
+            }
+        }
+        
+        final ProductCategory categoryFilter = category;
         List<Product> results = products.stream()
             .filter(p -> name == null || p.getName().toLowerCase().contains(name.toLowerCase()))
             .filter(p -> minPrice == null || p.getPrice() > minPrice)
             .filter(p -> maxPrice == null || p.getPrice() <= maxPrice)
-            .filter(p -> category == null || category.equals(p.getCategory()))
+            .filter(p -> categoryFilter == null || categoryFilter.equals(p.getCategory()))
             .collect(Collectors.toList());
         
         // Apply pagination

@@ -2,6 +2,7 @@ package io.microprofile.tutorial.store.product.service;
 
 import io.microprofile.tutorial.store.product.entity.Product;
 import io.microprofile.tutorial.store.product.entity.ProductEvent;
+import io.microprofile.tutorial.store.product.entity.EventType;
 import io.microprofile.tutorial.store.product.entity.WebhookSubscription;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.json.bind.JsonbBuilder;
@@ -10,7 +11,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -72,20 +73,23 @@ public class WebhookService {
     }
     
     /**
-     * Send webhook event to all active subscribers
+     * Send webhook event to all active subscribers.
+     * 
+     * @param eventType The type of event
+     * @param product The product related to the event
      */
-    public void sendEvent(String eventType, Product product) {
+    public void sendEvent(EventType eventType, Product product) {
         // Create event
         ProductEvent event = new ProductEvent();
         event.setEventId("evt_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16));
         event.setEventType(eventType);
-        event.setTimestamp(LocalDateTime.now());
+        event.setTimestamp(Instant.now());
         event.setProduct(product);
         
-        // Find matching subscriptions
+        // Find matching subscriptions (check against String value of EventType)
         List<WebhookSubscription> targets = subscriptions.stream()
             .filter(WebhookSubscription::getActive)
-            .filter(s -> s.getEvents().contains(eventType))
+            .filter(s -> s.getEvents().contains(eventType.getValue()))
             .collect(Collectors.toList());
         
         LOGGER.info("Sending " + eventType + " event to " + targets.size() + " subscribers");
@@ -108,7 +112,7 @@ public class WebhookService {
                 .uri(URI.create(subscription.getUrl()))
                 .header("Content-Type", "application/json")
                 .header("X-Webhook-Signature", signature)
-                .header("X-Event-Type", event.getEventType())
+                .header("X-Event-Type", event.getEventType().getValue())
                 .header("X-Event-Id", event.getEventId())
                 .POST(HttpRequest.BodyPublishers.ofString(payload))
                 .build();

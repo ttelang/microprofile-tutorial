@@ -2,6 +2,7 @@ package io.microprofile.tutorial.store.product.resource;
 
 import io.microprofile.tutorial.store.product.entity.ProductEvent;
 import io.microprofile.tutorial.store.product.entity.WebhookSubscription;
+import io.microprofile.tutorial.store.product.entity.ErrorResponse;
 import io.microprofile.tutorial.store.product.service.WebhookService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -88,27 +89,77 @@ public class WebhookResource {
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
                 schema = @Schema(implementation = WebhookSubscription.class),
-                examples = @ExampleObject(
-                    name = "created",
-                    summary = "Successful subscription",
-                    value = """
-                        {
-                          "id": "sub_7x9k2m4n6p",
-                          "callbackUrl": "https://myapp.example.com/webhooks/products",
-                          "events": ["product.created", "product.updated"],
-                          "secret": "whs_a1b2c3d4e5f6g7h8i9j0",
-                          "active": true,
-                          "createdAt": "2026-02-08T10:30:00Z"
-                        }
-                        """
-                )
+                examples = {
+                    @ExampleObject(
+                        name = "basic-subscription",
+                        summary = "Basic webhook subscription",
+                        description = "Simple subscription for product creation and updates",
+                        value = """
+                            {
+                              "id": "sub_7x9k2m4n6p",
+                              "url": "https://myapp.example.com/webhooks/products",
+                              "events": ["product.created", "product.updated"],
+                              "secret": "whs_a1b2c3d4e5f6g7h8i9j0",
+                              "active": true,
+                              "description": "Basic product sync"
+                            }
+                            """
+                    ),
+                    @ExampleObject(
+                        name = "all-events-subscription",
+                        summary = "Subscribe to all product events",
+                        description = "Comprehensive subscription covering all product lifecycle events",
+                        value = """
+                            {
+                              "id": "sub_m5n6p7q8r9",
+                              "url": "https://warehouse.example.com/webhooks/inventory",
+                              "events": [
+                                "product.created",
+                                "product.updated",
+                                "product.deleted",
+                                "product.stock.low",
+                                "product.stock.out"
+                              ],
+                              "secret": "whs_z9y8x7w6v5u4t3s2r1",
+                              "active": true,
+                              "description": "Warehouse inventory sync - all events"
+                            }
+                            """
+                    ),
+                    @ExampleObject(
+                        name = "stock-alerts-only",
+                        summary = "Stock level alerts subscription",
+                        description = "Subscribe only to inventory-related events",
+                        value = """
+                            {
+                              "id": "sub_s2t3u4v5w6",
+                              "url": "https://alerts.example.com/webhooks/stock",
+                              "events": ["product.stock.low", "product.stock.out"],
+                              "secret": "whs_p1o2i3u4y5t6r7e8w9",
+                              "active": true,
+                              "description": "Low stock alert system"
+                            }
+                            """
+                    )
+                }
             )
         ),
         @APIResponse(
             responseCode = "400",
-            description = "Invalid subscription - URL must use HTTPS and events must be valid"
+            description = "Invalid subscription - URL must use HTTPS and events must be valid",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                schema = @Schema(implementation = ErrorResponse.class)
+            )
         ),
-        @APIResponse(responseCode = "401", description = "Unauthorized - API key required")
+        @APIResponse(
+            responseCode = "401",
+            description = "Unauthorized - API key required",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                schema = @Schema(implementation = ErrorResponse.class)
+            )
+        )
     })
     // @Callback documents all webhook events
     @Callback(
@@ -135,30 +186,76 @@ public class WebhookResource {
                     content = @Content(
                         mediaType = MediaType.APPLICATION_JSON,
                         schema = @Schema(implementation = ProductEvent.class),
-                        examples = @ExampleObject(
-                            name = "created-event",
-                            summary = "New product created",
-                            value = """
-                                {
-                                  "eventId": "evt_abc123xyz",
-                                  "eventType": "product.created",
-                                  "timestamp": "2026-02-08T10:35:12Z",
-                                  "product": {
-                                    "id": 42,
-                                    "name": "Wireless Keyboard",
-                                    "description": "Mechanical RGB keyboard",
-                                    "price": 89.99,
-                                    "category": "ELECTRONICS",
-                                    "tags": ["wireless", "RGB", "mechanical"]
-                                  },
-                                  "metadata": {
-                                    "source": "api",
-                                    "userId": "user@example.com",
-                                    "ipAddress": "203.0.113.42"
-                                  }
-                                }
-                                """
-                        )
+                        examples = {
+                            @ExampleObject(
+                                name = "electronics-product",
+                                summary = "Electronics product created",
+                                description = "Example of a new electronics product with complete details",
+                                value = """
+                                    {
+                                      "eventId": "evt_abc123xyz",
+                                      "eventType": "product.created",
+                                      "timestamp": "2026-02-08T10:35:12Z",
+                                      "product": {
+                                        "id": 42,
+                                        "name": "Wireless Keyboard",
+                                        "description": "Mechanical RGB keyboard with wireless connectivity",
+                                        "price": 89.99,
+                                        "sku": "ELC-KYB001-RGB",
+                                        "category": "ELECTRONICS",
+                                        "stockQuantity": 150,
+                                        "inStock": true
+                                      },
+                                      "metadata": "{\"source\": \"api\", \"userId\": \"user@example.com\"}"
+                                    }
+                                    """
+                            ),
+                            @ExampleObject(
+                                name = "book-product",
+                                summary = "Book product created",
+                                description = "Example of a newly added book with minimal fields",
+                                value = """
+                                    {
+                                      "eventId": "evt_def456ghi",
+                                      "eventType": "product.created",
+                                      "timestamp": "2026-02-08T11:22:45Z",
+                                      "product": {
+                                        "id": 43,
+                                        "name": "The Pragmatic Programmer",
+                                        "price": 49.99,
+                                        "sku": "BOK-PRG002-HRD",
+                                        "category": "BOOKS",
+                                        "stockQuantity": 75,
+                                        "inStock": true
+                                      },
+                                      "metadata": "{\"source\": \"bulk-import\", \"batchId\": \"batch_001\"}"
+                                    }
+                                    """
+                            ),
+                            @ExampleObject(
+                                name = "out-of-stock-product",
+                                summary = "Product created but out of stock",
+                                description = "Example of a product added to catalog before inventory arrives",
+                                value = """
+                                    {
+                                      "eventId": "evt_jkl789mno",
+                                      "eventType": "product.created",
+                                      "timestamp": "2026-02-08T14:10:33Z",
+                                      "product": {
+                                        "id": 44,
+                                        "name": "Standing Desk Pro",
+                                        "description": "Electric height-adjustable standing desk",
+                                        "price": 599.99,
+                                        "sku": "HMG-DSK003-BLK",
+                                        "category": "HOME_GARDEN",
+                                        "stockQuantity": 0,
+                                        "inStock": false
+                                      },
+                                      "metadata": "{\"source\": \"pre-order\", \"expectedArrival\": \"2026-03-01\"}"
+                                    }
+                                    """
+                            )
+                        }
                     )
                 ),
                 responses = {
@@ -167,8 +264,8 @@ public class WebhookResource {
                         description = "Webhook acknowledged - Event processed successfully",
                         headers = @Header(
                             name = "X-Webhook-Signature",
-                            description = "HMAC-SHA256 signature for verification",
-                            schema = @Schema(type = SchemaType.STRING, example = "sha256=a1b2c3d4e5...")
+                            description = "HMAC-SHA256 signature for verification (format: sha256=<hex_digest>)",
+                            schema = @Schema(type = SchemaType.STRING)
                         )
                     ),
                     @APIResponse(
@@ -207,11 +304,7 @@ public class WebhookResource {
                                     "name": "Wireless Keyboard",
                                     "price": 79.99
                                   },
-                                  "metadata": {
-                                    "changedFields": ["price"],
-                                    "previousPrice": 89.99,
-                                    "userId": "admin@example.com"
-                                  }
+                                  "metadata": "{\"changedFields\": [\"price\"], \"previousPrice\": 89.99, \"userId\": \"admin@example.com\"}"
                                 }
                                 """
                         )
@@ -249,10 +342,7 @@ public class WebhookResource {
                                   "product": {
                                     "id": 42
                                   },
-                                  "metadata": {
-                                    "reason": "discontinued",
-                                    "deletedBy": "admin@example.com"
-                                  }
+                                  "metadata": "{\"reason\": \"discontinued\", \"deletedBy\": \"admin@example.com\"}"
                                 }
                                 """
                         )
@@ -292,11 +382,7 @@ public class WebhookResource {
                                     "id": 42,
                                     "name": "Wireless Keyboard"
                                   },
-                                  "metadata": {
-                                    "currentStock": 7,
-                                    "threshold": 10,
-                                    "recommendedReorder": 50
-                                  }
+                                  "metadata": "{\"currentStock\": 7, \"threshold\": 10, \"recommendedReorder\": 50}"
                                 }
                                 """
                         )
@@ -336,11 +422,7 @@ public class WebhookResource {
                                     "id": 42,
                                     "name": "Wireless Keyboard"
                                   },
-                                  "metadata": {
-                                    "lastSoldAt": "2026-02-08T14:12:05Z",
-                                    "totalSoldToday": 25,
-                                    "backorderAvailable": true
-                                  }
+                                  "metadata": "{\"lastSoldAt\": \"2026-02-08T14:12:05Z\", \"totalSoldToday\": 25, \"backorderAvailable\": true}"
                                 }
                                 """
                         )
@@ -357,27 +439,72 @@ public class WebhookResource {
         @Valid
         @RequestBody(
             description = "Webhook subscription configuration",
-            required = true,
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
                 schema = @Schema(implementation = WebhookSubscription.class),
-                examples = @ExampleObject(
-                    name = "subscribe-request",
-                    summary = "Subscribe to multiple events",
-                    value = """
-                        {
-                          "callbackUrl": "https://myapp.example.com/webhooks/products",
-                          "events": [
-                            "product.created",
-                            "product.updated",
-                            "product.deleted",
-                            "product.stock.low",
-                            "product.stock.out"
-                          ],
-                          "active": true
-                        }
-                        """
-                )
+                examples = {
+                    @ExampleObject(
+                        name = "minimal-subscription",
+                        summary = "Minimal subscription (only required fields)",
+                        description = "Subscribe to product creation events only",
+                        value = """
+                            {
+                              "url": "https://myapp.example.com/webhooks/products",
+                              "events": ["product.created"]
+                            }
+                            """
+                    ),
+                    @ExampleObject(
+                        name = "lifecycle-subscription",
+                        summary = "Product lifecycle subscription",
+                        description = "Track complete product lifecycle: create, update, delete",
+                        value = """
+                            {
+                              "url": "https://catalog.example.com/webhooks/sync",
+                              "events": [
+                                "product.created",
+                                "product.updated",
+                                "product.deleted"
+                              ],
+                              "description": "Catalog sync webhook"
+                            }
+                            """
+                    ),
+                    @ExampleObject(
+                        name = "inventory-subscription",
+                        summary = "Inventory monitoring subscription",
+                        description = "Monitor stock levels for inventory management system",
+                        value = """
+                            {
+                              "url": "https://inventory.example.com/webhooks/stock-alerts",
+                              "events": [
+                                "product.stock.low",
+                                "product.stock.out"
+                              ],
+                              "description": "Inventory alert system - restock notifications"
+                            }
+                            """
+                    ),
+                    @ExampleObject(
+                        name = "comprehensive-subscription",
+                        summary = "All events subscription",
+                        description = "Subscribe to all available product events",
+                        value = """
+                            {
+                              "url": "https://warehouse.example.com/webhooks/products",
+                              "events": [
+                                "product.created",
+                                "product.updated",
+                                "product.deleted",
+                                "product.stock.low",
+                                "product.stock.out"
+                              ],
+                              "active": true,
+                              "description": "Warehouse management system - comprehensive sync"
+                            }
+                            """
+                    )
+                }
             )
         )
         WebhookSubscription subscription
@@ -405,7 +532,14 @@ public class WebhookResource {
                 )
             )
         ),
-        @APIResponse(responseCode = "401", description = "Unauthorized")
+        @APIResponse(
+            responseCode = "401",
+            description = "Unauthorized",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                schema = @Schema(implementation = ErrorResponse.class)
+            )
+        )
     })
     public Response listSubscriptions() {
         return Response.ok(webhookService.getSubscriptions()).build();
@@ -428,20 +562,33 @@ public class WebhookResource {
                 schema = @Schema(implementation = WebhookSubscription.class)
             )
         ),
-        @APIResponse(responseCode = "404", description = "Subscription not found"),
-        @APIResponse(responseCode = "401", description = "Unauthorized")
+        @APIResponse(
+            responseCode = "404",
+            description = "Subscription not found",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                schema = @Schema(implementation = ErrorResponse.class)
+            )
+        ),
+        @APIResponse(
+            responseCode = "401",
+            description = "Unauthorized",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                schema = @Schema(implementation = ErrorResponse.class)
+            )
+        )
     })
     public Response getSubscription(
         @Parameter(
-            description = "Subscription ID",
-            required = true,
-            example = "sub_7x9k2m4n6p"
+            description = "Subscription ID"
         )
         @PathParam("id") String id
     ) {
         WebhookSubscription subscription = webhookService.getSubscription(id);
         if (subscription == null) {
-            return Response.status(Response.Status.NOT_FOUND).build();
+            ErrorResponse error = new ErrorResponse("Subscription not found: " + id);
+            return Response.status(Response.Status.NOT_FOUND).entity(error).build();
         }
         return Response.ok(subscription).build();
     }
@@ -455,20 +602,33 @@ public class WebhookResource {
     @SecurityRequirement(name = "bearerAuth")
     @APIResponses({
         @APIResponse(responseCode = "204", description = "Subscription deleted"),
-        @APIResponse(responseCode = "404", description = "Subscription not found"),
-        @APIResponse(responseCode = "401", description = "Unauthorized")
+        @APIResponse(
+            responseCode = "404",
+            description = "Subscription not found",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                schema = @Schema(implementation = ErrorResponse.class)
+            )
+        ),
+        @APIResponse(
+            responseCode = "401",
+            description = "Unauthorized",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                schema = @Schema(implementation = ErrorResponse.class)
+            )
+        )
     })
     public Response deleteSubscription(
         @Parameter(
-            description = "Subscription ID",
-            required = true,
-            example = "sub_7x9k2m4n6p"
+            description = "Subscription ID"
         )
         @PathParam("id") String id
     ) {
         boolean deleted = webhookService.deleteSubscription(id);
         if (!deleted) {
-            return Response.status(Response.Status.NOT_FOUND).build();
+            ErrorResponse error = new ErrorResponse("Subscription not found: " + id);
+            return Response.status(Response.Status.NOT_FOUND).entity(error).build();
         }
         return Response.noContent().build();
     }

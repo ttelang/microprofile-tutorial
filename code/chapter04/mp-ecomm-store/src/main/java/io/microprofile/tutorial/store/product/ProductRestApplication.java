@@ -14,35 +14,47 @@ import org.eclipse.microprofile.openapi.annotations.enums.SecuritySchemeIn;
 import org.eclipse.microprofile.openapi.annotations.security.OAuthFlows;
 import org.eclipse.microprofile.openapi.annotations.security.OAuthFlow;
 import org.eclipse.microprofile.openapi.annotations.security.OAuthScope;
-import org.eclipse.microprofile.openapi.annotations.info.Info;
-import jakarta.ws.rs.ApplicationPath;
-import jakarta.ws.rs.core.Application;
-
 import jakarta.ws.rs.ApplicationPath;
 import jakarta.ws.rs.core.Application;
 
 /**
- * Application class demonstrating MicroProfile OpenAPI 4.1 features.
+ * JAX-RS Application class for Product Catalog API demonstrating MicroProfile OpenAPI 4.1 features.
  * 
- * MicroProfile OpenAPI 4.1 aligns with OpenAPI v3.1 specification, which includes:
- * 1. Full JSON Schema 2020-12 compatibility
- * 2. Improved nullable handling (native JSON Schema support)
- * 3. Better numeric constraints (exclusiveMinimum as numeric value)
- * 4. Enhanced pattern validation with full regex support
- * 5. Richer metadata and documentation capabilities
+ * This class serves as the root configuration for the REST API and provides comprehensive
+ * OpenAPI documentation using annotations.
+ * 
+ * <h2>MicroProfile OpenAPI 4.1 Features Demonstrated:</h2>
+ * <ul>
+ *   <li><b>OpenAPI v3.1 Alignment:</b> Full JSON Schema 2020-12 compatibility</li>
+ *   <li><b>Rich Documentation:</b> Detailed API descriptions with markdown support</li>
+ *   <li><b>Multiple Security Schemes:</b> API Key, Bearer JWT, and OAuth2 examples</li>
+ *   <li><b>Tag Organization:</b> Logical grouping of endpoints (Products, Webhooks)</li>
+ *   <li><b>External Documentation:</b> Links to specifications and references</li>
+ *   <li><b>Server Configuration:</b> Flexible URL configuration for different environments</li>
+ * </ul>
+ * 
+ * <h2>Key Improvements in OpenAPI 3.1:</h2>
+ * <ol>
+ *   <li>JSON Schema 2020-12 support (better validation)</li>
+ *   <li>Native nullable handling (no more allOf workarounds)</li>
+ *   <li>Webhook support (new in OpenAPI 3.1)</li>
+ *   <li>Improved numeric constraints (exclusiveMinimum as numeric)</li>
+ *   <li>Better pattern validation with full regex support</li>
+ * </ol>
+ * 
+ * @see <a href="https://spec.openapis.org/oas/v3.1.0">OpenAPI v3.1 Specification</a>
+ * @see <a href="https://github.com/eclipse/microprofile-open-api">MicroProfile OpenAPI</a>
  */
 @ApplicationPath("/api")
 @OpenAPIDefinition(
     info = @Info(
-        title = "MicroProfile E-Commerce Store API",
-        version = "3.1.0",
+        title = "Product Catalog API",
+        version = "1.0.0",
         description = """
-            ## E-Commerce Store API - OpenAPI v3.1 Demonstration
-            
-            This API demonstrates **MicroProfile OpenAPI 4.1** alignment with **OpenAPI v3.1** 
-            and **JSON Schema 2020-12**.
-            
-            ### Key Features Demonstrated:
+            ## Product Catalog API with Async Callback Support
+            This API demonstrates MicroProfile OpenAPI 4.1 features aligned with OpenAPI v3.1 specification.
+
+            ### Key Features:
             
             #### 1. JSON Schema 2020-12 Validation
             - **Pattern Validation**: Regex-based string validation (SKU format: `^[A-Z]{3}-[A-Z0-9]+-[A-Z0-9]+$`)
@@ -84,8 +96,7 @@ import jakarta.ws.rs.core.Application;
             """,
         contact = @Contact(
             name = "MicroProfile Tutorial Team",
-            url = "https://microprofile.io",
-            email = "tutorial@microprofile.io"
+            url = "https://microprofile.io"
         ),
         license = @License(
             name = "Apache 2.0",
@@ -95,7 +106,7 @@ import jakarta.ws.rs.core.Application;
     servers = {
         @Server(
             url = "/mp-ecomm-store",
-            description = "E-Commerce Store API server (works with localhost, Codespaces, and production)"
+            description = "Product Catalog API server (works with localhost, Codespaces, and production)"
         )
     },
     tags = {
@@ -129,6 +140,9 @@ import jakarta.ws.rs.core.Application;
         url = "https://github.com/eclipse/microprofile-open-api"
     )
 )
+// Security schemes defined for OpenAPI documentation purposes
+// These demonstrate how to document different authentication methods
+// Note: Actual security implementation would require additional configuration
 @SecuritySchemes({
     @SecurityScheme(
         securitySchemeName = "apiKey",
@@ -147,7 +161,7 @@ import jakarta.ws.rs.core.Application;
     @SecurityScheme(
         securitySchemeName = "oauth2",
         type = SecuritySchemeType.OAUTH2,
-        description = "OAuth2 authentication",
+        description = "OAuth2 authentication (example URLs - replace with actual OAuth provider)",
         flows = @OAuthFlows(
             authorizationCode = @OAuthFlow(
                 authorizationUrl = "https://example.com/oauth/authorize",

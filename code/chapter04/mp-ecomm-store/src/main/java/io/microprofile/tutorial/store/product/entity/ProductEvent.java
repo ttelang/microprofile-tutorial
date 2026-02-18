@@ -5,77 +5,70 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
-import java.time.LocalDateTime;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import java.time.Instant;
 
 /**
  * Event payload sent to webhook subscribers when product-related events occur.
- * Demonstrates webhook payload schema in OpenAPI 3.1.
+ * 
+ * <p>This class represents a webhook notification that is sent to subscribed URLs
+ * when specific product events occur (creation, updates, stock changes, etc.).
+ * 
+ * <p><b>OpenAPI 3.1 Feature:</b> This schema is used in webhook callback documentation
+ * via the {@code @Callback} annotation in WebhookResource.
+ * 
+ * <h3>Event Flow:</h3>
+ * <ol>
+ *   <li>Product event occurs (e.g., product created)</li>
+ *   <li>System generates ProductEvent with unique ID and timestamp</li>
+ *   <li>Event is sent to all subscribed webhook URLs</li>
+ *   <li>Subscribers receive this JSON payload via HTTP POST</li>
+ * </ol>
+ * 
+ * @see EventType for all supported event types
+ * @see Product for the product object structure
  */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Schema(
-    description = "Event notification sent to webhook subscribers when product changes occur",
-    example = """
-        {
-            "eventId": "evt_1234567890",
-            "eventType": "product.created",
-            "timestamp": "2026-02-08T10:30:00",
-            "product": {
-                "id": 4,
-                "name": "Sony WH-1000XM5",
-                "price": 399.99,
-                "sku": "SON-WH1-XM5-BLK",
-                "category": "ELECTRONICS"
-            }
-        }
-        """
+    description = "Event notification sent to webhook subscribers when product changes occur"
 )
 public class ProductEvent {
     
-    @Schema(
-        description = "Unique event identifier",
-        example = "evt_1234567890",
-        required = true,
-        minLength = 10,
-        maxLength = 50
-    )
+    @NotBlank(message = "Event ID is required")
+    @Size(min = 10, max = 50, message = "Event ID must be between 10 and 50 characters")
+    @Schema(description = "Unique event identifier (typically UUID or generated ID)")
     private String eventId;
     
+    @NotNull(message = "Event type is required")
     @Schema(
         description = "Type of event that occurred",
-        example = "product.created",
-        required = true,
-        enumeration = {
-            "product.created",
-            "product.updated",
-            "product.deleted",
-            "product.stock.low",
-            "product.stock.out"
-        }
+        implementation = EventType.class
     )
-    private String eventType;
+    private EventType eventType;
     
+    @NotNull(message = "Timestamp is required")
     @Schema(
-        description = "Timestamp when the event occurred",
-        example = "2026-02-08T10:30:00",
-        required = true,
+        description = "Timestamp when the event occurred (ISO-8601 format with UTC timezone)",
         type = SchemaType.STRING,
         format = "date-time"
     )
-    private LocalDateTime timestamp;
+    private Instant timestamp;
     
+    @NotNull(message = "Product is required")
     @Schema(
         description = "The product that triggered the event",
-        required = true,
         implementation = Product.class
     )
     private Product product;
     
     @Schema(
-        description = "Additional metadata about the event",
+        description = "Additional metadata about the event (optional, can contain contextual information)",
         nullable = true,
-        example = "{\"triggeredBy\": \"system\", \"ipAddress\": \"192.168.1.1\"}"
+        maxLength = 1000
     )
     private String metadata;
 }
