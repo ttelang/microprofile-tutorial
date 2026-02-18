@@ -946,6 +946,605 @@ Content-Type: application/json
 
 Client application receives the webhook, verifies signature, and processes the event.
 
+== Testing the Process-Async Request Callback Webhook-Style API Using smee.io
+
+The async product processing API (`/api/products/process-async`) demonstrates a callback webhook-style pattern where the server processes requests asynchronously and sends results to a client-provided callback URL. Testing this locally can be challenging since the callback URL must be publicly accessible. This section shows how to use *smee.io* to expose your local webhook receiver to the internet.
+
+=== What is the Async Callback Webhook-Style API?
+
+The async API works as follows:
+
+. Client sends a product processing request with a `callbackUrl` field
+. Server immediately returns HTTP 202 Accepted
+. Server processes the product in the background (2-5 seconds)
+. Server POSTs the processing result to the `callbackUrl`
+. Client receives and handles the callback
+
+*Key Characteristics:*
+
+* *Non-blocking*: Client doesn't wait for processing to complete
+* *Callback-based*: Result is delivered via HTTP POST to client's URL
+* *Webhook-style*: Server initiates HTTP request to client
+* *Event-driven*: Decouples request from response
+
+*Example Request:*
+
+[source,bash]
+----
+POST /mp-ecomm-store/api/products/process-async
+Content-Type: application/json
+
+{
+  "product": {
+    "name": "Wireless Mouse",
+    "price": 29.99,
+    "category": "ELECTRONICS"
+  },
+  "callbackUrl": "https://your-public-url.com/callback"
+}
+----
+
+*Example Callback (sent by server):*
+
+[source,json]
+----
+{
+  "productId": 12345,
+  "status": "SUCCESS",
+  "message": "Product 'Wireless Mouse' processed successfully",
+  "timestamp": "2026-02-18T10:30:00Z"
+}
+----
+
+=== Prerequisites
+
+Before testing with smee.io, ensure you have:
+
+* *Node.js* (v14 or later) - Required for the smee client
++
+[source,bash]
+----
+# Check if Node.js is installed
+node --version
+
+# If not installed, download from https://nodejs.org/
+# Or use a package manager:
+# macOS: brew install node
+# Ubuntu/Debian: sudo apt install nodejs npm
+# Windows: choco install nodejs
+----
+
+* *smee-client* (npm package) - Proxies smee.io webhooks to localhost
++
+[source,bash]
+----
+# Install globally
+npm install -g smee-client
+
+# Or install locally in your project
+npm install smee-client
+----
+
+* *MicroProfile Server Running* - Application must be running on http://localhost:5050
++
+[source,bash]
+----
+mvn liberty:run
+----
+
+* *webhook-receiver.js* - Optional local webhook receiver (included in project)
+
+=== Step-by-Step Instructions
+
+==== Step 1: Create a smee.io Channel
+
+. *Visit https://smee.io/*
+
+. *Click "Start a new channel"* - You'll be redirected to a unique URL like:
++
+----
+https://smee.io/abc123xyz
+----
+
+. *Save this URL* - This is your public webhook endpoint
+
+. *Keep the browser tab open* - Smee.io displays incoming webhooks in real-time
+
+==== Step 2: Install and Run the smee Client
+
+The smee client forwards webhooks from smee.io to your localhost.
+
+. *Start the smee client* (replace with your channel URL):
++
+[source,bash]
+----
+# Forward smee.io webhooks to localhost webhook receiver
+smee --url https://smee.io/abc123xyz --target http://localhost:3000/callback
+
+# Or if installed locally:
+npx smee -u https://smee.io/abc123xyz -t http://localhost:3000/callback
+----
++
+*Output:*
++
+----
+Forwarding https://smee.io/abc123xyz to http://localhost:3000/callback
+Connected ✓
+----
+
+. *Leave the terminal running* - Don't close this terminal
+
+*Common Options:*
+
+[source,bash]
+----
+# Forward to a different port
+smee --url https://smee.io/abc123xyz --target http://localhost:8080/webhook
+
+# Forward to a specific path
+smee -u https://smee.io/abc123xyz -t http://localhost:3000/api/callbacks
+
+# Forward with custom port (default: 3000)
+smee -u https://smee.io/abc123xyz -t http://localhost:5000/webhook -p 5000
+----
+
+==== Step 3: Set Up a Local Webhook Receiver
+
+You need a local endpoint to receive callbacks. You have two options:
+
+*Option A: Use the Provided webhook-receiver.js*
+
+The project includes a Node.js webhook receiver:
+
+[source,bash]
+----
+# In a new terminal, navigate to the project root
+cd /path/to/mp-ecomm-store
+
+# Install dependencies (if not already installed)
+npm install express body-parser
+
+# Start the webhook receiver on port 3000
+node webhook-receiver.js
+----
+
+*Output:*
+
+----
+🚀 Webhook receiver listening on http://localhost:3000/callback
+Waiting for callbacks from async product processing...
+----
+
+*Option B: Create a Simple Receiver*
+
+Create a file called `simple-receiver.js`:
+
+[source,javascript]
+----
+const express = require('express');
+const app = express();
+
+app.use(express.json());
+
+app.post('/callback', (req, res) => {
+  console.log('\n========================================');
+  console.log('📨 Callback Received!');
+  console.log('========================================');
+  console.log(JSON.stringify(req.body, null, 2));
+  console.log('========================================\n');
+  res.status(200).send('OK');
+});
+
+app.listen(3000, () => {
+  console.log('Listening on http://localhost:3000/callback');
+});
+----
+
+Run it:
+
+[source,bash]
+----
+node simple-receiver.js
+----
+
+==== Step 4: Configure the Application and Send an Async Request
+
+Now trigger the async API with your smee.io URL as the callback:
+
+[source,bash]
+----
+# Send async product processing request
+curl -X POST http://localhost:5050/mp-ecomm-store/api/products/process-async \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product": {
+      "name": "Wireless Mouse",
+      "description": "Ergonomic wireless mouse",
+      "price": 29.99,
+      "category": "ELECTRONICS",
+      "sku": "ELC-MS001-BLK",
+      "stockQuantity": 100
+    },
+    "callbackUrl": "https://smee.io/abc123xyz"
+  }'
+----
+
+*Replace* `https://smee.io/abc123xyz` *with your actual smee.io channel URL*.
+
+*Expected Response (HTTP 202):*
+
+[source,json]
+----
+{
+  "message": "Processing initiated",
+  "callbackUrl": "https://smee.io/abc123xyz"
+}
+----
+
+==== Step 5: Verify Callback Delivery
+
+After 2-5 seconds, you should see the callback delivered:
+
+. *In the smee.io browser tab* - See the webhook request logged
+
+. *In the smee client terminal* - See forwarding logs:
++
+----
+POST http://localhost:3000/callback - 200
+----
+
+. *In the webhook-receiver.js terminal* - See the callback payload:
++
+----
+========================================
+📨 Callback Received!
+========================================
+{
+  "productId": 12345,
+  "status": "SUCCESS",
+  "message": "Product 'Wireless Mouse' processed successfully",
+  "timestamp": "2026-02-18T10:30:00.123456Z"
+}
+========================================
+----
+
+. *In the server terminal (Liberty logs)* - See callback attempt:
++
+----
+[INFO] ========================================
+[INFO] CALLBACK ATTEMPT STARTED
+[INFO] Callback URL: https://smee.io/abc123xyz
+[INFO] Result Status: SUCCESS
+[INFO] ✅ CALLBACK SENT SUCCESSFULLY!
+[INFO] ========================================
+----
+
+=== Example Commands and Sample Payloads
+
+==== Test Different Product Categories
+
+*Electronics Product:*
+
+[source,bash]
+----
+curl -X POST http://localhost:5050/mp-ecomm-store/api/products/process-async \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product": {
+      "name": "Gaming Keyboard",
+      "price": 89.99,
+      "category": "ELECTRONICS",
+      "sku": "ELC-KB002-RGB"
+    },
+    "callbackUrl": "https://smee.io/your-channel-id"
+  }'
+----
+
+*Book Product:*
+
+[source,bash]
+----
+curl -X POST http://localhost:5050/mp-ecomm-store/api/products/process-async \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product": {
+      "name": "Design Patterns",
+      "price": 54.99,
+      "category": "BOOKS",
+      "sku": "BOK-DP001-HBK"
+    },
+    "callbackUrl": "https://smee.io/your-channel-id"
+  }'
+----
+
+*Clothing Product:*
+
+[source,bash]
+----
+curl -X POST http://localhost:5050/mp-ecomm-store/api/products/process-async \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product": {
+      "name": "Cotton T-Shirt",
+      "price": 19.99,
+      "category": "CLOTHING",
+      "sku": "CLO-TS001-MED"
+    },
+    "callbackUrl": "https://smee.io/your-channel-id"
+  }'
+----
+
+==== Sample Success Callback Payload
+
+[source,json]
+----
+{
+  "productId": 54321,
+  "status": "SUCCESS",
+  "message": "Product 'Gaming Keyboard' processed successfully",
+  "timestamp": "2026-02-18T10:35:12.456789Z"
+}
+----
+
+==== Sample Failure Callback Payload
+
+NOTE: The async processing has a 90% success rate. About 1 in 10 requests will fail for testing purposes.
+
+[source,json]
+----
+{
+  "productId": 67890,
+  "status": "FAILED",
+  "message": "Product processing failed due to validation error",
+  "timestamp": "2026-02-18T10:35:15.789012Z"
+}
+----
+
+=== Troubleshooting Tips
+
+==== Problem: "smee: command not found"
+
+*Cause:* smee-client is not installed or not in PATH
+
+*Solution:*
+
+[source,bash]
+----
+# Install globally
+npm install -g smee-client
+
+# Or use npx (no installation needed)
+npx smee-client --url https://smee.io/abc123xyz --target http://localhost:3000/callback
+----
+
+==== Problem: smee client says "Connected ✓" but no callbacks received
+
+*Possible Causes:*
+
+. *Incorrect callback URL* - Make sure you're using your smee.io URL (not localhost)
++
+[source,bash]
+----
+# ❌ WRONG - Using localhost
+"callbackUrl": "http://localhost:3000/callback"
+
+# ✅ CORRECT - Using smee.io
+"callbackUrl": "https://smee.io/abc123xyz"
+----
+
+. *Server not running* - Ensure Liberty server is running
++
+[source,bash]
+----
+mvn liberty:run
+----
+
+. *Wrong smee URL in request* - URL in request must match smee client URL
++
+[source,bash]
+----
+# smee client forwarding from:
+smee --url https://smee.io/abc123xyz --target http://localhost:3000/callback
+
+# Request must use same URL:
+"callbackUrl": "https://smee.io/abc123xyz"
+----
+
+==== Problem: Callback received but webhook receiver shows no output
+
+*Possible Causes:*
+
+. *Webhook receiver not running*
++
+[source,bash]
+----
+# Start the receiver
+node webhook-receiver.js
+----
+
+. *Wrong port/path*
++
+[source,bash]
+----
+# smee client must forward to correct port/path
+# If receiver is on port 3000 at /callback:
+smee -u https://smee.io/abc123xyz -t http://localhost:3000/callback
+----
+
+. *Port conflict*
++
+[source,bash]
+----
+# Check if port 3000 is already in use
+lsof -i :3000
+
+# Use a different port
+node webhook-receiver.js --port 4000
+smee -u https://smee.io/abc123xyz -t http://localhost:4000/callback
+----
+
+==== Problem: "ECONNREFUSED" error in smee client
+
+*Cause:* Local webhook receiver is not running on the target port
+
+*Solution:*
+
+. *Start your webhook receiver first*:
++
+[source,bash]
+----
+node webhook-receiver.js
+# Wait for: "Listening on http://localhost:3000/callback"
+----
+
+. *Then start smee client*:
++
+[source,bash]
+----
+smee --url https://smee.io/abc123xyz --target http://localhost:3000/callback
+----
+
+==== Problem: Server logs show "CALLBACK FAILED" with connection errors
+
+*Possible Causes:*
+
+. *Firewall blocking outbound connections*
++
+Check firewall settings and allow outbound HTTPS connections
+
+. *smee.io is down*
++
+Visit https://smee.io/ to check if the service is operational
+
+. *Invalid smee.io URL*
++
+Verify the URL format: `https://smee.io/{channel-id}`
+
+==== Problem: Request returns 400 Bad Request
+
+*Cause:* Missing required fields or invalid format
+
+*Solution:* Ensure request includes both `product` and `callbackUrl`:
+
+[source,bash]
+----
+# ✅ Valid request
+{
+  "product": {
+    "name": "Product Name",
+    "price": 29.99,
+    "category": "ELECTRONICS"
+  },
+  "callbackUrl": "https://smee.io/abc123xyz"
+}
+
+# ❌ Missing callbackUrl
+{
+  "product": {
+    "name": "Product Name",
+    "price": 29.99
+  }
+}
+
+# ❌ Invalid callbackUrl format (must start with http:// or https://)
+{
+  "product": {...},
+  "callbackUrl": "localhost:3000/callback"
+}
+----
+
+==== Problem: Long delay before callback (> 10 seconds)
+
+*Cause:* Processing time is randomized between 2-5 seconds, plus network latency
+
+*Normal Behavior:*
+
+* Processing: 2-5 seconds
+* Network latency: 0.5-2 seconds
+* Total: 2.5-7 seconds
+
+*If longer than 10 seconds:*
+
+. Check server logs for errors
+. Check network connectivity
+. Verify smee.io is operational
+
+=== Testing Without smee.io
+
+If you prefer not to use smee.io, you can test with publicly accessible services:
+
+==== Option 1: webhook.site
+
+. Visit https://webhook.site/
+. Copy your unique URL (e.g., `https://webhook.site/abc-123-def`)
+. Use it as your callback URL:
++
+[source,bash]
+----
+curl -X POST http://localhost:5050/mp-ecomm-store/api/products/process-async \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product": {"name": "Test", "price": 9.99, "category": "ELECTRONICS"},
+    "callbackUrl": "https://webhook.site/abc-123-def"
+  }'
+----
+. View the callback in the webhook.site browser interface
+
+==== Option 2: ngrok
+
+. Install ngrok: https://ngrok.com/download
+. Start your local webhook receiver:
++
+[source,bash]
+----
+node webhook-receiver.js
+----
+. Expose it via ngrok:
++
+[source,bash]
+----
+ngrok http 3000
+----
+. Copy the HTTPS forwarding URL (e.g., `https://abc123.ngrok.io`)
+. Use it as your callback URL:
++
+[source,bash]
+----
+curl -X POST http://localhost:5050/mp-ecomm-store/api/products/process-async \
+  -H "Content-Type: application/json" \
+  -d '{
+    "product": {"name": "Test", "price": 9.99, "category": "ELECTRONICS"},
+    "callbackUrl": "https://abc123.ngrok.io/callback"
+  }'
+----
+
+=== Best Practices
+
+. *Always use HTTPS in production* - smee.io supports HTTPS, use it
+. *Validate callback URLs* - Server should validate URL format before accepting requests
+. *Implement retry logic* - In production, implement exponential backoff for failed callbacks
+. *Add authentication* - Consider signing callbacks (like webhooks do with HMAC-SHA256)
+. *Monitor callback failures* - Log and alert on repeated callback failures
+. *Set timeouts* - Use reasonable connection and read timeouts (10 seconds is good)
+. *Handle idempotency* - Client should handle duplicate callbacks gracefully
+
+=== Summary
+
+The async callback webhook-style API with smee.io testing involves:
+
+. ✅ Create a smee.io channel for a public callback URL
+. ✅ Install and run the smee client to forward callbacks to localhost
+. ✅ Start your local webhook receiver
+. ✅ Send async request with smee.io URL as callback
+. ✅ Verify callback delivery in smee.io, smee client, and webhook receiver
+
+This pattern is useful for:
+
+* Long-running operations that exceed HTTP timeout limits
+* Decoupling request processing from response delivery
+* Building event-driven architectures
+* Enabling asynchronous microservice communication
+
 == OpenAPI 3.1 vs 3.0 Comparison
 
 [cols="2,3,3"]
