@@ -1,5 +1,5 @@
 #!/bin/bash
-# filepath: /workspaces/microprofile-tutorial/code/chapter03/mp-ecomm-store/test-api.sh
+# filepath: /workspaces/microprofile-tutorial/code/chapter04/mp-ecomm-store/test-api.sh
 
 # MicroProfile E-Commerce Store API Test Script
 # This script tests all CRUD operations for the Product API
