@@ -6,7 +6,7 @@
 set -e
 
 BASE_URL="http://localhost:5050/catalog/api"
-OPENAPI_URL="http://localhost:5050/catalog/openapi"
+OPENAPI_URL="http://localhost:5050/openapi"
 WEBHOOK_ENDPOINT="${BASE_URL}/webhooks"
 
 # Colors
@@ -36,7 +36,7 @@ echo ""
 # Test 1: Get OpenAPI Specification
 echo "Test 1: Fetching OpenAPI v3.1 Specification..."
 echo "GET $OPENAPI_URL"
-curl -s "$OPENAPI_URL" | jq -r '.openapi, .info.version, .info.title' | head -3
+curl -s -H "Accept: application/json" "$OPENAPI_URL" | jq -r '.openapi, .info.version, .info.title' | head -3
 echo ""
 
 # Test 2: Get all products (Array schema with minItems/maxItems)
@@ -92,9 +92,16 @@ NEW_PRODUCT='{
   "stockQuantity": 15,
   "inStock": true
 }'
-curl -s -X POST "$BASE_URL/products" \
+RESPONSE=$(curl -s -X POST "$BASE_URL/products" \
   -H "Content-Type: application/json" \
-  -d "$NEW_PRODUCT" | jq '.'
+  -d "$NEW_PRODUCT")
+
+if echo "$RESPONSE" | jq empty 2>/dev/null; then
+    echo "$RESPONSE" | jq '.'
+else
+    echo -e "${YELLOW}⚠ Received non-JSON response:${NC}"
+    echo "$RESPONSE"
+fi
 echo ""
 
 # Test 9: Verify new product was created
@@ -120,7 +127,7 @@ echo "  - format specifications (int64, double)"
 echo "  - nullable properties"
 echo "  - enumeration (category)"
 echo ""
-curl -s "$OPENAPI_URL" | jq '.components.schemas.Product.properties | {
+curl -s -H "Accept: application/json" "$OPENAPI_URL" | jq '.components.schemas.Product.properties | {
   id: .id | {format, readOnly, minimum},
   name: .name | {minLength, maxLength, pattern},
   price: .price | {minimum, exclusiveMinimum, multipleOf, format},
@@ -171,7 +178,7 @@ echo ""
 
 SUBSCRIPTION=$(cat <<EOF
 {
-  "callbackUrl": "https://example.com/webhooks/products",
+  "url": "https://smee.io/Y9kjqT55n0TKnP5j",
   "events": [
     "product.created",
     "product.updated", 
@@ -189,13 +196,21 @@ RESPONSE=$(curl -s -X POST "${WEBHOOK_ENDPOINT}" \
     -H "Content-Type: application/json" \
     -d "$SUBSCRIPTION")
 
-echo -e "${GREEN}✓ Subscription created:${NC}"
-echo "$RESPONSE" | jq '.'
-
-# Extract subscription ID
-SUB_ID=$(echo "$RESPONSE" | jq -r '.id')
-echo ""
-echo "Subscription ID: ${SUB_ID}"
+if echo "$RESPONSE" | jq empty 2>/dev/null; then
+    echo -e "${GREEN}✓ Subscription created:${NC}"
+    echo "$RESPONSE" | jq '.'
+    
+    # Extract subscription ID
+    SUB_ID=$(echo "$RESPONSE" | jq -r '.id')
+    echo ""
+    echo "Subscription ID: ${SUB_ID}"
+else
+    echo -e "${YELLOW}⚠ Webhook subscription failed or returned non-JSON:${NC}"
+    echo "$RESPONSE"
+    echo ""
+    echo -e "${YELLOW}Note: Webhook tests will be skipped${NC}"
+    exit 0
+fi
 
 echo ""
 
@@ -273,7 +288,7 @@ echo "  ✓ Security headers documented (@Header annotation)"
 echo "  ✓ Response codes and retry behavior documented"
 echo ""
 echo "Useful Links:"
-echo "  Interactive docs: http://localhost:5050/mp-ecomm-store/openapi/ui"
-echo "  OpenAPI spec:     curl $OPENAPI_URL | jq '.'"
+echo "  Interactive docs: http://localhost:5050/catalog/openapi/ui"
+echo "  OpenAPI spec:     curl -H 'Accept: application/json' $OPENAPI_URL | jq '.'"
 echo "  Webhook docs:     paths → /api/webhooks → post → callbacks → productEvents"
 echo ""

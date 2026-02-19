@@ -589,7 +589,6 @@ curl -X POST http://localhost:5050/mp-ecomm-store/api/webhooks \
 
 == References
 
-* link:webhook-receiver.js[webhook-receiver.js] - Reference implementation with signature verification
 * link:README.adoc[README.adoc] - Complete webhook implementation guide
 * https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries[GitHub Webhook Security Guide]
 * https://stripe.com/docs/webhooks/best-practices[Stripe Webhook Best Practices]

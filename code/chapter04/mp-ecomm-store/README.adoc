@@ -36,7 +36,6 @@ mp-ecomm-store/
 │   │   └── WebhookService.java            # Webhook event delivery service
 │   └── ProductRestApplication.java        # OpenAPI definition
 ├── test-webhook-openapi.sh                # Test webhook implementation ⭐
-├── webhook-receiver.js                    # Node.js webhook receiver for testing
 ├── WEBHOOK_SECURITY_BEST_PRACTICES.adoc   # Security guide for webhook receivers ⭐
 ├── pom.xml
 └── README.adoc
@@ -48,7 +47,6 @@ mp-ecomm-store/
 * `ProductEvent.java` - Schema for webhook payloads
 * `WebhookService.java` - Event delivery implementation
 * `CustomModelReader.java` - Minimal implementation (only sets OpenAPI 3.1.0 version)
-* `webhook-receiver.js` - Node.js test server for receiving and verifying webhooks
 * `WEBHOOK_SECURITY_BEST_PRACTICES.adoc` - Comprehensive security guide for webhook implementations
 
 == Key Features Demonstrated
@@ -642,154 +640,6 @@ Step 6: Delete Subscription
 ==================================================
 ----
 
-=== End-to-End Testing with Webhook Receiver
-
-The project includes `webhook-receiver.js`, a Node.js test server that acts as a real webhook receiver to test the complete webhook flow.
-
-TIP: For production webhook implementations, see link:WEBHOOK_SECURITY_BEST_PRACTICES.adoc[Webhook Security Best Practices] for comprehensive security guidance including signature verification, HTTPS enforcement, idempotency, rate limiting, and async processing patterns.
-
-==== Purpose
-
-* Receive and display webhook events from the MicroProfile application
-* Verify HMAC-SHA256 signature authentication
-* Log detailed event information for debugging
-* Test webhook integration without requiring external services
-
-==== Setup and Usage
-
-. *Install Dependencies*
-+
-[source,bash]
-----
-npm install express body-parser crypto
-----
-
-. *Start the Webhook Receiver*
-+
-[source,bash]
-----
-# Basic usage (no signature verification)
-node webhook-receiver.js
-
-# With signature verification
-WEBHOOK_SECRET=your-secret node webhook-receiver.js
-----
-+
-The receiver starts on `http://localhost:3000/webhooks/products`
-
-. *Create a Subscription* (in another terminal)
-+
-[source,bash]
-----
-curl -X POST http://localhost:5050/mp-ecomm-store/api/webhooks \
-  -H "Content-Type: application/json" \
-  -d '{
-    "callbackUrl": "http://localhost:3000/webhooks/products",
-    "events": ["product.created", "product.updated", "product.deleted"]
-  }'
-----
-+
-*Note*: Save the `secret` from the response to configure signature verification.
-
-. *Update the Webhook Secret* (optional, for signature verification)
-+
-[source,bash]
-----
-curl -X POST http://localhost:3000/set-secret \
-  -H "Content-Type: application/json" \
-  -d '{"secret": "whsec_abc123..."}'
-----
-
-. *Trigger a Webhook Event*
-+
-[source,bash]
-----
-# Create a product to trigger product.created event
-curl -X POST http://localhost:5050/mp-ecomm-store/api/products \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Gaming Mouse",
-    "price": 59.99,
-    "category": "ELECTRONICS"
-  }'
-----
-
-. *View the Webhook Event*
-+
-Check the webhook-receiver.js terminal output:
-+
-[source,text]
-----
-============================================================
-📨 Webhook Received!
-============================================================
-
-📋 Headers:
-  X-Event-Type: product.created
-  X-Event-Id: evt_abc123xyz
-  X-Webhook-Signature: sha256=...
-  Content-Type: application/json
-
-✅ Signature verified successfully
-
-📦 Payload:
-{
-  "eventId": "evt_abc123xyz",
-  "eventType": "product.created",
-  "timestamp": "2026-02-08T10:30:00Z",
-  "product": {
-    "id": 42,
-    "name": "Gaming Mouse",
-    "price": 59.99,
-    "category": "ELECTRONICS"
-  }
-}
-
-🔔 Event Details:
-  Event Type: product.created
-  Event ID: evt_abc123xyz
-  Timestamp: 2026-02-08T10:30:00Z
-
-  📦 Product:
-    ID: 42
-    Name: Gaming Mouse
-    Price: $59.99
-    Category: ELECTRONICS
-============================================================
-----
-
-==== Public URL Testing with ngrok
-
-To test webhooks with a publicly accessible URL:
-
-. *Install ngrok*
-+
-[source,bash]
-----
-# Download from https://ngrok.com/download
-# Or install via package manager
-brew install ngrok  # macOS
-----
-
-. *Expose the Webhook Receiver*
-+
-[source,bash]
-----
-ngrok http 3000
-----
-
-. *Use the HTTPS URL in Your Subscription*
-+
-[source,bash]
-----
-curl -X POST http://localhost:5050/mp-ecomm-store/api/webhooks \
-  -H "Content-Type: application/json" \
-  -d '{
-    "callbackUrl": "https://your-random-id.ngrok.io/webhooks/products",
-    "events": ["product.created", "product.updated"]
-  }'
-----
-
 === Manual Testing
 
 ==== 1. View OpenAPI Spec
@@ -948,7 +798,7 @@ Client application receives the webhook, verifies signature, and processes the e
 
 == Testing the Process-Async Request Callback Webhook-Style API Using smee.io
 
-The async product processing API (`/api/products/process-async`) demonstrates a callback webhook-style pattern where the server processes requests asynchronously and sends results to a client-provided callback URL. Testing this locally can be challenging since the callback URL must be publicly accessible. This section shows how to use *smee.io* to expose your local webhook receiver to the internet.
+The async product processing API (`/api/products/process-async`) demonstrates a callback webhook-style pattern where the server processes requests asynchronously and sends results to a client-provided callback URL. Testing this locally can be challenging since the callback URL must be publicly accessible. This section shows how to use *smee.io's browser-based interface* to test webhooks without any local setup or JavaScript - just open a browser, get a URL, and view callbacks in real-time.
 
 === What is the Async Callback Webhook-Style API?
 
@@ -1000,39 +850,13 @@ Content-Type: application/json
 
 Before testing with smee.io, ensure you have:
 
-* *Node.js* (v14 or later) - Required for the smee client
-+
-[source,bash]
-----
-# Check if Node.js is installed
-node --version
-
-# If not installed, download from https://nodejs.org/
-# Or use a package manager:
-# macOS: brew install node
-# Ubuntu/Debian: sudo apt install nodejs npm
-# Windows: choco install nodejs
-----
-
-* *smee-client* (npm package) - Proxies smee.io webhooks to localhost
-+
-[source,bash]
-----
-# Install globally
-npm install -g smee-client
-
-# Or install locally in your project
-npm install smee-client
-----
-
+* *Web Browser* - To view webhook callbacks in real-time on smee.io
 * *MicroProfile Server Running* - Application must be running on http://localhost:5050
 +
 [source,bash]
 ----
 mvn liberty:run
 ----
-
-* *webhook-receiver.js* - Optional local webhook receiver (included in project)
 
 === Step-by-Step Instructions
 
@@ -1050,106 +874,9 @@ https://smee.io/abc123xyz
 
 . *Keep the browser tab open* - Smee.io displays incoming webhooks in real-time
 
-==== Step 2: Install and Run the smee Client
+==== Step 2: Send an Async Request with smee.io as Callback URL
 
-The smee client forwards webhooks from smee.io to your localhost.
-
-. *Start the smee client* (replace with your channel URL):
-+
-[source,bash]
-----
-# Forward smee.io webhooks to localhost webhook receiver
-smee --url https://smee.io/abc123xyz --target http://localhost:3000/callback
-
-# Or if installed locally:
-npx smee -u https://smee.io/abc123xyz -t http://localhost:3000/callback
-----
-+
-*Output:*
-+
-----
-Forwarding https://smee.io/abc123xyz to http://localhost:3000/callback
-Connected ✓
-----
-
-. *Leave the terminal running* - Don't close this terminal
-
-*Common Options:*
-
-[source,bash]
-----
-# Forward to a different port
-smee --url https://smee.io/abc123xyz --target http://localhost:8080/webhook
-
-# Forward to a specific path
-smee -u https://smee.io/abc123xyz -t http://localhost:3000/api/callbacks
-
-# Forward with custom port (default: 3000)
-smee -u https://smee.io/abc123xyz -t http://localhost:5000/webhook -p 5000
-----
-
-==== Step 3: Set Up a Local Webhook Receiver
-
-You need a local endpoint to receive callbacks. You have two options:
-
-*Option A: Use the Provided webhook-receiver.js*
-
-The project includes a Node.js webhook receiver:
-
-[source,bash]
-----
-# In a new terminal, navigate to the project root
-cd /path/to/mp-ecomm-store
-
-# Install dependencies (if not already installed)
-npm install express body-parser
-
-# Start the webhook receiver on port 3000
-node webhook-receiver.js
-----
-
-*Output:*
-
-----
-🚀 Webhook receiver listening on http://localhost:3000/callback
-Waiting for callbacks from async product processing...
-----
-
-*Option B: Create a Simple Receiver*
-
-Create a file called `simple-receiver.js`:
-
-[source,javascript]
-----
-const express = require('express');
-const app = express();
-
-app.use(express.json());
-
-app.post('/callback', (req, res) => {
-  console.log('\n========================================');
-  console.log('📨 Callback Received!');
-  console.log('========================================');
-  console.log(JSON.stringify(req.body, null, 2));
-  console.log('========================================\n');
-  res.status(200).send('OK');
-});
-
-app.listen(3000, () => {
-  console.log('Listening on http://localhost:3000/callback');
-});
-----
-
-Run it:
-
-[source,bash]
-----
-node simple-receiver.js
-----
-
-==== Step 4: Configure the Application and Send an Async Request
-
-Now trigger the async API with your smee.io URL as the callback:
+Trigger the async API with your smee.io URL as the callback:
 
 [source,bash]
 ----
@@ -1181,34 +908,29 @@ curl -X POST http://localhost:5050/mp-ecomm-store/api/products/process-async \
 }
 ----
 
-==== Step 5: Verify Callback Delivery
+==== Step 3: View Callback in smee.io Browser
 
-After 2-5 seconds, you should see the callback delivered:
+After 2-5 seconds, the callback will be delivered to smee.io:
 
-. *In the smee.io browser tab* - See the webhook request logged
-
-. *In the smee client terminal* - See forwarding logs:
+. *In the smee.io browser tab* - See the webhook request appear in real-time with full details:
 +
-----
-POST http://localhost:3000/callback - 200
-----
-
-. *In the webhook-receiver.js terminal* - See the callback payload:
+* *HTTP Method*: POST
+* *Headers*: Content-Type, X-Event-* headers
+* *Request Body*: The complete callback payload
 +
+*Example callback payload visible in browser:*
++
+[source,json]
 ----
-========================================
-📨 Callback Received!
-========================================
 {
   "productId": 12345,
   "status": "SUCCESS",
   "message": "Product 'Wireless Mouse' processed successfully",
   "timestamp": "2026-02-18T10:30:00.123456Z"
 }
-========================================
 ----
 
-. *In the server terminal (Liberty logs)* - See callback attempt:
+. *In the server terminal (Liberty logs)* - See callback attempt confirmation:
 +
 ----
 [INFO] ========================================
@@ -1218,6 +940,8 @@ POST http://localhost:3000/callback - 200
 [INFO] ✅ CALLBACK SENT SUCCESSFULLY!
 [INFO] ========================================
 ----
+
+TIP: The smee.io browser interface shows all webhook details including headers, body, timestamp, and response status. You can inspect each request by clicking on it in the interface.
 
 === Example Commands and Sample Payloads
 
@@ -1302,22 +1026,7 @@ NOTE: The async processing has a 90% success rate. About 1 in 10 requests will f
 
 === Troubleshooting Tips
 
-==== Problem: "smee: command not found"
-
-*Cause:* smee-client is not installed or not in PATH
-
-*Solution:*
-
-[source,bash]
-----
-# Install globally
-npm install -g smee-client
-
-# Or use npx (no installation needed)
-npx smee-client --url https://smee.io/abc123xyz --target http://localhost:3000/callback
-----
-
-==== Problem: smee client says "Connected ✓" but no callbacks received
+==== Problem: No callback appears in smee.io browser
 
 *Possible Causes:*
 
@@ -1339,70 +1048,11 @@ npx smee-client --url https://smee.io/abc123xyz --target http://localhost:3000/c
 mvn liberty:run
 ----
 
-. *Wrong smee URL in request* - URL in request must match smee client URL
+. *Wrong smee URL in request* - URL in request must match your smee.io channel
 +
-[source,bash]
-----
-# smee client forwarding from:
-smee --url https://smee.io/abc123xyz --target http://localhost:3000/callback
+Verify the URL in your request matches the channel URL shown in your smee.io browser tab
 
-# Request must use same URL:
-"callbackUrl": "https://smee.io/abc123xyz"
-----
-
-==== Problem: Callback received but webhook receiver shows no output
-
-*Possible Causes:*
-
-. *Webhook receiver not running*
-+
-[source,bash]
-----
-# Start the receiver
-node webhook-receiver.js
-----
-
-. *Wrong port/path*
-+
-[source,bash]
-----
-# smee client must forward to correct port/path
-# If receiver is on port 3000 at /callback:
-smee -u https://smee.io/abc123xyz -t http://localhost:3000/callback
-----
-
-. *Port conflict*
-+
-[source,bash]
-----
-# Check if port 3000 is already in use
-lsof -i :3000
-
-# Use a different port
-node webhook-receiver.js --port 4000
-smee -u https://smee.io/abc123xyz -t http://localhost:4000/callback
-----
-
-==== Problem: "ECONNREFUSED" error in smee client
-
-*Cause:* Local webhook receiver is not running on the target port
-
-*Solution:*
-
-. *Start your webhook receiver first*:
-+
-[source,bash]
-----
-node webhook-receiver.js
-# Wait for: "Listening on http://localhost:3000/callback"
-----
-
-. *Then start smee client*:
-+
-[source,bash]
-----
-smee --url https://smee.io/abc123xyz --target http://localhost:3000/callback
-----
+. *Browser tab closed* - Keep the smee.io browser tab open to see callbacks in real-time
 
 ==== Problem: Server logs show "CALLBACK FAILED" with connection errors
 
@@ -1471,9 +1121,9 @@ Verify the URL format: `https://smee.io/{channel-id}`
 
 === Testing Without smee.io
 
-If you prefer not to use smee.io, you can test with publicly accessible services:
+If you prefer not to use smee.io, you can test with other publicly accessible webhook testing services:
 
-==== Option 1: webhook.site
+==== Option: webhook.site
 
 . Visit https://webhook.site/
 . Copy your unique URL (e.g., `https://webhook.site/abc-123-def`)
@@ -1490,33 +1140,7 @@ curl -X POST http://localhost:5050/mp-ecomm-store/api/products/process-async \
 ----
 . View the callback in the webhook.site browser interface
 
-==== Option 2: ngrok
-
-. Install ngrok: https://ngrok.com/download
-. Start your local webhook receiver:
-+
-[source,bash]
-----
-node webhook-receiver.js
-----
-. Expose it via ngrok:
-+
-[source,bash]
-----
-ngrok http 3000
-----
-. Copy the HTTPS forwarding URL (e.g., `https://abc123.ngrok.io`)
-. Use it as your callback URL:
-+
-[source,bash]
-----
-curl -X POST http://localhost:5050/mp-ecomm-store/api/products/process-async \
-  -H "Content-Type: application/json" \
-  -d '{
-    "product": {"name": "Test", "price": 9.99, "category": "ELECTRONICS"},
-    "callbackUrl": "https://abc123.ngrok.io/callback"
-  }'
-----
+TIP: webhook.site provides similar functionality to smee.io - a browser-based interface that displays incoming webhook payloads in real-time without requiring any local setup.
 
 === Best Practices
 
@@ -1530,13 +1154,18 @@ curl -X POST http://localhost:5050/mp-ecomm-store/api/products/process-async \
 
 === Summary
 
-The async callback webhook-style API with smee.io testing involves:
+The async callback webhook-style API with smee.io browser-based testing involves:
 
 . ✅ Create a smee.io channel for a public callback URL
-. ✅ Install and run the smee client to forward callbacks to localhost
-. ✅ Start your local webhook receiver
 . ✅ Send async request with smee.io URL as callback
-. ✅ Verify callback delivery in smee.io, smee client, and webhook receiver
+. ✅ View callback delivery in real-time in the smee.io browser interface
+
+*Key Benefits:*
+
+* *No local setup required* - smee.io provides a public URL and browser-based viewer
+* *No JavaScript/Node.js needed* - Pure browser-based testing
+* *Real-time visibility* - See webhook payloads instantly in your browser
+* *Easy to use* - Just visit smee.io, get a URL, and start testing
 
 This pattern is useful for:
 
@@ -1544,6 +1173,7 @@ This pattern is useful for:
 * Decoupling request processing from response delivery
 * Building event-driven architectures
 * Enabling asynchronous microservice communication
+* Testing webhook integrations without complex local setup
 
 == OpenAPI 3.1 vs 3.0 Comparison
 
