@@ -18,7 +18,6 @@ This chapter provides **two complete implementations** of the same OpenAPI v3.1 
 
 MicroProfile OpenAPI 4.1 brings full OpenAPI v3.1 support, which represents a significant evolution from OpenAPI 3.0 by fully aligning with JSON Schema 2020-12. This alignment provides:
 
-* *Single Source of Truth*: Same schema definitions work for both OpenAPI documentation and JSON Schema validation
 * *Better Validation*: More precise constraint expressions and validation rules
 * *Improved Tooling*: Leverage the entire JSON Schema ecosystem
 * *Standard Compliance*: Full compatibility with JSON Schema 2020-12 specification
@@ -62,20 +61,12 @@ MicroProfile OpenAPI 4.1 brings full OpenAPI v3.1 support, which represents a si
 | Quick demos, getting started
 
 | *Port*
-| 9081
+| 5050
 | 5050
 
 | *Base Path*
 | `/catalog`
 | `/mp-ecomm-store`
-
-| *OpenAPI URL*
-| http://localhost:9081/openapi
-| http://localhost:5050/mp-ecomm-store/openapi
-
-| *Swagger UI*
-| http://localhost:9081/openapi/ui
-| http://localhost:5050/mp-ecomm-store/openapi/ui
 |===
 
 === Which Implementation Should You Use?
@@ -213,9 +204,9 @@ mvn clean package
 mvn liberty:dev
 
 # Access points:
-# OpenAPI Spec: http://localhost:9081/openapi
-# Swagger UI:   http://localhost:9081/openapi/ui
-# API Base:     http://localhost:9081/api/products
+# OpenAPI Spec: http://localhost:5050/catalog/openapi
+# Swagger UI:   http://localhost:5050/catalog/openapi/ui
+# API Base:     http://localhost:5050/catalog/api/products
 ----
 
 == MP E-Commerce Store (In-Memory)
@@ -836,16 +827,16 @@ mvn liberty:dev
 [source,bash]
 ----
 # JSON format
-curl http://localhost:9081/openapi
+curl http://localhost:5050/catalog/openapi
 
 # YAML format
-curl http://localhost:9081/openapi?format=yaml
+curl http://localhost:5050/catalog/openapi?format=yaml
 
 # Save to file
-curl http://localhost:9081/openapi > openapi-catalog.json
+curl http://localhost:5050/catalog/openapi > openapi-catalog.json
 
 # Interactive Swagger UI
-open http://localhost:9081/openapi/ui
+open http://localhost:5050/catalog/openapi/ui
 ----
 
 ==== MP E-Commerce Store
@@ -872,7 +863,7 @@ open http://localhost:5050/mp-ecomm-store/openapi/ui
 [source,bash]
 ----
 # Catalog service
-curl http://localhost:9081/api/products
+curl http://localhost:5050/catalog/api/products
 
 # MP E-Commerce Store
 curl http://localhost:5050/mp-ecomm-store/api/products
@@ -883,7 +874,7 @@ curl http://localhost:5050/mp-ecomm-store/api/products
 [source,bash]
 ----
 # Catalog service
-curl http://localhost:9081/api/products/1
+curl http://localhost:5050/catalog/api/products/1
 
 # MP E-Commerce Store
 curl http://localhost:5050/mp-ecomm-store/api/products/1
@@ -907,7 +898,7 @@ curl -X POST http://localhost:5050/mp-ecomm-store/api/products \
   }'
 
 # Catalog service (more fields)
-curl -X POST http://localhost:9081/api/products \
+curl -X POST http://localhost:5050/catalog/api/products \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Samsung Galaxy S24",
@@ -931,7 +922,7 @@ curl -X POST http://localhost:9081/api/products \
 curl "http://localhost:5050/mp-ecomm-store/api/products/search?minPrice=500&maxPrice=2000"
 
 # Catalog service
-curl "http://localhost:9081/api/products/search?minPrice=500&maxPrice=2000"
+curl "http://localhost:5050/catalog/api/products/search?minPrice=500&maxPrice=2000"
 ----
 
 ==== Search by Category
@@ -942,7 +933,7 @@ curl "http://localhost:9081/api/products/search?minPrice=500&maxPrice=2000"
 curl "http://localhost:5050/mp-ecomm-store/api/products/search?category=ELECTRONICS"
 
 # Catalog service
-curl "http://localhost:9081/api/products/search?category=ELECTRONICS"
+curl "http://localhost:5050/catalog/api/products/search?category=ELECTRONICS"
 ----
 
 ==== Search with Pagination
@@ -953,7 +944,7 @@ curl "http://localhost:9081/api/products/search?category=ELECTRONICS"
 curl "http://localhost:5050/mp-ecomm-store/api/products/search?page=0&size=10"
 
 # Catalog service (page 1, size 20)
-curl "http://localhost:9081/api/products/search?page=1&size=20"
+curl "http://localhost:5050/catalog/api/products/search?page=1&size=20"
 ----
 
 ==== Combined Search
@@ -970,15 +961,20 @@ Both implementations include automated test scripts:
 
 [source,bash]
 ----
-# Test catalog service
+# Test catalog service (comprehensive automated tests: OpenAPI + Webhooks)
 cd /workspaces/microprofile-tutorial/code/chapter04/catalog
-chmod +x test-openapi-features.sh
-./test-openapi-features.sh
+chmod +x test-openapi-webhooks-automated.sh
+./test-openapi-webhooks-automated.sh
+
+# Test catalog service (interactive CRUD tests with manual step-through)
+cd /workspaces/microprofile-tutorial/code/chapter04/catalog
+chmod +x test-crud-interactive.sh
+./test-crud-interactive.sh
 
 # Test mp-ecomm-store
 cd /workspaces/microprofile-tutorial/code/chapter04/mp-ecomm-store
-chmod +x test-openapi-features.sh
-./test-openapi-features.sh
+chmod +x test-api-features.sh
+./test-api-features.sh
 ----
 
 == Product Entity Field Summary
@@ -1336,7 +1332,7 @@ npm install -g @redocly/cli
 
 # Lint OpenAPI specification
 redocly lint http://localhost:5050/mp-ecomm-store/openapi
-redocly lint http://localhost:9081/openapi
+redocly lint http://localhost:5050/catalog/openapi
 
 # Bundle specification
 redocly bundle http://localhost:5050/mp-ecomm-store/openapi -o bundled-openapi.json
@@ -1351,7 +1347,7 @@ npm install -g @stoplight/spectral-cli
 
 # Lint with Spectral
 spectral lint http://localhost:5050/mp-ecomm-store/openapi
-spectral lint http://localhost:9081/openapi
+spectral lint http://localhost:5050/catalog/openapi
 ----
 
 === Using JSON Schema Validator Libraries
@@ -1696,7 +1692,8 @@ private Double price;
   - Try creating products with valid/invalid data
 
 . *Test with Script*
-  - Run `./test-openapi-features.sh`
+  - Run `./test-openapi-webhooks-automated.sh` for comprehensive automated tests
+  - Run `./test-crud-interactive.sh` for step-by-step manual testing
   - Observe validation in action
   - Understand error responses
 
@@ -1752,7 +1749,7 @@ private Double price;
 [source,bash]
 ----
 # Check what's using the port
-lsof -i :5050  # or :9081
+lsof -i :5050
 
 # Kill the process
 kill -9 <PID>
@@ -1928,12 +1925,7 @@ This chapter provides **two complete, production-quality implementations** demon
 
 === What's Next?
 
-. *Choose your implementation* based on your needs (simple or advanced)
 . *Run the application* with `mvn liberty:dev`
 . *Explore Swagger UI* to see schemas in action
 . *Test validation* with curl commands or test scripts
-. *Generate client code* using openapi-generator
 . *Integrate JSON Schema validators* in your projects
-. *Build your own service* applying these patterns
-
-*Ready to start?* Choose `catalog/` or `mp-ecomm-store/` and run `mvn liberty:dev`!
