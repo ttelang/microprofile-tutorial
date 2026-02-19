@@ -5,15 +5,14 @@
 
 Developers working with microservices often need large amount of boilerplate code in order to consume RESTful APIs. Such implementations typically involves manually implementing HTTP requests, parsing responses, and managing errors.
 
-In microservices architecture, developers often face the cumbersome task of implementing boilerplate code to consume REST APIs - manually constructing HTTP requests, parsing responses, and handling errors. The MicroProfile Rest Client specification simplifies this by leveraging Jakarta RESTful Web Services (formerly JAX-RS) annotations to create type-safe Rest client interfaces. Instead of writing low-level HTTP logic, developers define Java interfaces that mirror the target service’s endpoints. At runtime, MicroProfile Rest Client dynamically generates an implementation of these interfaces, automating HTTP communication while ensuring compile-time type safety for the client method invocations.
+In microservices architecture, developers often face the cumbersome task of implementing boilerplate code to consume REST APIs involving manually constructing HTTP requests, parsing responses, and handling errors. The MicroProfile Rest Client specification simplifies this by leveraging Jakarta RESTful Web Services (formerly JAX-RS) annotations to create type-safe Rest client interfaces. Instead of writing low-level HTTP logic, developers define Java interfaces that mirror the target service’s endpoints. At runtime, MicroProfile Rest Client dynamically generates an implementation of these interfaces, automating HTTP communication while ensuring compile-time type safety for the client method invocations.
 
 This chapter introduces the MicroProfile Rest Client 4.0, a type-safe framework aligned with Jakarta EE 10 and RESTful Web Services 3.1 for simplifying service-to-service communication. The chapter covers defining and injecting REST client interfaces using `@RestClient`, configuring clients with MicroProfile Config and the enhanced `RestClientBuilder` API (including `baseUri(String)` and `header()` methods), processing various data formats including multipart content, implementing custom filters, and handling errors with `ResponseExceptionMapper`. 
 
-By the end of this chapter, you can build declarative, maintainable REST clients leveraging the full power of Jakarta EE and MicroProfile standards.
+By the end of this chapter, you can build declarative, maintainable REST clients leveraging Jakarta EE and MicroProfile standards.
 
 == Topics to be covered:
 
-* What's New in MicroProfile REST Client 4.0
 * Introduction to MicroProfile Rest Client
 * Alignment with Jakarta EE 10 and RESTful Web Services 3.1
 * Key Features of MicroProfile Rest Client
@@ -28,128 +27,6 @@ By the end of this chapter, you can build declarative, maintainable REST clients
 * Implementing Custom Filters and Interceptors 
 * Error Handling with `ResponseExceptionMapper`
 
-// Updated for MicroProfile REST Client 4.0
-== What's New in MicroProfile REST Client 4.0
-
-MicroProfile REST Client 4.0 represents a major release aligned with Jakarta EE 10, introducing key improvements while maintaining the familiar programming model. This section highlights the changes and provides guidance for migrating from version 3.0.
-
-=== Jakarta EE 10 Alignment
-
-MicroProfile REST Client 4.0 achieves full alignment with Jakarta EE 10 specifications:
-
-* *Jakarta RESTful Web Services 3.1* - Complete integration with the latest REST API specification
-* *Jakarta JSON Binding 3.0* - Enhanced JSON serialization and deserialization capabilities
-* *Jakarta JSON Processing 2.1* - Updated JSON parsing and generation APIs
-* *Jakarta CDI 4.0* - Improved dependency injection with stricter qualifier requirements
-* *Namespace Migration* - All APIs migrated from `javax.*` to `jakarta.*` packages
-
-This alignment ensures seamless interoperability with Jakarta EE 10 runtimes including Open Liberty, WildFly, Payara, and Apache TomEE.
-
-=== Enhanced RestClientBuilder API
-
-The `RestClientBuilder` interface includes new convenience methods to simplify programmatic client creation:
-
-* *`baseUri(String uri)`* - Accepts a String parameter directly, eliminating the need to call `URI.create()`:
-+
-[source,java]
-----
-// MicroProfile REST Client 4.0
-RestClientBuilder.newBuilder()
-    .baseUri("https://api.example.com")
-    .build(MyClient.class);
-
-// Previous versions required
-RestClientBuilder.newBuilder()
-    .baseUri(URI.create("https://api.example.com"))
-    .build(MyClient.class);
-----
-
-* *`header(String name, Object value)`* - Adds headers directly to client instances without requiring custom filters:
-+
-[source,java]
-----
-RestClientBuilder.newBuilder()
-    .baseUri("https://api.example.com")
-    .header("User-Agent", "MyApp/1.0")
-    .header("X-Request-ID", UUID.randomUUID().toString())
-    .build(MyClient.class);
-----
-+
-IMPORTANT: The `header()` method throws a `NullPointerException` if the value parameter is `null`. Ensure all header values are non-null before passing them to the builder.
-
-=== Standardized Multipart Data Processing
-
-MicroProfile REST Client 4.0 clarifies multipart data processing using the standard `jakarta.ws.rs.core.EntityPart` API. This ensures portable implementations across all MicroProfile-compliant runtimes without relying on vendor-specific annotations.
-
-Client interfaces consume multipart data using `List<EntityPart>`:
-
-[source,java]
-----
-@Consumes(MediaType.MULTIPART_FORM_DATA)
-@Path("/files")
-public interface FileUploadClient extends AutoCloseable {
-    @POST
-    @Path("/upload")
-    void uploadFiles(List<EntityPart> entityParts) throws IOException;
-}
-----
-
-This standardized approach replaces vendor-specific multipart annotations, improving portability.
-
-=== CDI Integration Clarifications
-
-Version 4.0 explicitly documents CDI-related requirements:
-
-* *Mandatory `@RestClient` Qualifier* - The `@RestClient` CDI qualifier is now explicitly required for all REST client injections to prevent ambiguous bean resolution
-* *Automatic Lifecycle Management* - The specification clarifies that CDI-managed client instances are automatically closed when the CDI bean falls out of scope
-* *Provider Instance Management* - CDI-managed provider instances take precedence over programmatically registered provider classes
-
-=== Breaking Changes from Version 3.0
-
-Migrating from MicroProfile REST Client 3.0 requires attention to the following breaking changes:
-
-. *Namespace Migration* - All `javax.*` imports must be replaced with `jakarta.*`:
-+
-[source,java]
-----
-// Version 3.0
-import javax.ws.rs.GET;
-import javax.inject.Inject;
-
-// Version 4.0
-import jakarta.ws.rs.GET;
-import jakarta.inject.Inject;
-----
-
-. *Java Version Requirement* - MicroProfile REST Client 4.0 requires Java 11 or higher. Java 11, 17, and 21 LTS releases are supported at the time of this release.
-
-. *Runtime Compatibility* - Applications must deploy to Jakarta EE 10 compatible runtimes. MicroProfile REST Client 4.0 is not compatible with Java EE 8 or earlier Jakarta EE 9.1 runtimes.
-
-. *MicroProfile Platform Version* - Use MicroProfile 7.0 or later to ensure compatibility with all aligned specifications.
-
-=== Migration Checklist
-
-When migrating from version 3.0 to 4.0, complete the following tasks:
-
-* [ ] Update all `javax.*` imports to `jakarta.*` across client interfaces, providers, and application code
-* [ ] Verify the `@RestClient` qualifier is present on all CDI injection points
-* [ ] Update Maven/Gradle dependencies to MicroProfile REST Client API 4.0
-* [ ] Ensure the application server supports Jakarta EE 10 (e.g., Open Liberty 23.0.0.3+, WildFly 27+, Payara 6+)
-* [ ] Update Java version to 11, 17, or 21 if currently using Java 8
-* [ ] Replace any vendor-specific multipart annotations with standard `EntityPart` API
-* [ ] Test all REST client interfaces to verify compatibility
-* [ ] Update integration tests to use Jakarta EE 10 test frameworks
-
-=== Impact on Existing Applications
-
-For applications using MicroProfile REST Client 3.0:
-
-* *Low Impact* - If already using Jakarta EE 9.1 namespaces, migration is straightforward
-* *Medium Impact* - Applications using Java EE 8 or earlier require namespace migration across the entire codebase
-* *High Impact* - Applications using vendor-specific features (e.g., RESTEasy multipart annotations) require refactoring to use standard APIs
-
-Applications benefit from improved maintainability, better portability across runtimes, and access to the latest Jakarta EE 10 features after migration.
-
 == Introduction to MicroProfile Rest Client 
 
 MicroProfile Rest Client 4.0 represents the latest evolution of the specification, now fully aligned with Jakarta EE 10 and RESTful Web Services 3.1. Using Jakarta RESTful Web Services annotations like `@GET` and `@Path`, client interfaces declaratively map Java methods to HTTP operations. For example, a method signature `getUser(Long id)` annotated with `@Path("/users/{id}")` automatically translates to `GET /users/{id}` at runtime, with the framework handling request construction, HTTP invocation, and response deserialization.
@@ -161,55 +38,6 @@ Through tight integration with MicroProfile Config and CDI, the Rest Client enab
 == Alignment with Jakarta EE 10 and RESTful Web Services 3.1
 
 MicroProfile Rest Client 4.0 marks a significant milestone in its evolution by achieving full alignment with Jakarta EE 10 and RESTful Web Services 3.1. This alignment ensures that the specification integrates seamlessly with the broader Jakarta EE ecosystem while maintaining compatibility with modern cloud-native application requirements.
-
-=== Namespace Migration: From javax.* to jakarta.*
-
-One of the most significant changes in Jakarta EE 10 is the transition from the legacy `javax.*` package namespace to the new `jakarta.*` namespace. This change affects all Jakarta EE specifications, including RESTful Web Services (formerly JAX-RS).
-
-For MicroProfile Rest Client 4.0, this means:
-
-* All Jakarta RESTful Web Services annotations now use the `jakarta.ws.rs.*` package instead of `javax.ws.rs.*`
-* CDI annotations are now under `jakarta.inject.*` and `jakarta.enterprise.*` rather than `javax.inject.*` and `javax.enterprise.*`
-* JSON-B and JSON-P APIs use `jakarta.json.*` instead of `javax.json.*`
-
-*Migration Example:*
-
-[source,java]
-----
-// MicroProfile Rest Client 3.0 (Jakarta EE 9)
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.inject.Inject;
-import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
-import org.eclipse.microprofile.rest.client.inject.RestClient;
-
-@RegisterRestClient
-@Path("/products")
-public interface ProductClient {
-    @GET
-    @Path("/{id}")
-    Product getById(@PathParam("id") Long id);
-}
-
-// MicroProfile Rest Client 4.0 (Jakarta EE 10)
-import jakarta.ws.rs.GET;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.PathParam;
-import jakarta.inject.Inject;
-import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
-import org.eclipse.microprofile.rest.client.inject.RestClient;
-
-@RegisterRestClient
-@Path("/products")
-public interface ProductClient {
-    @GET
-    @Path("/{id}")
-    Product getById(@PathParam("id") Long id);
-}
-----
-
-This namespace change is not merely a technical refactoring, it represents Jakarta EE's transition from Oracle's stewardship to open governance under the Eclipse Foundation. This shift ensures vendor-neutral development, resolves trademark and licensing concerns, and provides long-term sustainability backed by a diverse consortium of enterprise vendors and cloud providers.
 
 === RESTful Web Services 3.1 Integration
 
@@ -230,7 +58,7 @@ The alignment with RESTful Web Services 3.1 ensures that any developer familiar 
 
 Migrating from MicroProfile Rest Client 3.0 (aligned with Jakarta EE 9) to version 4.0 introduces several important changes:
 
-. *Mandatory @RestClient Qualifier for CDI Injection:* In Jakarta EE 10 environments, the `@RestClient` qualifier became mandatory when injecting REST client interfaces (as discussed in the Introduction section). This prevents ambiguous bean resolution when multiple implementations of the same interface exist, ensuring explicit dependency declaration.
+. *Mandatory @RestClient Qualifier for CDI Injection:* In Jakarta EE 10 environments, the `@RestClient` qualifier became mandatory when injecting REST client interfaces . This prevents ambiguous bean resolution when multiple implementations of the same interface exist, ensuring explicit dependency declaration.
 +
 [source,java]
 ----
@@ -253,7 +81,7 @@ The alignment with Jakarta EE 10 and RESTful Web Services 3.1 delivers several k
 * *Modern Java Support:* Optimized for Java 11+ with support for Java 17 and Java 21 LTS releases
 * *Developer Productivity:* Familiar APIs reduce learning curve for developers transitioning from monolithic Jakarta EE applications to microservices
 
-By embracing Jakarta EE 10, MicroProfile Rest Client 4.0 positions itself as the standard solution for type-safe REST client development in modern enterprise Java applications.
+MicroProfile Rest Client 4.0 is a standard solution for type-safe REST client development in modern enterprise Java applications.
 
 == Key Features of MicroProfile Rest Client
 
@@ -357,7 +185,6 @@ In the above code, we define a `ProductServiceClient` within the package `io.mic
 . Return Type (`Product`) - specifies that the method returns a `Product` Data Transfer Object (DTO), representing the retrieved product data.
 
 NOTE: When using CDI injection, the container manages the client lifecycle automatically. For programmatic creation with `RestClientBuilder`, see the dedicated section later in this chapter.
-
 
 == Injecting Rest Clients using CDI and `@RestClient`
 
