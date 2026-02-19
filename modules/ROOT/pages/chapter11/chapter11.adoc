@@ -7,10 +7,11 @@ Developers working with microservices often need large amount of boilerplate cod
 
 In microservices architecture, developers often face the cumbersome task of implementing boilerplate code to consume REST APIs - manually constructing HTTP requests, parsing responses, and handling errors. The MicroProfile Rest Client specification simplifies this by leveraging Jakarta RESTful Web Services (formerly JAX-RS) annotations to create type-safe Rest client interfaces. Instead of writing low-level HTTP logic, developers define Java interfaces that mirror the target service’s endpoints. At runtime, MicroProfile Rest Client dynamically generates an implementation of these interfaces, automating HTTP communication while ensuring compile-time type safety for the client method invocations.
 
-This chapter introduces the MicroProfile Rest Client 4.0, a type-safe framework aligned with Jakarta EE 10 and RESTful Web Services 3.1 for simplifying service-to-service communication. We will cover defining and injecting REST client interfaces using `@RestClient`, configuring clients with MicroProfile Config and the enhanced `RestClientBuilder` API (including `baseUri(String)` and `header()` methods), processing various data formats including multipart content, implementing custom filters, and handling errors with `ResponseExceptionMapper`. By the end of this chapter, you will be able to build declarative, maintainable REST clients leveraging the full power of Jakarta EE and MicroProfile standards.
+This chapter introduces the MicroProfile Rest Client 4.0, a type-safe framework aligned with Jakarta EE 10 and RESTful Web Services 3.1 for simplifying service-to-service communication. The chapter covers defining and injecting REST client interfaces using `@RestClient`, configuring clients with MicroProfile Config and the enhanced `RestClientBuilder` API (including `baseUri(String)` and `header()` methods), processing various data formats including multipart content, implementing custom filters, and handling errors with `ResponseExceptionMapper`. By the end of this chapter, you can build declarative, maintainable REST clients leveraging the full power of Jakarta EE and MicroProfile standards.
 
 == Topics to be covered:
 
+* What's New in MicroProfile REST Client 4.0
 * Introduction to MicroProfile Rest Client
 * Alignment with Jakarta EE 10 and RESTful Web Services 3.1
 * Key Features of MicroProfile Rest Client
@@ -347,7 +348,7 @@ In the above code, we define a `ProductServiceClient` within the package `io.mic
 
 . `@GET` - indicates that the `getProductById()` method handles HTTP GET requests. 
 
-. `@Path("/\{id}")` – defines a dynamic URI path parameter `\{id}`, which will be replaced at runtime with the actual value provided. 
+. `@Path("/\{id}")` – defines a dynamic URI path parameter `\{id}`, which is replaced at runtime with the actual value provided. 
 
 . `@PathParam("id")` - binds the method parameter `id` to the `\{id}` placeholder in the request URL. 
 
