@@ -1,6 +1,6 @@
 = Payment Service
 
-This microservice is part of the Jakarta EE 10 and MicroProfile 6.1-based e-commerce application. It handles payment processing and transaction management.
+This microservice is part of the Jakarta EE 10 and MicroProfile 7.1-based e-commerce application. It handles payment processing and transaction management.
 
 == Features
 
@@ -38,8 +38,8 @@ This microservice is part of the Jakarta EE 10 and MicroProfile 6.1-based e-comm
 
 === Prerequisites
 
-* JDK 17 or higher
-* Maven 3.6.0 or higher
+* JDK 21 or higher
+* Maven 3.13.0 or higher
 
 === Local Development
 

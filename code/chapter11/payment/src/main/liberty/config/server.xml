@@ -9,8 +9,9 @@
         <feature>jsonb</feature>
         <feature>cdi</feature>
         <feature>mpConfig</feature>
-        <feature>mpOpenAPI</feature>
+        <feature>mpOpenAPI-4.1</feature>
         <feature>mpJwt</feature>
+        <feature>mpRestClient-4.0</feature>
     </featureManager>
 
     <httpEndpoint httpPort="9050" httpsPort="9051"
