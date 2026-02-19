@@ -83,6 +83,65 @@ The alignment with Jakarta EE 10 and RESTful Web Services 3.1 delivers several k
 
 MicroProfile Rest Client 4.0 is a standard solution for type-safe REST client development in modern enterprise Java applications.
 
+=== Enhanced RestClientBuilder API
+
+The `RestClientBuilder` interface includes new convenience methods to simplify programmatic client creation:
+
+* *`baseUri(String uri)`* - Accepts a String parameter directly, eliminating the need to call `URI.create()`:
++
+[source,java]
+----
+// MicroProfile REST Client 4.0
+RestClientBuilder.newBuilder()
+    .baseUri("https://api.example.com")
+    .build(MyClient.class);
+
+// Previous versions required
+RestClientBuilder.newBuilder()
+    .baseUri(URI.create("https://api.example.com"))
+    .build(MyClient.class);
+----
+
+* *`header(String name, Object value)`* - Adds headers directly to client instances without requiring custom filters:
++
+[source,java]
+----
+RestClientBuilder.newBuilder()
+    .baseUri("https://api.example.com")
+    .header("User-Agent", "MyApp/1.0")
+    .header("X-Request-ID", UUID.randomUUID().toString())
+    .build(MyClient.class);
+----
++
+IMPORTANT: The `header()` method throws a `NullPointerException` if the value parameter is `null`. Ensure all header values are non-null before passing them to the builder.
+
+=== Standardized Multipart Data Processing
+
+MicroProfile REST Client 4.0 clarifies multipart data processing using the standard `jakarta.ws.rs.core.EntityPart` API. This ensures portable implementations across all MicroProfile-compliant runtimes without relying on vendor-specific annotations.
+
+Client interfaces consume multipart data using `List<EntityPart>`:
+
+[source,java]
+----
+@Consumes(MediaType.MULTIPART_FORM_DATA)
+@Path("/files")
+public interface FileUploadClient extends AutoCloseable {
+    @POST
+    @Path("/upload")
+    void uploadFiles(List<EntityPart> entityParts) throws IOException;
+}
+----
+
+This standardized approach replaces vendor-specific multipart annotations, improving portability.
+
+=== CDI Integration Clarifications
+
+Version 4.0 explicitly documents CDI-related requirements:
+
+* *Mandatory `@RestClient` Qualifier* - The `@RestClient` CDI qualifier is now explicitly required for all REST client injections to prevent ambiguous bean resolution
+* *Automatic Lifecycle Management* - The specification clarifies that CDI-managed client instances are automatically closed when the CDI bean falls out of scope
+* *Provider Instance Management* - CDI-managed provider instances take precedence over programmatically registered provider classes
+
 == Key Features of MicroProfile Rest Client
 
 The MicroProfile Rest Client simplifies consuming RESTful services in Java microservices with the following key features:
