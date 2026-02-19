@@ -7,7 +7,9 @@ Developers working with microservices often need large amount of boilerplate cod
 
 In microservices architecture, developers often face the cumbersome task of implementing boilerplate code to consume REST APIs - manually constructing HTTP requests, parsing responses, and handling errors. The MicroProfile Rest Client specification simplifies this by leveraging Jakarta RESTful Web Services (formerly JAX-RS) annotations to create type-safe Rest client interfaces. Instead of writing low-level HTTP logic, developers define Java interfaces that mirror the target service’s endpoints. At runtime, MicroProfile Rest Client dynamically generates an implementation of these interfaces, automating HTTP communication while ensuring compile-time type safety for the client method invocations.
 
-This chapter introduces the MicroProfile Rest Client 4.0, a type-safe framework aligned with Jakarta EE 10 and RESTful Web Services 3.1 for simplifying service-to-service communication. The chapter covers defining and injecting REST client interfaces using `@RestClient`, configuring clients with MicroProfile Config and the enhanced `RestClientBuilder` API (including `baseUri(String)` and `header()` methods), processing various data formats including multipart content, implementing custom filters, and handling errors with `ResponseExceptionMapper`. By the end of this chapter, you can build declarative, maintainable REST clients leveraging the full power of Jakarta EE and MicroProfile standards.
+This chapter introduces the MicroProfile Rest Client 4.0, a type-safe framework aligned with Jakarta EE 10 and RESTful Web Services 3.1 for simplifying service-to-service communication. The chapter covers defining and injecting REST client interfaces using `@RestClient`, configuring clients with MicroProfile Config and the enhanced `RestClientBuilder` API (including `baseUri(String)` and `header()` methods), processing various data formats including multipart content, implementing custom filters, and handling errors with `ResponseExceptionMapper`. 
+
+By the end of this chapter, you can build declarative, maintainable REST clients leveraging the full power of Jakarta EE and MicroProfile standards.
 
 == Topics to be covered:
 
@@ -119,7 +121,7 @@ import jakarta.ws.rs.GET;
 import jakarta.inject.Inject;
 ----
 
-. *Java Version Requirement* - MicroProfile REST Client 4.0 requires Java 11 or higher. Supported versions include Java 11, 17, and 21 LTS releases.
+. *Java Version Requirement* - MicroProfile REST Client 4.0 requires Java 11 or higher. Java 11, 17, and 21 LTS releases are supported at the time of this release.
 
 . *Runtime Compatibility* - Applications must deploy to Jakarta EE 10 compatible runtimes. MicroProfile REST Client 4.0 is not compatible with Java EE 8 or earlier Jakarta EE 9.1 runtimes.
 
@@ -2229,6 +2231,8 @@ public class HeaderConfigurationExample {
 }
 ----
 
+WARNING: The token shown in the example is for demonstration purposes only. In production code, never hardcode authentication tokens or credentials. Always retrieve them from secure storage, environment variables, or authentication services.
+
 *Key Characteristics of the `header()` Method:*
 
 * *Throws `NullPointerException`* - The method throws a `NullPointerException` if the value parameter is `null`. Always ensure header values are non-null:
@@ -2260,6 +2264,7 @@ builder.header("X-API-Key", getApiKey()); // Dangerous!
 import org.eclipse.microprofile.rest.client.RestClientBuilder;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 public class MultiHeaderConfiguration {
     
