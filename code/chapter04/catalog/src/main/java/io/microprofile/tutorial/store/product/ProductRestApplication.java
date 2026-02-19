@@ -7,6 +7,13 @@ import org.eclipse.microprofile.openapi.annotations.info.License;
 import org.eclipse.microprofile.openapi.annotations.servers.Server;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.eclipse.microprofile.openapi.annotations.ExternalDocumentation;
+import org.eclipse.microprofile.openapi.annotations.security.SecurityScheme;
+import org.eclipse.microprofile.openapi.annotations.security.SecuritySchemes;
+import org.eclipse.microprofile.openapi.annotations.enums.SecuritySchemeType;
+import org.eclipse.microprofile.openapi.annotations.enums.SecuritySchemeIn;
+import org.eclipse.microprofile.openapi.annotations.security.OAuthFlows;
+import org.eclipse.microprofile.openapi.annotations.security.OAuthFlow;
+import org.eclipse.microprofile.openapi.annotations.security.OAuthScope;
 
 import jakarta.ws.rs.ApplicationPath;
 import jakarta.ws.rs.core.Application;
@@ -100,6 +107,35 @@ import jakarta.ws.rs.core.Application;
                 description = "OpenAPI v3.1 Specification",
                 url = "https://spec.openapis.org/oas/v3.1.0"
             )
+        ),
+        @Tag(
+            name = "Categories",
+            description = "Product category operations with enum-based type-safe category management"
+        ),
+        @Tag(
+            name = "Webhooks",
+            description = """
+                Webhook subscription management for receiving real-time product event notifications.
+                
+                **OpenAPI 3.1 Feature**: Webhooks are a new feature in OpenAPI 3.1 that allows documenting
+                reverse APIs where the server calls the client.
+                
+                Subscribe to events like product.created, product.updated, etc. to receive notifications
+                at your specified callback URL.
+                """,
+            externalDocs = @ExternalDocumentation(
+                description = "Webhook Best Practices",
+                url = "https://docs.github.com/webhooks"
+            )
+        ),
+        @Tag(
+            name = "Async Operations",
+            description = """
+                Asynchronous product processing operations with callback-style webhooks.
+                
+                Submit products for async processing and receive results via HTTP callback to your URL.
+                Useful for long-running operations that exceed HTTP timeout limits.
+                """
         )
     },
     externalDocs = @ExternalDocumentation(
@@ -107,6 +143,40 @@ import jakarta.ws.rs.core.Application;
         url = "https://github.com/eclipse/microprofile-open-api"
     )
 )
+// Security schemes defined for OpenAPI documentation purposes
+// These demonstrate how to document different authentication methods
+// Note: Actual security implementation would require additional configuration
+@SecuritySchemes({
+    @SecurityScheme(
+        securitySchemeName = "apiKey",
+        type = SecuritySchemeType.APIKEY,
+        description = "API Key authentication",
+        in = SecuritySchemeIn.HEADER,
+        apiKeyName = "X-API-Key"
+    ),
+    @SecurityScheme(
+        securitySchemeName = "bearerAuth",
+        type = SecuritySchemeType.HTTP,
+        description = "JWT Bearer token authentication",
+        scheme = "bearer",
+        bearerFormat = "JWT"
+    ),
+    @SecurityScheme(
+        securitySchemeName = "oauth2",
+        type = SecuritySchemeType.OAUTH2,
+        description = "OAuth2 authentication (example URLs - replace with actual OAuth provider)",
+        flows = @OAuthFlows(
+            authorizationCode = @OAuthFlow(
+                authorizationUrl = "https://example.com/oauth/authorize",
+                tokenUrl = "https://example.com/oauth/token",
+                scopes = {
+                    @OAuthScope(name = "read:products", description = "Read product information"),
+                    @OAuthScope(name = "write:products", description = "Modify product information")
+                }
+            )
+        )
+    )
+})
 public class ProductRestApplication extends Application {
     // JAX-RS application class with comprehensive OpenAPI definition
 }
