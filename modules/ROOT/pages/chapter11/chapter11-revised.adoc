@@ -1,0 +1,600 @@
+= MicroProfile Rest Client
+:rest-client-spec-name: MicroProfile Rest Client
+:rest-client-spec-version: 4.0
+
+Developers working with microservices often need to write substantial boilerplate code to consume RESTful APIs—manually constructing HTTP requests, parsing responses, and handling errors. The MicroProfile Rest Client specification simplifies this by leveraging Jakarta RESTful Web Services (formerly JAX-RS) annotations to create type-safe REST client interfaces. Instead of writing low-level HTTP logic, you define Java interfaces that mirror the target service's endpoints. At runtime, MicroProfile Rest Client dynamically generates implementations, automating HTTP communication with compile-time type safety.
+
+This chapter introduces MicroProfile Rest Client 4.0, a type-safe framework aligned with Jakarta EE 10 for simplifying service-to-service communication. You'll learn to define and inject REST client interfaces, configure clients with MicroProfile Config, handle errors with `ResponseExceptionMapper`, and implement custom filters.
+
+== Topics Covered
+
+* Defining REST client interfaces with `@RegisterRestClient`
+* Injecting clients using CDI and `@RestClient`
+* Configuring clients with MicroProfile Config
+* Using parameter annotations (`@PathParam`, `@QueryParam`, `@HeaderParam`)
+* Handling requests and responses
+* Working with JSON data
+* Error handling with `ResponseExceptionMapper`
+* Using `RestClientBuilder` for programmatic creation
+* Implementing custom filters
+
+== What's New in 4.0
+
+MicroProfile Rest Client 4.0 aligns with Jakarta EE 10 and includes these key changes:
+
+* **Mandatory `@RestClient` qualifier** - Required for CDI injection to prevent ambiguous bean resolution
+* **Enhanced `RestClientBuilder`** - New `baseUri(String)` method accepts a String directly without `URI.create()`
+* **Namespace migration** - All `javax.*` packages migrated to `jakarta.*`
+
+NOTE: Version 4.0 requires Jakarta EE 10 and is not compatible with earlier Jakarta EE or Java EE versions.
+
+== Key Features
+
+MicroProfile Rest Client provides:
+
+* **Type-safe declarative APIs** - Define clients as Java interfaces using Jakarta REST annotations
+* **CDI integration** - Inject clients with `@Inject` and `@RestClient` for automatic lifecycle management
+* **MicroProfile Config support** - Configure base URLs, timeouts, and settings without code changes
+* **Asynchronous execution** - Return `CompletionStage<T>` for non-blocking requests
+* **Automatic error handling** - Map HTTP responses to custom exceptions
+* **Custom filters** - Implement cross-cutting concerns like authentication and logging
+* **Fault tolerance integration** - Works with `@Retry`, `@CircuitBreaker`, and `@Bulkhead` annotations
+
+== Setting Up Dependencies
+
+=== Maven
+
+[source,xml]
+----
+<dependency>
+    <groupId>org.eclipse.microprofile.rest.client</groupId>
+    <artifactId>microprofile-rest-client-api</artifactId>
+    <version>4.0</version>
+    <scope>provided</scope>
+</dependency>
+----
+
+Use `<scope>provided</scope>` when deploying to Jakarta EE/MicroProfile runtimes (Open Liberty, WildFly, Payara) where the API is already included.
+
+=== Gradle
+
+[source,gradle]
+----
+dependencies {
+    compileOnly 'org.eclipse.microprofile.rest.client:microprofile-rest-client-api:4.0'
+}
+----
+
+== Defining a REST Client Interface
+
+Create a Java interface and annotate it with `@RegisterRestClient` to register it as a REST client:
+
+[source,java]
+----
+package io.microprofile.tutorial.client;
+
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
+
+@RegisterRestClient(configKey = "product-service")
+@Path("/products")
+public interface ProductServiceClient {
+
+    @GET
+    @Path("/{id}")
+    Product getProductById(@PathParam("id") Long id);
+    
+    @GET
+    List<Product> getAllProducts();
+}
+----
+
+**Key elements:**
+
+* `@RegisterRestClient` - Registers the interface as a REST client and enables CDI injection
+* `configKey = "product-service"` - Associates the client with external configuration
+* `@Path("/products")` - Defines the base path for all methods
+* `@GET`, `@POST`, `@PUT`, `@DELETE` - HTTP methods
+* `@PathParam("id")` - Binds method parameters to URI path variables
+
+== Injecting REST Clients with CDI
+
+Inject REST clients into CDI-managed beans using `@Inject` and `@RestClient`:
+
+[source,java]
+----
+package io.microprofile.tutorial.service;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
+
+@ApplicationScoped
+public class ProductService {
+
+    @Inject
+    @RestClient
+    private ProductServiceClient productClient;
+
+    public Product getProduct(Long id) {
+        return productClient.getProductById(id);
+    }
+}
+----
+
+**Requirements:**
+
+* Both `@Inject` and `@RestClient` are required in MicroProfile 4.0
+* The container manages the client lifecycle automatically
+* Clients are automatically closed when the bean is destroyed
+
+TIP: Use `@ApplicationScoped` for REST clients to share a single instance across the application.
+
+== Configuring REST Clients
+
+Configure clients using MicroProfile Config properties in `src/main/resources/META-INF/microprofile-config.properties`:
+
+[source,properties]
+----
+# Base URL (required)
+product-service/mp-rest/url=http://localhost:8080/api
+
+# Timeouts in milliseconds
+product-service/mp-rest/connectTimeout=3000
+product-service/mp-rest/readTimeout=5000
+
+# CDI scope
+product-service/mp-rest/scope=jakarta.enterprise.context.ApplicationScoped
+
+# Follow redirects
+product-service/mp-rest/followRedirects=true
+
+# Register providers (exception mappers, filters)
+product-service/mp-rest/providers=com.example.ProductExceptionMapper
+----
+
+**Essential properties:**
+
+* `<configKey>/mp-rest/url` - Base URL of the remote service (required)
+* `<configKey>/mp-rest/connectTimeout` - Connection timeout in milliseconds
+* `<configKey>/mp-rest/readTimeout` - Response read timeout in milliseconds
+* `<configKey>/mp-rest/scope` - CDI scope for injected clients
+
+**Environment-specific configuration:**
+
+Override properties using environment variables or system properties for different environments:
+
+[source,bash]
+----
+# Via environment variable (replace / with _)
+export PRODUCT_SERVICE_MP_REST_URL=https://prod-api.example.com/api
+
+# Via system property
+java -Dproduct-service/mp-rest/url=https://prod-api.example.com/api -jar app.jar
+----
+
+== Using Parameter Annotations
+
+MicroProfile Rest Client supports several parameter annotations for dynamic request construction:
+
+=== Path Parameters
+
+Use `@PathParam` to insert values into the URL path:
+
+[source,java]
+----
+@GET
+@Path("/products/{id}")
+Product getProductById(@PathParam("id") Long id);
+
+// Usage: getProductById(1L)
+// Result: GET /products/1
+----
+
+=== Query Parameters
+
+Use `@QueryParam` for filtering and pagination:
+
+[source,java]
+----
+@GET
+@Path("/products")
+List<Product> searchProducts(
+    @QueryParam("category") String category,
+    @QueryParam("minPrice") Double minPrice
+);
+
+// Usage: searchProducts("electronics", 100.0)
+// Result: GET /products?category=electronics&minPrice=100.0
+----
+
+=== Header Parameters
+
+Use `@HeaderParam` for authentication and metadata:
+
+[source,java]
+----
+@GET
+@Path("/orders")
+List<Order> getOrders(@HeaderParam("Authorization") String token);
+
+// Usage: getOrders("Bearer abc123")
+// Result: GET /orders with header "Authorization: Bearer abc123"
+----
+
+=== Combining Parameters
+
+Combine multiple parameter types in a single method:
+
+[source,java]
+----
+@GET
+@Path("/products/{category}")
+List<Product> search(
+    @PathParam("category") String category,
+    @QueryParam("page") @DefaultValue("0") int page,
+    @QueryParam("size") @DefaultValue("20") int size,
+    @HeaderParam("X-Request-ID") String requestId
+);
+----
+
+TIP: Use `@DefaultValue` to provide fallback values for optional query parameters.
+
+== Handling Requests and Responses
+
+=== HTTP Methods
+
+MicroProfile Rest Client supports all standard HTTP methods through Jakarta REST annotations:
+
+[source,java]
+----
+@RegisterRestClient(configKey = "product-service")
+@Path("/products")
+public interface ProductServiceClient {
+
+    // GET - Retrieve resources
+    @GET
+    @Path("/{id}")
+    Product getProductById(@PathParam("id") Long id);
+
+    // POST - Create resources
+    @POST
+    Product createProduct(Product product);
+
+    // PUT - Update resources
+    @PUT
+    @Path("/{id}")
+    Product updateProduct(@PathParam("id") Long id, Product product);
+
+    // DELETE - Remove resources
+    @DELETE
+    @Path("/{id}")
+    void deleteProduct(@PathParam("id") Long id);
+}
+----
+
+=== Response Types
+
+Choose the appropriate return type based on your needs:
+
+**1. Domain Objects (DTOs)**
+
+Return objects directly for simple cases:
+
+[source,java]
+----
+@GET
+@Path("/{id}")
+Product getProductById(@PathParam("id") Long id);
+----
+
+**2. Response Object**
+
+Use `jakarta.ws.rs.core.Response` for fine-grained control:
+
+[source,java]
+----
+@GET
+@Path("/{id}")
+Response getProductWithResponse(@PathParam("id") Long id);
+
+// Usage
+Response response = client.getProductWithResponse(1L);
+if (response.getStatus() == 200) {
+    Product product = response.readEntity(Product.class);
+}
+response.close(); // Always close Response objects
+----
+
+**3. Void Return Type**
+
+Use `void` for fire-and-forget operations:
+
+[source,java]
+----
+@POST
+@Path("/events")
+void logEvent(Event event);
+----
+
+NOTE: Always call `response.close()` when using `Response` objects, or use try-with-resources.
+
+=== Content Negotiation
+
+Specify content types with `@Produces` and `@Consumes`:
+
+[source,java]
+----
+@RegisterRestClient(configKey = "product-service")
+@Path("/products")
+@Produces("application/json")  // Accept: application/json
+@Consumes("application/json")  // Content-Type: application/json
+public interface ProductServiceClient {
+    // Methods inherit these defaults
+}
+----
+
+== Working with JSON
+
+MicroProfile Rest Client automatically handles JSON serialization/deserialization using Jakarta JSON Binding (JSON-B):
+
+[source,java]
+----
+@RegisterRestClient(configKey = "product-service")
+@Path("/products")
+@Produces("application/json")
+@Consumes("application/json")
+public interface ProductServiceClient {
+
+    // JSON response automatically deserialized to Product
+    @GET  
+    @Path("/{id}")  
+    Product getProductById(@PathParam("id") Long id);
+    
+    // JSON array deserialized to List<Product>
+    @GET
+    List<Product> getAllProducts();
+    
+    // Product automatically serialized to JSON request body
+    @POST
+    Product createProduct(Product product);
+}
+----
+
+No manual JSON parsing is required. The framework handles conversion between Java objects and JSON automatically.
+
+== Error Handling with ResponseExceptionMapper
+
+Map HTTP error responses to custom exceptions using `ResponseExceptionMapper`:
+
+=== Register the Exception Mapper
+
+[source,java]
+----
+@RegisterRestClient(configKey = "product-service")
+@RegisterProvider(ProductExceptionMapper.class)
+@Path("/products")
+public interface ProductServiceClient extends AutoCloseable {
+
+    @GET
+    @Path("/{id}")
+    Product getProductById(@PathParam("id") Long id) 
+        throws ProductNotFoundException;
+}
+----
+
+=== Implement the Mapper
+
+[source,java]
+----
+import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.rest.client.ext.ResponseExceptionMapper;
+
+public class ProductExceptionMapper 
+        implements ResponseExceptionMapper<Throwable> {
+
+    @Override
+    public boolean handles(int status, MultivaluedMap<String, Object> headers) {
+        return status >= 400; // Handle 4xx and 5xx errors
+    }
+
+    @Override
+    public Throwable toThrowable(Response response) {
+        int status = response.getStatus();
+        
+        return switch (status) {
+            case 404 -> new ProductNotFoundException("Product not found");
+            case 503 -> new ServiceUnavailableException("Service unavailable");
+            default -> new RuntimeException("HTTP error: " + status);
+        };
+    }
+}
+----
+
+**Key points:**
+
+* `handles()` - Determines which responses this mapper processes
+* `toThrowable()` - Converts HTTP responses to exceptions
+* Checked exceptions must be declared in method signatures
+* Unchecked exceptions (RuntimeException) are always thrown
+
+=== Using the Mapper
+
+[source,java]
+----
+try {
+    Product product = productClient.getProductById(999L);
+} catch (ProductNotFoundException e) {
+    // Handle 404 errors
+    log.warn("Product not found: " + e.getMessage());
+} catch (ServiceUnavailableException e) {
+    // Handle 503 errors
+    log.error("Service unavailable: " + e.getMessage());
+}
+----
+
+== Using RestClientBuilder for Programmatic Creation
+
+For programmatic client creation without CDI, use `RestClientBuilder`:
+
+[source,java]
+----
+import org.eclipse.microprofile.rest.client.RestClientBuilder;
+import java.util.concurrent.TimeUnit;
+
+// MicroProfile 4.0 introduces baseUri(String) for convenience
+try (ProductServiceClient client = RestClientBuilder.newBuilder()
+        .baseUri("http://localhost:8080/api")
+        .connectTimeout(3, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.SECONDS)
+        .build(ProductServiceClient.class)) {
+    
+    Product product = client.getProductById(1L);
+    // Process product
+    
+} // Client is automatically closed
+----
+
+**When to use RestClientBuilder:**
+
+* CDI is unavailable
+* Client configuration must be determined dynamically at runtime
+* Creating multiple clients with different configurations
+* Testing scenarios
+
+**Key methods:**
+
+* `baseUri(String)` - Base URL (new in 4.0, accepts String directly)
+* `connectTimeout(long, TimeUnit)` - Connection timeout
+* `readTimeout(long, TimeUnit)` - Response read timeout
+* `register(Class)` - Register providers (filters, exception mappers)
+
+IMPORTANT: Client interfaces should extend `AutoCloseable` and use try-with-resources when created programmatically.
+
+== Implementing Custom Filters
+
+Implement custom filters for cross-cutting concerns like authentication, logging, and distributed tracing.
+
+=== Request Filter Example
+
+[source,java]
+----
+import jakarta.annotation.Priority;
+import jakarta.ws.rs.client.ClientRequestContext;
+import jakarta.ws.rs.client.ClientRequestFilter;
+import java.io.IOException;
+
+@Priority(1000)
+public class AuthenticationFilter implements ClientRequestFilter {
+    
+    @Override
+    public void filter(ClientRequestContext requestContext) throws IOException {
+        // Add authentication header to all requests
+        requestContext.getHeaders()
+            .add("Authorization", "Bearer " + getToken());
+    }
+    
+    private String getToken() {
+        // Retrieve token from config or context
+        return System.getProperty("api.token");
+    }
+}
+----
+
+=== Response Filter Example
+
+[source,java]
+----
+import jakarta.ws.rs.client.ClientRequestContext;
+import jakarta.ws.rs.client.ClientResponseContext;
+import jakarta.ws.rs.client.ClientResponseFilter;
+import java.io.IOException;
+import java.util.logging.Logger;
+
+public class LoggingFilter implements ClientResponseFilter {
+    
+    private static final Logger LOG = Logger.getLogger(LoggingFilter.class.getName());
+    
+    @Override
+    public void filter(ClientRequestContext requestContext, 
+                      ClientResponseContext responseContext) throws IOException {
+        LOG.info(String.format("Response: %s %s -> %d",
+            requestContext.getMethod(),
+            requestContext.getUri(),
+            responseContext.getStatus()));
+    }
+}
+----
+
+=== Registering Filters
+
+**`@RegisterProvider` annotation:**
+
+[source,java]
+----
+@RegisterRestClient(configKey = "product-service")
+@RegisterProvider(value = AuthenticationFilter.class, priority = 1000)
+@RegisterProvider(LoggingFilter.class)
+@Path("/products")
+public interface ProductServiceClient {
+    // Methods
+}
+----
+
+**MicroProfile Config:**
+
+[source,properties]
+----
+product-service/mp-rest/providers=\
+    com.example.AuthenticationFilter,\
+    com.example.LoggingFilter
+----
+
+**RestClientBuilder:**
+
+[source,java]
+----
+RestClientBuilder.newBuilder()
+    .baseUri("http://localhost:8080/api")
+    .register(AuthenticationFilter.class)
+    .register(LoggingFilter.class)
+    .build(ProductServiceClient.class);
+----
+
+TIP: Use `@Priority` to control filter execution order. Lower numbers execute first.
+
+== Best Practices
+
+* **Use CDI injection** - Prefer `@Inject @RestClient` over programmatic creation for better lifecycle management
+
+* **Configure timeouts** - Always set `connectTimeout` and `readTimeout` to prevent indefinite blocking
+
+* **Use Application scope** - Set `scope=ApplicationScoped` for stateless clients to improve performance
+
+* **Externalize configuration** - Keep URLs and settings in configuration files, not code
+
+* **Implement exception mappers** - Convert HTTP errors to domain-specific exceptions for better error handling
+
+* **Secure credentials** - Use environment variables for tokens and passwords, never commit them to version control
+
+* **Test with mocks** - Use CDI alternatives or mock frameworks to test client interactions
+
+* **Close programmatic clients** - Always use try-with-resources when creating clients with `RestClientBuilder`
+
+== Conclusion
+
+MicroProfile Rest Client provides a declarative, type-safe, and efficient mechanism for consuming RESTful services in Java microservices. It reduces boilerplate code, integrates seamlessly with CDI and MicroProfile Config, and provides powerful features like automatic error handling and custom filters.
+
+**Key takeaways:**
+
+* Define clients as annotated interfaces for type safety
+* Inject clients with `@Inject` and `@RestClient` for automatic management
+* Configure clients externally with MicroProfile Config
+* Map HTTP errors to exceptions with `ResponseExceptionMapper`
+* Implement filters for authentication, logging, and tracing
+* Use `RestClientBuilder` for programmatic creation when needed
+
+With MicroProfile Rest Client, building robust microservices that communicate over REST becomes simpler, more maintainable, and more powerful.
