@@ -29,7 +29,7 @@ By the end of this chapter, you can build declarative, maintainable REST clients
 
 == Introduction to MicroProfile Rest Client 
 
-MicroProfile Rest Client 4.0 represents the latest evolution of the specification, now fully aligned with Jakarta EE 10 and RESTful Web Services 3.1. Using Jakarta RESTful Web Services annotations like `@GET` and `@Path`, client interfaces declaratively map Java methods to HTTP operations. For example, a method signature `getUser(Long id)` annotated with `@Path("/users/{id}")` automatically translates to `GET /users/{id}` at runtime, with the framework handling request construction, HTTP invocation, and response deserialization.
+MicroProfile Rest Client 4.0 represents the latest evolution of the specification, fully aligned with Jakarta EE 10 and RESTful Web Services 3.1.
 
 The specification follows a proxy-based architecture where the MicroProfile runtime generates implementation classes from annotated interfaces. This design eliminates manual HTTP client code while maintaining compile-time type safety for method signatures, parameters, and return types. In Jakarta EE 10 environments, the `@RestClient` qualifier became mandatory for CDI injection (as mandated in MicroProfile Rest Client 4.0), ensuring explicit dependency management and preventing ambiguous bean resolution in applications with multiple client interfaces.
 
