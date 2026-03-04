@@ -4,7 +4,7 @@ Microservices-based applications have better scalability, flexibility, and resil
 
 MicroProfile Telemetry specification provides a set of vendor-neutral APIs for instrumenting, collecting, and exporting telemetry data such as traces, metrics, and logs. It is built on the foundation of https://opentelemetry.io/[OpenTelemetry] from the https://www.cncf.io/[Cloud Native Computing Foundation (CNCF)] project, an open-source observability framework. 
 
-In this chapter, we will explore the fundamentals of MicroProfile Telemetry, covering topics such as tracing concepts, instrumenting Telemetry, setting up tracing providers, context propagation and correlation, analyzing traces, security considerations for tracing, and more. By the end of this chapter, you will learn how to effectively leverage distributed tracing for debugging, performance monitoring, and system optimization.
+In this chapter, we will explore the fundamentals of MicroProfile Telemetry, covering topics such as tracing concepts, instrumenting Telemetry, setting up tracing providers, context propagation and correlation, analyzing traces, metrics collection, log bridging, security considerations for tracing, and more. By the end of this chapter, you will learn how to effectively leverage distributed tracing, metrics, and logging for debugging, performance monitoring, and system optimization.
 
 == Topics to be covered
 
@@ -16,11 +16,14 @@ In this chapter, we will explore the fundamentals of MicroProfile Telemetry, cov
 ** Correlation
 * Instrumenting OpenTelemetry
 * Tools for Trace Analysis
-* Exporting the Traces
+* Exporting Telemetry Data
 * Types of Telemetry
+* Metrics
+* Logs
 * Agent Instrumentation
 * Analyzing Traces
 * Security Considerations for Tracing
+* What's New in MicroProfile Telemetry 2.1
 
 == Introduction to MicroProfile Telemetry
 
@@ -99,13 +102,15 @@ MicroProfile Telemetry simplifies instrumentation by integrating OpenTelemetry f
 
 To enable tracing and exporting of telemetry data, include the MicroProfile Telemetry API dependency in your `pom.xml` file.
 
+// Updated for MicroProfile Telemetry 2.1
 [source, xml]
 ----
 <!-- Adding MicroProfile Telemetry dependency -->
 <dependency>
    <groupId>org.eclipse.microprofile.telemetry</groupId>
    <artifactId>microprofile-telemetry-api</artifactId>
-   <version>1.1</version>
+   <type>pom</type>
+   <version>2.1</version>
    <scope>provided</scope>
 </dependency>
 ----
@@ -231,60 +236,70 @@ One of Zipkin’s core strengths is its tag-based searching, which allows develo
 https://grafana.com/oss/tempo/[Grafana Tempo] is a distributed tracing backend. Unlike Jaeger and Zipkin, Tempo does not require indexing as it only requires object storage, making it highly scalable and cost-efficient for handling large volumes of trace data. This unique approach allows Tempo to store traces efficiently without increasing storage and query overhead, making it an ideal choice for high-performance microservices environments.
 One of Tempo’s key advantages is its tight integration with Grafana dashboards, enabling developers to correlate logs, metrics, and traces within a unified observability platform. Additionally, Tempo offers multi-backend support, meaning it can ingest and process trace data from OpenTelemetry, Jaeger, and Zipkin sources, ensuring compatibility with existing tracing setups. Its scalability makes it well-suited for large-scale microservices architectures, where efficiently managing distributed tracing data is crucial.
 
-== Exporting the Traces
+// Updated for MicroProfile Telemetry 2.1
+== Exporting Telemetry Data
 
-To export the traces we need to configure the exporter type and endpoint in the `src/main/resources/META-INF/microprofile-config.properties`.
-For using OTLP (OpenTelemetry Protocol) export, you need to add the following configuration in:
+To export telemetry data, configure the exporter type and endpoint in `src/main/resources/META-INF/microprofile-config.properties`.
+MicroProfile Telemetry 2.0 and later require you to configure exporters for all three signal types: traces, metrics, and logs.
+For OTLP (OpenTelemetry Protocol) export, add the following configuration:
 
 [source]
 ----
-# Enable OpenTelemetry 
-otel.traces.exporter=otlp
+# Enable OpenTelemetry
+otel.sdk.disabled=false
 
-# Set the OTLP exporter endpoint
-otel.exporter.otlp.endpoint=http://localhost:4317 
+# Set the OTLP exporter endpoint (gRPC default: port 4317)
+otel.exporter.otlp.endpoint=http://localhost:4317
 
 # Define the service name
-otel.service.name=payment-service 
+otel.service.name=payment-service
 
-# Sampling rate: (1.0 = always, 0.5 = 50%, 0.0 = never)
+# Sampling: parentbased_always_on is the default
 otel.traces.sampler=parentbased_always_on
 ----
 
-This sends traces directly to a observability tool, enabling real-time distributed tracing and performance monitoring. To ensure proper tracing, your observability tool (for e.g. Jaeger) must be running to receive trace data.
+Configure signal-specific exporters only when you need to override the shared OTLP endpoint or protocol:
 
-Using OTLP is advantageous because it is the native standard for OpenTelemetry, ensuring seamless integration with a wide range of observability tools. One of its key benefits is that it allows developers to use multiple observability platforms without changing instrumentation, providing a unified and vendor-neutral tracing solution.
+[source]
+----
+# Traces exporter (default: otlp)
+otel.traces.exporter=otlp
+
+# Metrics exporter (default: otlp)
+otel.metrics.exporter=otlp
+
+# Logs exporter (default: otlp)
+otel.logs.exporter=otlp
+----
+
+This configuration sends telemetry data directly to an observability backend, enabling real-time distributed tracing, metrics collection, and log correlation. Ensure that the observability backend (for example, Jaeger for traces, or Grafana with Tempo and Loki) is running to receive telemetry data.
+
+OTLP is the native standard for OpenTelemetry. It allows you to use multiple observability platforms without changing instrumentation, providing a unified, vendor-neutral telemetry solution.
 
 === Verify the Traces
 
-Once tracing is enabled and the appropriate exporter is configured, the next step is to verify that traces are being captured and sent to the observability backend. This ensures that the MicroProfile Telemetry setup is functioning correctly and that distributed tracing data is available for monitoring and debugging.
+After you enable tracing and configure the exporter, verify that the traces are being captured and sent to the observability backend. This step confirms that the MicroProfile Telemetry setup functions correctly and that distributed tracing data is available for monitoring and debugging.
 
 ==== Run Jaeger
 
-The simplest way to run Jaeger is with Docker using the command as below:
+Run Jaeger using Docker with OTLP support:
 
 [source, bash]
 ----
 docker run -d --name jaeger \
-  -e COLLECTOR_ZIPKIN_HTTP_PORT=9411 \
-  -p 5775:5775/udp \
-  -p 6831:6831/udp \
-  -p 6832:6832/udp \
-  -p 5778:5778 \
   -p 16686:16686 \
-  -p 14268:14268 \
-  -p 14250:14250 \
-  -p 9411:9411 \
+  -p 4317:4317 \
+  -p 4318:4318 \
   jaegertracing/all-in-one:latest
 ----
 
-The above command runs the *all-in-one* Jaeger container, which includes the agent, collector, query service, and UI.
+The above command runs the *all-in-one* Jaeger container, which includes the collector, query service, and UI, with native OTLP support on ports 4317 (gRPC) and 4318 (HTTP/protobuf).
 
-The Jaeger UI can be accessed at: `https://<hostname>:16686`. 
+Access the Jaeger UI at `http://localhost:16686`.
 
-Ensure all the services of our MicroProfile E-commerce applications are running.
+Ensure all the services of the MicroProfile E-commerce application are running.
 
-Search using parameters like operation name, time range, or service for the traces associated with different microservices and confirm that the telemetry data is visible.
+Search using parameters such as operation name, time range, or service name for the traces associated with different microservices, and confirm that the telemetry data is visible.
 View a detailed breakdown of each span within the trace, including timing and attributes.
 
 == Types of Telemetry
@@ -417,7 +432,103 @@ One of the key advantages of agent-based instrumentation is that it requires no 
 Refer to the https://opentelemetry.io/docs/zero-code/java/agent/getting-started/[OpenTelemetry Java Agent Getting Started page] for step-by-step instructions on enabling it for your application.
 Once enabled, the agent automatically instruments the application, seamlessly integrating with distributed tracing systems without requiring developer intervention. This makes it an efficient and non-intrusive way to implement observability in MicroProfile applications.
 
-Once enabled, the agent automatically instruments the application, seamlessly integrating with distributed tracing systems without requiring developer intervention. This makes it an efficient and non-intrusive way to implement observability in MicroProfile applications.
+// Updated for MicroProfile Telemetry 2.1
+== Metrics
+
+Metrics are captured measurements of an application's and runtime's behavior. An application can define custom metrics in addition to the required metrics provided by the runtime.
+
+=== Access to the OpenTelemetry Metrics API
+
+MicroProfile Telemetry MUST provide the following CDI bean for supporting contextual instance injection:
+
+* `io.opentelemetry.api.metrics.Meter`
+
+Inject the `Meter` to define and record custom metrics:
+
+[source, java]
+----
+import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.common.AttributeKey;
+import jakarta.annotation.PostConstruct;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+
+@ApplicationScoped
+public class SubscriptionService {
+
+    @Inject
+    Meter meter;
+
+    private LongCounter subscriptionCounter;
+
+    @PostConstruct
+    public void init() {
+        subscriptionCounter = meter
+                .counterBuilder("new_subscriptions")
+                .setDescription("Number of new subscriptions")
+                .setUnit("1")
+                .build();
+    }
+
+    public void subscribe(String plan) {
+        subscriptionCounter.add(1,
+                Attributes.of(AttributeKey.stringKey("plan"), plan));
+    }
+}
+----
+
+The `Meter` instance creates instruments such as counters and histograms. The runtime computes separate aggregations for each unique combination of attributes.
+
+=== Required Metrics
+
+Runtimes MUST provide the following metrics, as defined in the OpenTelemetry Semantic Conventions.
+
+.Required HTTP server metric
+[options="header"]
+|===
+|Metric Name |Type
+|`http.server.request.duration` |Histogram
+|===
+
+.Required JVM metrics
+[options="header"]
+|===
+|Metric Name |Type
+|`jvm.memory.used` |UpDownCounter
+|`jvm.memory.committed` |UpDownCounter
+|`jvm.memory.limit` |UpDownCounter
+|`jvm.memory.used_after_last_gc` |UpDownCounter
+|`jvm.gc.duration` |Histogram
+|`jvm.thread.count` |UpDownCounter
+|`jvm.class.loaded` |Counter
+|`jvm.class.unloaded` |Counter
+|`jvm.class.count` |UpDownCounter
+|`jvm.cpu.time` |Counter
+|`jvm.cpu.count` |UpDownCounter
+|`jvm.cpu.recent_utilization` |Gauge
+|===
+
+Metrics are activated whenever MicroProfile Telemetry is enabled with `otel.sdk.disabled=false`.
+
+// Updated for MicroProfile Telemetry 2.1
+== Logs
+
+The OpenTelemetry Logs bridge API enables existing log frameworks (such as SLF4J, Log4j, JUL, and Logback) to emit logs through OpenTelemetry. This specification does not define new Log APIs. The Logs bridge API is used by runtimes, not directly by application code. Therefore, this specification does not expose any Log APIs to applications.
+
+Log output from an application is automatically bridged to the configured OpenTelemetry SDK instance when MicroProfile Telemetry is enabled. Configure the logs exporter in `microprofile-config.properties`:
+
+[source, properties]
+----
+otel.sdk.disabled=false
+otel.logs.exporter=otlp
+otel.exporter.otlp.endpoint=http://localhost:4317
+----
+
+When a log record is emitted from an application, the runtime bridges it to the configured OpenTelemetry SDK instance, which then exports it using the configured log exporter (for example, via OTLP). When an active trace context exists, the log record automatically includes the `traceId` and `spanId`, enabling correlation between logs and traces.
+
+Logs are activated whenever MicroProfile Telemetry is enabled with `otel.sdk.disabled=false`.
 
 == Analyzing Traces
 
@@ -425,7 +536,7 @@ Once trace data is collected and exported to a backend system, analyzing these t
 
 === Visualizing Traces
 
-Tracing backends like *Jaeger*, *Zipkin*, or *Graphana Tempo* provide visual interfaces to explore and analyze traces. These tools display traces as timelines or dependency graphs, making it easier to:
+Tracing backends like *Jaeger*, *Zipkin*, or *Grafana Tempo* provide visual interfaces to explore and analyze traces. These tools display traces as timelines or dependency graphs, making it easier to:
 
 * Understand the sequence of operations.
 * Identify the services and components involved in a request.
@@ -443,7 +554,7 @@ Traces highlight spans with long durations or repeated retries, which often poin
 
 Traces provide valuable information for diagnosing failures, including:
 
-* *Error Codes*: Look for spans with error attributes, such as `http.status_code=500`.
+* *Error Codes*: Look for spans with error attributes, such as `http.response.status_code=500` or `error.type`.
 * *Exception Details*: Many tracing systems capture stack traces or error messages in spans.
 * *Service Impact*: Identify which upstream and downstream services are affected by the failure.
 
@@ -528,7 +639,6 @@ To prevent unauthorized access during transmission, ensure that telemetry data i
 
 [source, properties]
 ----
-otel.exporter.jaeger.endpoint=https://secure-jaeger-collector.example.com
 otel.exporter.otlp.endpoint=https://secure-collector.example.com
 ----
 
@@ -563,7 +673,7 @@ Random sampling to limiting the amount of trace data collected:
 [source, properties]
 ----
 otel.traces.sampler=traceidratio
-otel.traces.sampler.traceidratio=0.1
+otel.traces.sampler.arg=0.1
 ----
 
 === Compliance with Regulations
@@ -595,10 +705,58 @@ By following these security considerations, you can leverage the benefits of dis
 
 == Conclusion
 
-MicroProfile Telemetry provides a robust foundation for observability in Java-based microservices, enabling developers to implement distributed tracing seamlessly. By leveraging this specification, you can gain deep insights into the flow of requests, identify bottlenecks, and enhance the reliability and performance of your applications. The integration of standardized tracing concepts like spans, traces, and context propagation ensures that developers can maintain a cohesive understanding of their system's behavior across service boundaries.
+MicroProfile Telemetry provides a robust foundation for observability in Java-based microservices, enabling developers to implement distributed tracing, metrics collection, and log bridging seamlessly. By leveraging this specification, you can gain deep insights into the flow of requests, identify bottlenecks, and enhance the reliability and performance of your applications. The integration of standardized concepts such as spans, traces, context propagation, metrics instruments, and log correlation ensures that developers can maintain a cohesive understanding of their system's behavior across service boundaries.
 
 Through instrumentation, context propagation, and effective trace analysis, MicroProfile Telemetry simplifies the complexities of monitoring and debugging distributed systems. It empowers teams to proactively address issues, optimize performance, and improve the user experience. Moreover, by adhering to security best practices, developers can ensure that telemetry data is protected, compliant with regulations, and free of sensitive information.
 
 In this chapter, we explored the critical security considerations surrounding tracing within the MicroProfile Telemetry framework. We emphasized the importance of safeguarding sensitive data by avoiding the inclusion of Personally Identifiable Information (PII) in trace spans. Additionally, we discussed the potential security risks associated with tracing in production environments and the significance of carefully managing sampling rates and data retention policies. By adhering to these security best practices, developers can harness the power of tracing for observability while ensuring the confidentiality and integrity of their applications.
 
 As microservices architectures continue to evolve, the ability to observe and trace system interactions will remain a critical factor in maintaining resilient and efficient applications. MicroProfile Telemetry stands as a valuable tool in achieving these goals, providing developers with the observability they need to deliver reliable, high-performance microservices in modern cloud-native environments.
+
+// Updated for MicroProfile Telemetry 2.1
+== What's New in MicroProfile Telemetry 2.1
+
+MicroProfile Telemetry 2.1 is aligned with MicroProfile 7.1. The following changes are delivered in this release.
+
+=== OpenTelemetry Java Upgrade
+
+MicroProfile Telemetry 2.1 consumes https://github.com/open-telemetry/opentelemetry-java/releases/tag/v1.48.0[OpenTelemetry Java v1.48.0], upgraded from v1.39.0 in MicroProfile Telemetry 2.0.
+Implementations MAY consume a later patch release of the OpenTelemetry Java library provided that all required TCKs pass.
+
+The API artifact has changed to a Bill of Materials (BOM):
+
+[source, xml]
+----
+<dependency>
+    <groupId>org.eclipse.microprofile.telemetry</groupId>
+    <artifactId>microprofile-telemetry-api</artifactId>
+    <type>pom</type>
+    <version>2.1</version>
+</dependency>
+----
+
+=== JVM Metrics Configuration
+
+The TCK for JVM metrics has been updated so that JVM metrics configure themselves correctly without requiring explicit configuration. No application code changes are required for this fix.
+
+=== Incompatible Changes
+
+There are no incompatible API or behavior changes between MicroProfile Telemetry 2.0 and 2.1.
+
+=== Migration Notes
+
+If you are migrating from MicroProfile Telemetry 2.0:
+
+* Update the `microprofile-telemetry-api` dependency version from `2.0` to `2.1`.
+* Verify that your deployment environment provides the OpenTelemetry Java v1.48.0 libraries or a later patch version.
+* No application code changes are required to upgrade from 2.0 to 2.1.
+
+If you are migrating from MicroProfile Telemetry 1.1, review the MicroProfile Telemetry 2.0 release notes for breaking changes, particularly:
+
+* The stabilization of HTTP semantic conventions (attributes such as `http.method` have been renamed to `http.request.method`).
+* The introduction of a single shared OpenTelemetry SDK instance when `otel.sdk.disabled=false` is configured at runtime initialization time.
+* The addition of Metrics and Logs support.
+
+=== Impact on Existing Applications
+
+Applications that do not use JVM metrics are unaffected by the 2.1 changes. Applications relying on JVM metrics should update their `microprofile-telemetry-api` dependency version to 2.1 to benefit from the corrected JVM metrics configuration.
