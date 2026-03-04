@@ -1,0 +1,683 @@
+= Open Liberty: A Modern Cloud-Native Application Server
+:toc:
+:icons: font
+:source-highlighter: highlight.js
+:experimental:
+
+== Introduction
+
+Open Liberty is a lightweight, open-source application server designed for building cloud-native Java applications. Created by IBM and donated to the Eclipse Foundation, it represents a modern approach to Java application servers, focusing on developer productivity, rapid startup times, and cloud-ready deployment.
+
+This article explores Open Liberty's architecture, key features, and advantages over traditional application servers like WebSphere, JBoss, and Tomcat.
+
+== What is Open Liberty?
+
+Open Liberty is a highly composable, fast, and lightweight Java runtime that implements Jakarta EE and MicroProfile specifications. It's built from the ground up to:
+
+* Support modern microservices architectures
+* Enable rapid iterative development
+* Minimize resource consumption
+* Provide zero migration between development and production
+* Embrace cloud-native principles
+
+[quote, Open Liberty Documentation]
+____
+Open Liberty is a highly composable, fast to start, dynamic application server runtime environment.
+____
+
+== Traditional Application Servers: The Old Paradigm
+
+Traditional application servers (pre-2015 era) were designed for a different computing landscape:
+
+=== Characteristics of Traditional Servers
+
+[cols="1,3"]
+|===
+|Aspect |Traditional Approach
+
+|**Size**
+|Monolithic, often 200MB+ installation
+
+|**Startup Time**
+|30 seconds to several minutes
+
+|**Configuration**
+|All features loaded by default, whether needed or not
+
+|**Updates**
+|Major version upgrades require extensive testing and migration
+
+|**Deployment Model**
+|Multiple applications per server instance
+
+|**Resource Consumption**
+|High memory footprint (512MB+ baseline)
+
+|**Development Cycle**
+|Stop server → Make changes → Rebuild → Restart server
+
+|**Cloud Readiness**
+|Designed for long-running servers, not ephemeral containers
+|===
+
+=== Problems with Traditional Application Servers
+
+1. **Resource Inefficiency**: Loading unused features wastes memory and CPU
+2. **Slow Development Cycles**: Long restart times reduce productivity
+3. **Complex Configuration**: XML-heavy configuration with steep learning curves
+4. **Poor Container Fit**: Large images and slow startup hurt Kubernetes deployments
+5. **Vendor Lock-in**: Proprietary features create migration barriers
+6. **Scaling Challenges**: Heavyweight instances make horizontal scaling expensive
+
+== Open Liberty: The Modern Alternative
+
+Open Liberty addresses these challenges through a fundamentally different design philosophy.
+
+=== Core Design Principles
+
+==== 1. Composability Through Features
+
+Open Liberty uses a modular feature system where you enable only what you need.
+
+[source,xml]
+----
+<server description="Minimal Server">
+    <featureManager>
+        <feature>restfulWS</feature>  <!--1-->
+        <feature>jsonb</feature>      <!--2-->
+        <feature>cdi</feature>        <!--3-->
+    </featureManager>
+</server>
+----
+<1> Enable JAX-RS for REST endpoints
+<2> Enable JSON Binding for serialization
+<3> Enable Contexts and Dependency Injection
+
+**Benefits:**
+* Only load required features
+* Reduce memory footprint by 50-80%
+* Faster startup times (2-5 seconds typical)
+* Smaller container images (50-150MB)
+
+==== 2. Zero Config Defaults
+
+Open Liberty follows convention over configuration:
+
+[source,xml]
+----
+<server description="MicroProfile Tutorial Liberty Server">
+    <featureManager>
+        <platform>jakartaee-10.0</platform>  <!--1-->
+    </featureManager>
+
+    <httpEndpoint httpPort="${default.http.port}" 
+                  httpsPort="${default.https.port}"
+                  id="defaultHttpEndpoint" host="*" />  <!--2-->
+    
+    <webApplication location="catalog.war" 
+                    contextRoot="${app.context.root}"/>  <!--3-->
+</server>
+----
+<1> One line enables entire Jakarta EE 10 platform
+<2> Simple HTTP configuration with variable substitution
+<3> Single application deployment with custom context root
+
+**Benefits:**
+* Minimal XML configuration
+* Sensible defaults for common scenarios
+* Clear, readable configuration files
+* Easy to understand and maintain
+
+==== 3. Development Mode (Dev Mode)
+
+Open Liberty's `liberty:dev` mode revolutionizes the development experience:
+
+[source,bash]
+----
+mvn liberty:dev
+----
+
+**What happens in Dev Mode:**
+
+1. **Instant Hot Reload**: Code changes detected automatically
+2. **No Restart Required**: Updates applied without server restart
+3. **Test on Demand**: Press Enter to run tests instantly
+4. **Debug Ready**: Attaches debugger automatically on port 7777
+5. **Live Feedback**: Console shows compilation errors immediately
+
+.Development Workflow Comparison
+[cols="2,3,3"]
+|===
+|Action |Traditional Server |Open Liberty Dev Mode
+
+|Make code change
+|Edit file
+|Edit file
+
+|See changes
+|Stop server → Rebuild → Restart → Wait 30-60s
+|Save file → See changes in 1-2s
+
+|Run tests
+|Separate Maven command → Wait
+|Press Enter → Instant results
+
+|Debug issue
+|Attach debugger → Set breakpoints → Recreate state
+|Already attached → Set breakpoint → Continue
+|===
+
+**Productivity Impact:**
+* 95% faster iteration cycles
+* Reduced context switching
+* Fewer manual steps
+* More time coding, less time waiting
+
+==== 4. Cloud-Native Architecture
+
+Open Liberty is optimized for containerized deployments:
+
+===== Small Footprint
+
+[source,dockerfile]
+----
+FROM icr.io/appcafe/open-liberty:full-java21-openj9-ubi
+
+COPY --chown=1001:0 src/main/liberty/config/server.xml /config/
+COPY --chown=1001:0 target/*.war /config/apps/
+
+RUN configure.sh
+----
+
+**Container Image Sizes:**
+* Base Open Liberty image: ~250MB
+* With application: 280-350MB (vs 500MB+ traditional servers)
+* Kernel-slim variant: <100MB
+
+===== Fast Startup
+
+[source,bash]
+----
+$ docker run -p 9080:9080 my-liberty-app
+
+[AUDIT   ] CWWKE0001I: The server mpServer has been launched.
+[AUDIT   ] CWWKF0007I: Feature update started.
+[AUDIT   ] CWWKF0012I: The server installed the following features: 
+           [restfulWS-3.1, jsonb-3.0, cdi-4.0].
+[AUDIT   ] CWWKF0008I: Feature update completed in 2.147 seconds.
+[AUDIT   ] CWWKT0016I: Web application available: http://localhost:9080/catalog/
+[AUDIT   ] CWWKZ0001I: Application catalog started in 1.243 seconds.
+----
+
+Total startup: **~3.4 seconds** (vs 30-90 seconds for traditional servers)
+
+===== Kubernetes Optimization
+
+Open Liberty provides built-in Kubernetes features:
+
+[source,xml]
+----
+<server>
+    <featureManager>
+        <feature>microProfile-7.0</feature>
+    </featureManager>
+    
+    <!-- Built-in health checks -->
+    <mpHealth>
+        <readiness/>
+        <liveness/>
+        <startup/>
+    </mpHealth>
+    
+    <!-- Built-in metrics -->
+    <mpMetrics authentication="false"/>
+</server>
+----
+
+Automatic endpoints:
+* `/health/ready` - Readiness probe
+* `/health/live` - Liveness probe
+* `/health/started` - Startup probe
+* `/metrics` - Prometheus-compatible metrics
+
+==== 5. Standards-Based (No Lock-in)
+
+Open Liberty implements 100% standards-compliant specifications:
+
+**Jakarta EE 10:**
+* Jakarta RESTful Web Services (JAX-RS)
+* Jakarta Contexts and Dependency Injection (CDI)
+* Jakarta JSON Binding (JSON-B)
+* Jakarta Persistence (JPA)
+* Jakarta Enterprise Beans (EJB)
+* And 30+ more specifications
+
+**MicroProfile 7.0:**
+* Config
+* Fault Tolerance
+* Health Check
+* Metrics
+* OpenAPI
+* REST Client
+* JWT Authentication
+* And more...
+
+**Benefit:** Your application code is portable to any Jakarta EE/MicroProfile server (Payara, WildFly, TomEE, Quarkus, etc.)
+
+== Open Liberty vs Traditional Application Servers
+
+=== Performance Comparison
+
+[cols="2,2,2,2"]
+|===
+|Metric |Traditional Server |Open Liberty |Improvement
+
+|**Startup Time**
+|30-90 seconds
+|2-5 seconds
+|**85-94% faster**
+
+|**Memory Footprint**
+|512MB-1GB baseline
+|128-256MB baseline
+|**50-75% less**
+
+|**Container Image**
+|500MB-1GB
+|280-350MB
+|**40-65% smaller**
+
+|**Hot Reload**
+|Not supported (restart required)
+|1-2 seconds
+|**Infinite improvement**
+
+|**Feature Loading**
+|All features (200+)
+|Only enabled features (5-20)
+|**90-97% fewer**
+|===
+
+=== Development Experience Comparison
+
+[cols="2,2,2"]
+|===
+|Aspect |Traditional Server |Open Liberty
+
+|**IDE Integration**
+|Complex multi-step setup
+|Maven goal: `liberty:dev`
+
+|**Code Changes**
+|Stop → Build → Deploy → Start
+|Save file → Auto-reload
+
+|**Configuration**
+|Hundreds of XML elements
+|Minimal, focused XML
+
+|**Testing**
+|Separate build cycle
+|Press Enter in dev mode
+
+|**Debugging**
+|Manual debugger attachment
+|Auto-attached on port 7777
+
+|**Learning Curve**
+|Steep, vendor-specific
+|Gentle, standards-based
+|===
+
+=== Cloud Deployment Comparison
+
+[cols="2,2,2"]
+|===
+|Aspect |Traditional Server |Open Liberty
+
+|**Container Readiness**
+|Requires adaptation
+|Designed for containers
+
+|**Startup in Kubernetes**
+|30-90s (pod replacement delays)
+|2-5s (rapid scaling)
+
+|**Horizontal Scaling**
+|Expensive (resource-heavy)
+|Efficient (lightweight)
+
+|**Health Checks**
+|Custom implementation
+|Built-in MicroProfile Health
+
+|**Metrics**
+|Custom/proprietary
+|Prometheus-compatible
+
+|**Observability**
+|Add-on tools
+|Built-in (logs, metrics, traces)
+|===
+
+== Real-World Benefits
+
+=== Cost Savings
+
+**Scenario:** Running 100 microservices in Kubernetes
+
+.Resource Requirements Comparison
+[cols="2,2,2,2"]
+|===
+|Server Type |Memory per Pod |Total Memory |Monthly Cloud Cost
+
+|Traditional
+|1GB
+|100GB
+|$730/month
+
+|Open Liberty
+|256MB
+|25.6GB
+|$186/month
+
+|**Savings**
+|**-**
+|**74.4GB (74%)**
+|**$544/month (75%)**
+|===
+
+=== Developer Productivity
+
+**Scenario:** Team of 10 developers, 50 code-test cycles per day
+
+.Time Savings per Day
+[cols="2,2,2"]
+|===
+|Server Type |Time per Cycle |Daily Team Time
+
+|Traditional
+|45 seconds
+|375 minutes (6.25 hours)
+
+|Open Liberty
+|2 seconds
+|16.6 minutes (0.28 hours)
+
+|**Savings**
+|**-**
+|**358 minutes (5.97 hours/day)**
+|===
+
+That's nearly **6 hours per day** saved across the team, or **30 hours per week** of productive development time recovered.
+
+=== Deployment Agility
+
+**Scenario:** Deploy new version during traffic spike
+
+[cols="2,2,2"]
+|===
+|Metric |Traditional Server |Open Liberty
+
+|**New Pod Startup**
+|60 seconds
+|3 seconds
+
+|**Pods during Rollout**
+|2 old + 3 starting = 5 pods
+|2 old + 1 ready = 3 pods
+
+|**Resource Overhead**
+|+150% during deployment
+|+50% during deployment
+
+|**Rollout Duration**
+|3-5 minutes
+|30-60 seconds
+
+|**User Impact**
+|Potential service degradation
+|Seamless transition
+|===
+
+== Open Liberty Maven Plugin
+
+The Liberty Maven plugin provides the development experience:
+
+[source,xml]
+----
+<plugin>
+    <groupId>io.openliberty.tools</groupId>
+    <artifactId>liberty-maven-plugin</artifactId>
+    <version>3.12.0</version>
+    <configuration>
+        <serverName>mpServer</serverName>
+    </configuration>
+</plugin>
+----
+
+**Key Maven Goals:**
+
+[cols="2,3"]
+|===
+|Goal |Description
+
+|`liberty:dev`
+|Start server in development mode with hot reload
+
+|`liberty:run`
+|Start server in foreground (production-like)
+
+|`liberty:start`
+|Start server in background
+
+|`liberty:stop`
+|Stop background server
+
+|`liberty:create`
+|Create new server instance
+
+|`liberty:package`
+|Package application with server (runnable JAR or Docker)
+
+|`liberty:deploy`
+|Deploy application to running server
+|===
+
+== When to Choose Open Liberty
+
+=== Ideal Use Cases
+
+✅ **Microservices Architecture**
+* Lightweight instances for each service
+* Fast startup for auto-scaling
+* Minimal resource consumption
+
+✅ **Cloud-Native Applications**
+* Kubernetes/OpenShift deployments
+* Container-optimized images
+* Built-in observability
+
+✅ **Iterative Development**
+* Rapid feedback cycles
+* Hot reload requirements
+* Team productivity focus
+
+✅ **Modern Java Standards**
+* Jakarta EE 10 compliance
+* MicroProfile features
+* Future-proof applications
+
+✅ **Cost-Sensitive Deployments**
+* Public cloud (AWS, Azure, GCP)
+* Resource-constrained environments
+* Large-scale deployments (100+ instances)
+
+=== Migration Considerations
+
+**Easy Migration From:**
+* WebSphere Application Server
+* WebSphere Liberty (commercial version)
+* TomEE
+* Payara
+* WildFly (with Jakarta EE alignment)
+
+**May Require Adaptation:**
+* Proprietary features (e.g., WebLogic T3 protocol)
+* Vendor-specific APIs
+* Non-standard deployment descriptors
+
+== Getting Started with Open Liberty
+
+=== Basic Project Structure
+
+[source]
+----
+my-app/
+├── pom.xml
+└── src/
+    └── main/
+        ├── java/
+        │   └── com/example/
+        │       └── HelloResource.java
+        ├── liberty/
+        │   └── config/
+        │       └── server.xml
+        └── webapp/
+            └── WEB-INF/
+                └── web.xml
+----
+
+=== Minimal POM Configuration
+
+[source,xml]
+----
+<dependencies>
+    <dependency>
+        <groupId>jakarta.platform</groupId>
+        <artifactId>jakarta.jakartaee-api</artifactId>
+        <version>10.0.0</version>
+        <scope>provided</scope>
+    </dependency>
+</dependencies>
+
+<build>
+    <plugins>
+        <plugin>
+            <groupId>io.openliberty.tools</groupId>
+            <artifactId>liberty-maven-plugin</artifactId>
+            <version>3.12.0</version>
+        </plugin>
+    </plugins>
+</build>
+----
+
+=== Start Developing
+
+[source,bash]
+----
+# Start development mode
+mvn liberty:dev
+
+# Make changes to your code
+# Save files - changes applied automatically
+
+# Press Enter to run tests
+# Press Ctrl+C to stop
+----
+
+== Open Liberty Variants
+
+Open Liberty offers different distributions:
+
+[cols="2,3,2"]
+|===
+|Variant |Description |Use Case
+
+|**Open Liberty**
+|Full open-source runtime
+|Community projects, development
+
+|**WebSphere Liberty**
+|Commercial with IBM support
+|Enterprise production, compliance requirements
+
+|**Liberty Core**
+|Minimal runtime for microservices
+|Ultra-lightweight deployments
+
+|**Liberty Kernel**
+|Base kernel only
+|Custom feature composition
+|===
+
+All variants share the same codebase - only support and packaging differ.
+
+== Community and Support
+
+=== Open Source Community
+
+* **GitHub**: https://github.com/OpenLiberty/open-liberty
+* **Documentation**: https://openliberty.io/docs/
+* **Guides**: https://openliberty.io/guides/
+* **Blog**: https://openliberty.io/blog/
+* **Stack Overflow**: Tag `open-liberty`
+
+=== Release Cadence
+
+* **New releases**: Every 4 weeks
+* **Bug fixes**: Continuous
+* **Feature updates**: Follows Jakarta EE/MicroProfile specifications
+* **Security patches**: As needed
+
+=== Support Options
+
+1. **Community Support**: Free via GitHub issues and Stack Overflow
+2. **IBM Support**: Commercial support with WebSphere Liberty
+3. **Red Hat Support**: Through Red Hat Runtimes
+4. **Partner Support**: Various consulting partners
+
+== Conclusion
+
+Open Liberty represents a paradigm shift in Java application servers, moving from monolithic, all-inclusive platforms to lightweight, composable, cloud-native runtimes. Its advantages over traditional application servers are substantial:
+
+**For Developers:**
+* 95% faster development cycles
+* Intuitive configuration
+* Standards-based code
+* Excellent tooling
+
+**For Operations:**
+* 75% lower cloud costs
+* 85% faster startup times
+* Better scalability
+* Built-in observability
+
+**For Organizations:**
+* No vendor lock-in
+* Future-proof architecture
+* Proven enterprise reliability
+* Active open-source community
+
+Whether you're building new microservices or modernizing existing applications, Open Liberty provides a compelling path forward that balances developer productivity, operational efficiency, and enterprise reliability.
+
+== Try It Yourself
+
+Experience Open Liberty's development mode with this tutorial project:
+
+[source,bash]
+----
+cd code/chapter02/catalog
+mvn liberty:dev
+----
+
+Make a code change, save the file, and watch it reload in seconds. That's the Open Liberty difference.
+
+== Further Reading
+
+* https://openliberty.io/[Open Liberty Official Website]
+* https://openliberty.io/guides/[Open Liberty Guides]
+* https://openliberty.io/docs/latest/reference/feature/feature-overview.html[Feature Reference]
+* https://jakarta.ee/[Jakarta EE Specifications]
+* https://microprofile.io/[MicroProfile Specifications]
+* https://www.ibm.com/cloud/websphere-liberty[WebSphere Liberty (Commercial)]

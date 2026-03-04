@@ -1,0 +1,302 @@
+= Understanding JSON-B Serialization in MicroProfile Applications
+:toc:
+:icons: font
+:source-highlighter: highlight.js
+:experimental:
+
+== Introduction
+
+JSON-B (Jakarta JSON Binding) is the standard API for converting Java objects to JSON and vice versa in Jakarta EE applications. This article demonstrates how JSON-B works in a MicroProfile application using a practical e-commerce catalog service example.
+
+== What is JSON-B?
+
+JSON-B provides a binding layer between Java objects and JSON documents. It's part of Jakarta EE 10 and works seamlessly with JAX-RS (Jakarta RESTful Web Services) to automatically serialize and deserialize objects in REST APIs.
+
+Key benefits of JSON-B include:
+
+* **Zero Configuration**: Works out-of-the-box with sensible defaults
+* **Standard API**: Platform-independent, vendor-neutral specification
+* **Type Safety**: Maintains Java's strong typing
+* **Customizable**: Supports annotations for fine-grained control
+
+== Project Setup
+
+=== Maven Dependencies
+
+The project uses Jakarta EE 10, which includes JSON-B as part of the platform:
+
+[source,xml]
+----
+<dependency>
+    <groupId>jakarta.platform</groupId>
+    <artifactId>jakarta.jakartaee-api</artifactId>
+    <version>10.0.0</version>
+    <scope>provided</scope>
+</dependency>
+----
+
+=== Server Configuration
+
+Open Liberty's `server.xml` explicitly enables the JSON-B feature:
+
+[source,xml]
+----
+<server description="MicroProfile Tutorial Liberty Server">
+    <featureManager>
+        <platform>jakartaee-10.0</platform>
+        <feature>restfulWS</feature>
+        <feature>jsonb</feature>  <!--1-->
+    </featureManager>
+    
+    <httpEndpoint httpPort="${default.http.port}" 
+                  httpsPort="${default.https.port}"
+                  id="defaultHttpEndpoint" host="*" />
+    <webApplication location="catalog.war" 
+                    contextRoot="${app.context.root}"/>
+</server>
+----
+<1> The `jsonb` feature enables JSON-B serialization/deserialization
+
+== The Domain Model
+
+Our `Product` class is a simple POJO (Plain Old Java Object) using Lombok annotations:
+
+[source,java]
+----
+package io.microprofile.tutorial.store.product.entity;
+
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+import lombok.Data;
+
+@Data  <!--1-->
+@AllArgsConstructor  <!--2-->
+@NoArgsConstructor  <!--3-->
+public class Product {
+    private Long id;
+    private String name;
+    private String description;
+    private Double price;
+}
+----
+<1> `@Data` generates getters, setters, `toString()`, `equals()`, and `hashCode()`
+<2> `@AllArgsConstructor` creates a constructor with all fields
+<3> `@NoArgsConstructor` creates a no-argument constructor (required for JSON-B)
+
+[IMPORTANT]
+====
+JSON-B requires a no-argument constructor to deserialize JSON into Java objects. When using Lombok's `@AllArgsConstructor`, always add `@NoArgsConstructor` as well.
+====
+
+== REST Endpoint Configuration
+
+=== JAX-RS Application Path
+
+The `ProductRestApplication` class defines the base path for all REST endpoints:
+
+[source,java]
+----
+package io.microprofile.tutorial.store.product;
+
+import jakarta.ws.rs.ApplicationPath;
+import jakarta.ws.rs.core.Application;
+
+@ApplicationPath("/api")  <!--1-->
+public class ProductRestApplication extends Application {
+}
+----
+<1> All REST endpoints will be available under `/api`
+
+=== Resource Class with JSON-B Serialization
+
+The `ProductResource` class demonstrates automatic JSON-B serialization:
+
+[source,java]
+----
+package io.microprofile.tutorial.store.product.resource;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import io.microprofile.tutorial.store.product.entity.Product;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+
+@Path("/products")  <!--1-->
+@ApplicationScoped  <!--2-->
+public class ProductResource {
+    private List<Product> products;
+
+    public ProductResource() {
+        products = new ArrayList<>();
+        products.add(new Product(
+            Long.valueOf(1L), 
+            "iPhone", 
+            "Apple iPhone 15", 
+            Double.valueOf(999.99)
+        ));
+        products.add(new Product(
+            Long.valueOf(2L), 
+            "MacBook", 
+            "Apple MacBook Air", 
+            Double.valueOf(1299.99)
+        ));
+    }
+
+    @GET  <!--3-->
+    @Produces(MediaType.APPLICATION_JSON)  <!--4-->
+    public List<Product> getProducts() {
+        return products;  <!--5-->
+    }    
+}
+----
+<1> Resource path `/products` combined with `/api` gives `/api/products`
+<2> CDI scope ensures single instance across the application
+<3> Handles HTTP GET requests
+<4> **Critical**: Tells JAX-RS to produce JSON and triggers JSON-B serialization
+<5> Returns Java objects - JSON-B automatically converts them to JSON
+
+== How JSON-B Serialization Works
+
+The serialization process follows these steps:
+
+1. **Client Request**: HTTP GET request to `/catalog/api/products`
+2. **JAX-RS Routing**: Request routed to `ProductResource.getProducts()`
+3. **Method Execution**: Returns `List<Product>` (Java objects)
+4. **Content Negotiation**: JAX-RS sees `@Produces(MediaType.APPLICATION_JSON)`
+5. **JSON-B Activation**: JAX-RS delegates to JSON-B for serialization
+6. **Serialization**: JSON-B converts Java objects to JSON using:
+   - Field names become JSON property names
+   - Java values become JSON values
+   - Collections become JSON arrays
+7. **HTTP Response**: JSON sent to client with `Content-Type: application/json`
+
+== JSON Output
+
+When you call the endpoint, JSON-B produces this output:
+
+[source,json]
+----
+[
+  {
+    "id": 1,
+    "name": "iPhone",
+    "description": "Apple iPhone 15",
+    "price": 999.99
+  },
+  {
+    "id": 2,
+    "name": "MacBook",
+    "description": "Apple MacBook Air",
+    "price": 1299.99
+  }
+]
+----
+
+=== Default JSON-B Mapping Rules
+
+JSON-B applies these default conventions:
+
+[cols="1,2"]
+|===
+|Java Type |JSON Type
+
+|`String`
+|JSON string
+
+|`Long`, `Integer`, `Double`
+|JSON number
+
+|`Boolean`
+|JSON boolean (`true`/`false`)
+
+|`null`
+|JSON `null`
+
+|Collections (`List`, `Set`)
+|JSON array
+
+|Java objects
+|JSON object
+
+|`LocalDate`, `LocalDateTime`
+|ISO-8601 formatted string
+|===
+
+== Testing JSON-B Serialization
+
+=== Running the Application
+
+Start the application in development mode:
+
+[source,bash]
+----
+mvn liberty:dev
+----
+
+=== Testing with cURL
+
+[source,bash]
+----
+curl -X GET http://localhost:5050/catalog/api/products
+----
+
+Expected output:
+[source,json]
+----
+[{"id":1,"name":"iPhone","description":"Apple iPhone 15","price":999.99},{"id":2,"name":"MacBook","description":"Apple MacBook Air","price":1299.99}]
+----
+
+=== Testing with HTTPie
+
+If you have HTTPie installed:
+
+[source,bash]
+----
+http GET http://localhost:5050/catalog/api/products
+----
+
+=== Testing in Browser
+
+Simply navigate to:
+----
+http://localhost:5050/catalog/api/products
+----
+
+== Key Takeaways
+
+1. **Zero Configuration**: JSON-B works automatically when you use `@Produces(MediaType.APPLICATION_JSON)`
+2. **No Annotations Needed**: Simple POJOs serialize without any JSON-B-specific annotations
+3. **Type Safety**: Java types are preserved and validated at compile time
+4. **Standard API**: Code is portable across any Jakarta EE 10 compliant server
+5. **Clean Separation**: Business logic remains independent of serialization concerns
+
+== Advanced JSON-B Features (Not Covered Here)
+
+While this example demonstrates basic serialization, JSON-B offers advanced features:
+
+* **@JsonbProperty**: Customize JSON property names
+* **@JsonbTransient**: Exclude fields from serialization
+* **@JsonbDateFormat**: Custom date formatting
+* **@JsonbNumberFormat**: Custom number formatting
+* **@JsonbNillable**: Include null values in JSON
+* **@JsonbPropertyOrder**: Control property order in JSON
+* **Custom Serializers/Deserializers**: Full control over conversion logic
+* **JsonbConfig**: Programmatic configuration
+
+== Conclusion
+
+JSON-B provides a powerful yet simple way to serialize Java objects to JSON in MicroProfile applications. By leveraging JAX-RS's `@Produces` annotation and JSON-B's sensible defaults, you can build REST APIs with minimal configuration while maintaining clean, type-safe Java code.
+
+The automatic serialization demonstrated in this catalog service exemplifies modern Jakarta EE development: declarative, standards-based, and developer-friendly.
+
+== Further Reading
+
+* https://jakarta.ee/specifications/jsonb/[Jakarta JSON Binding Specification]
+* https://eclipse-ee4j.github.io/yasson/[Eclipse Yasson (JSON-B Reference Implementation)]
+* https://openliberty.io/docs/latest/reference/feature/jsonb-3.0.html[Open Liberty JSON-B Feature Documentation]
+* https://jakarta.ee/specifications/restful-ws/[Jakarta RESTful Web Services Specification]

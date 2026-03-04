@@ -6,7 +6,7 @@
 
 == Overview
 
-This project demonstrates a MicroProfile-based e-commerce microservice. It provides REST endpoints for product management and showcases Jakarta EE 10 and MicroProfile 7.1 features in a practical application.
+This project demonstrates an e-commerce microservice. It provides REST endpoints for product management and showcases Jakarta EE 10 and MicroProfile 7.1 features in a practical application.
 
 == Development Environment
 

@@ -1,0 +1,1341 @@
+= Advanced JSON-B Serialization Techniques in MicroProfile Applications
+:toc:
+:icons: font
+:source-highlighter: highlight.js
+:experimental:
+
+== Introduction
+
+While basic JSON-B serialization works seamlessly with default conventions, real-world applications often require fine-grained control over JSON output. This article explores advanced JSON-B features using practical examples that extend the e-commerce catalog service.
+
+We'll cover:
+
+* Custom property naming with `@JsonbProperty`
+* Excluding sensitive data with `@JsonbTransient`
+* Date and number formatting
+* Controlling property order
+* Handling null values
+* Custom serializers and deserializers
+* Programmatic configuration with `JsonbConfig`
+
+== Prerequisites
+
+This article builds upon the basic catalog service. Ensure you understand:
+
+* Basic JSON-B serialization concepts
+* JAX-RS resource classes
+* CDI (Contexts and Dependency Injection)
+* Lombok annotations
+
+== Enhanced Product Model
+
+Let's extend our basic `Product` class to demonstrate advanced JSON-B features:
+
+[source,java]
+----
+package io.microprofile.tutorial.store.product.entity;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import jakarta.json.bind.annotation.*;
+
+@JsonbPropertyOrder({"id", "name", "displayName", "description", 
+                     "price", "discountedPrice", "category", 
+                     "createdDate", "lastModified"})  <!--1-->
+public class EnhancedProduct {
+    
+    private Long id;
+    
+    private String name;
+    
+    @JsonbProperty("displayName")  <!--2-->
+    private String productDisplayName;
+    
+    private String description;
+    
+    @JsonbNumberFormat("#,##0.00")  <!--3-->
+    private BigDecimal price;
+    
+    @JsonbNumberFormat("#,##0.00")
+    @JsonbNillable  <!--4-->
+    private BigDecimal discountedPrice;
+    
+    @JsonbProperty("category")
+    private String productCategory;
+    
+    @JsonbDateFormat("yyyy-MM-dd'T'HH:mm:ss")  <!--5-->
+    private LocalDateTime createdDate;
+    
+    @JsonbDateFormat("yyyy-MM-dd'T'HH:mm:ss")
+    private LocalDateTime lastModified;
+    
+    @JsonbTransient  <!--6-->
+    private String internalSku;
+    
+    @JsonbTransient
+    private BigDecimal wholesaleCost;
+    
+    private Integer stockQuantity;
+    
+    @JsonbProperty("isActive")  <!--7-->
+    private Boolean active;
+    
+    // Constructors, getters, and setters omitted for brevity
+}
+----
+<1> `@JsonbPropertyOrder` controls the order of properties in JSON output
+<2> `@JsonbProperty` maps Java field name to different JSON property name
+<3> `@JsonbNumberFormat` formats numbers with custom patterns
+<4> `@JsonbNillable` includes null values in JSON (normally excluded)
+<5> `@JsonbDateFormat` formats dates with custom patterns
+<6> `@JsonbTransient` excludes sensitive fields from JSON output
+<7> Custom naming for boolean properties
+
+=== JSON Output
+
+The enhanced product serializes to:
+
+[source,json]
+----
+{
+  "id": 1,
+  "name": "iPhone",
+  "displayName": "Apple iPhone 15 Pro",
+  "description": "Latest flagship smartphone",
+  "price": "999.99",
+  "discountedPrice": "899.99",
+  "category": "Electronics",
+  "createdDate": "2026-03-01T10:30:00",
+  "lastModified": "2026-03-04T14:22:00",
+  "stockQuantity": 150,
+  "isActive": true
+}
+----
+
+**Note:** `internalSku` and `wholesaleCost` are not included due to `@JsonbTransient`.
+
+== Custom Property Naming
+
+=== The @JsonbProperty Annotation
+
+`@JsonbProperty` allows you to decouple Java naming conventions from JSON property names:
+
+[source,java]
+----
+public class Product {
+    @JsonbProperty("product_id")    // Snake case for external API
+    private Long id;
+    
+    @JsonbProperty("SKU")            // Uppercase abbreviation
+    private String sku;
+    
+    @JsonbProperty("display_name")   // Different convention
+    private String productDisplayName;
+}
+----
+
+**Output:**
+[source,json]
+----
+{
+  "product_id": 1,
+  "SKU": "IPH-15-PRO",
+  "display_name": "iPhone 15 Pro"
+}
+----
+
+=== Use Cases
+
+1. **API Contract Compliance**: External API requires specific naming
+2. **Legacy System Integration**: Match existing JSON structure
+3. **Multi-Language Support**: Different conventions (camelCase, snake_case, kebab-case)
+4. **Abbreviation Handling**: Preserve uppercase abbreviations (ID, SKU, URL)
+
+=== Property Naming Strategies
+
+JSON-B supports global naming strategies via `JsonbConfig`:
+
+[source,java]
+----
+import jakarta.json.bind.JsonbBuilder;
+import jakarta.json.bind.JsonbConfig;
+import jakarta.json.bind.config.PropertyNamingStrategy;
+
+JsonbConfig config = new JsonbConfig()
+    .withPropertyNamingStrategy(PropertyNamingStrategy.LOWER_CASE_WITH_UNDERSCORES);
+
+Jsonb jsonb = JsonbBuilder.create(config);
+----
+
+**Available Strategies:**
+
+[cols="2,2,2"]
+|===
+|Strategy |Java Field |JSON Property
+
+|`IDENTITY`
+|`productName`
+|`productName`
+
+|`LOWER_CASE_WITH_UNDERSCORES`
+|`productName`
+|`product_name`
+
+|`LOWER_CASE_WITH_DASHES`
+|`productName`
+|`product-name`
+
+|`UPPER_CAMEL_CASE`
+|`productName`
+|`ProductName`
+
+|`CASE_INSENSITIVE`
+|`productName`
+|`productname`
+|===
+
+== Excluding Sensitive Data
+
+=== The @JsonbTransient Annotation
+
+Use `@JsonbTransient` to exclude fields from serialization and deserialization:
+
+[source,java]
+----
+public class User {
+    private Long id;
+    private String username;
+    
+    @JsonbTransient  <!--1-->
+    private String password;
+    
+    @JsonbTransient  <!--2-->
+    private String passwordHash;
+    
+    private String email;
+    
+    @JsonbTransient  <!--3-->
+    private String creditCardNumber;
+    
+    @JsonbTransient  <!--4-->
+    private BigDecimal accountBalance;
+}
+----
+<1> Never expose passwords
+<2> Never expose password hashes
+<3> Sensitive financial information
+<4> Internal business data
+
+**JSON Output:**
+[source,json]
+----
+{
+  "id": 101,
+  "username": "john.doe",
+  "email": "john@example.com"
+}
+----
+
+=== Common Use Cases
+
+1. **Security**: Passwords, tokens, API keys
+2. **Privacy**: SSN, credit cards, personal identifiers
+3. **Internal Fields**: Database metadata, audit fields
+4. **Computed Properties**: Temporary calculation fields
+
+=== Runtime Exclusion with Adapters
+
+For conditional exclusion, use custom adapters:
+
+[source,java]
+----
+public class UserAdapter implements JsonbAdapter<User, JsonObject> {
+    
+    @Override
+    public JsonObject adaptToJson(User user) {
+        JsonObjectBuilder builder = Json.createObjectBuilder()
+            .add("id", user.getId())
+            .add("username", user.getUsername());
+        
+        // Only include email for verified users
+        if (user.isEmailVerified()) {
+            builder.add("email", user.getEmail());
+        }
+        
+        return builder.build();
+    }
+    
+    @Override
+    public User adaptFromJson(JsonObject json) {
+        // Deserialization logic
+        return new User(/* ... */);
+    }
+}
+----
+
+== Date and Time Formatting
+
+=== The @JsonbDateFormat Annotation
+
+`@JsonbDateFormat` controls how dates and times are serialized:
+
+[source,java]
+----
+import java.time.*;
+import jakarta.json.bind.annotation.JsonbDateFormat;
+
+public class OrderEvent {
+    
+    @JsonbDateFormat("yyyy-MM-dd")  <!--1-->
+    private LocalDate orderDate;
+    
+    @JsonbDateFormat("HH:mm:ss")  <!--2-->
+    private LocalTime orderTime;
+    
+    @JsonbDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX")  <!--3-->
+    private OffsetDateTime createdAt;
+    
+    @JsonbDateFormat("yyyy-MM-dd HH:mm:ss")  <!--4-->
+    private LocalDateTime lastModified;
+    
+    @JsonbDateFormat("EEE, MMM d, yyyy")  <!--5-->
+    private LocalDate deliveryDate;
+}
+----
+<1> Simple date format: `2026-03-04`
+<2> Time only: `14:30:45`
+<3> ISO-8601 with timezone: `2026-03-04T14:30:45.123+00:00`
+<4> Custom datetime: `2026-03-04 14:30:45`
+<5> Human-readable: `Tue, Mar 4, 2026`
+
+**JSON Output:**
+[source,json]
+----
+{
+  "orderDate": "2026-03-04",
+  "orderTime": "14:30:45",
+  "createdAt": "2026-03-04T14:30:45.123+00:00",
+  "lastModified": "2026-03-04 14:30:45",
+  "deliveryDate": "Tue, Mar 4, 2026"
+}
+----
+
+=== Default Date Formats
+
+Without `@JsonbDateFormat`, JSON-B uses ISO-8601:
+
+[cols="2,3"]
+|===
+|Java Type |Default JSON Format
+
+|`LocalDate`
+|`2026-03-04`
+
+|`LocalTime`
+|`14:30:45.123`
+
+|`LocalDateTime`
+|`2026-03-04T14:30:45.123`
+
+|`OffsetDateTime`
+|`2026-03-04T14:30:45.123+00:00`
+
+|`ZonedDateTime`
+|`2026-03-04T14:30:45.123+01:00[Europe/Paris]`
+
+|`Instant`
+|`2026-03-04T14:30:45.123Z`
+|===
+
+=== Global Date Configuration
+
+[source,java]
+----
+JsonbConfig config = new JsonbConfig()
+    .withDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US);
+
+Jsonb jsonb = JsonbBuilder.create(config);
+----
+
+== Number Formatting
+
+=== The @JsonbNumberFormat Annotation
+
+`@JsonbNumberFormat` applies custom number formatting:
+
+[source,java]
+----
+import java.math.BigDecimal;
+import jakarta.json.bind.annotation.JsonbNumberFormat;
+
+public class FinancialReport {
+    
+    @JsonbNumberFormat("#,##0.00")  <!--1-->
+    private BigDecimal revenue;
+    
+    @JsonbNumberFormat("$#,##0.00")  <!--2-->
+    private BigDecimal profit;
+    
+    @JsonbNumberFormat("#,##0.00%")  <!--3-->
+    private BigDecimal growthRate;
+    
+    @JsonbNumberFormat("0.0000")  <!--4-->
+    private Double exchangeRate;
+    
+    @JsonbNumberFormat("#,###")  <!--5-->
+    private Integer unitsSold;
+}
+----
+<1> Thousands separator with 2 decimals: `1,234,567.89`
+<2> Currency symbol: `$1,234,567.89`
+<3> Percentage format: `12.50%`
+<4> Fixed precision: `1.2345`
+<5> Integer with separator: `1,234,567`
+
+**JSON Output:**
+[source,json]
+----
+{
+  "revenue": "1,234,567.89",
+  "profit": "$450,123.50",
+  "growthRate": "12.50%",
+  "exchangeRate": "1.2345",
+  "unitsSold": "1,234,567"
+}
+----
+
+[WARNING]
+====
+Formatted numbers become JSON strings, not numbers. For APIs consumed by JavaScript, consider omitting formatting and handling it client-side.
+====
+
+=== Locale-Specific Formatting
+
+[source,java]
+----
+JsonbConfig config = new JsonbConfig()
+    .withLocale(Locale.GERMANY);  // Uses German number format
+
+Jsonb jsonb = JsonbBuilder.create(config);
+----
+
+German output: `1.234.567,89` (period for thousands, comma for decimals)
+
+== Controlling Property Order
+
+=== The @JsonbPropertyOrder Annotation
+
+By default, JSON-B outputs properties in undefined order. Use `@JsonbPropertyOrder` for consistency:
+
+[source,java]
+----
+@JsonbPropertyOrder({"id", "name", "email", "createdAt"})  <!--1-->
+public class Customer {
+    private String email;
+    private String name;
+    private Long id;
+    private LocalDateTime createdAt;
+}
+----
+<1> Explicitly defines output order
+
+**Guaranteed Output Order:**
+[source,json]
+----
+{
+  "id": 1,
+  "name": "John Doe",
+  "email": "john@example.com",
+  "createdAt": "2026-03-04T14:30:45"
+}
+----
+
+=== Alphabetical Ordering
+
+For alphabetical ordering, use `JsonbConfig`:
+
+[source,java]
+----
+JsonbConfig config = new JsonbConfig()
+    .withPropertyOrderStrategy(PropertyOrderStrategy.LEXICOGRAPHICAL);
+
+Jsonb jsonb = JsonbBuilder.create(config);
+----
+
+=== Reverse Order
+
+[source,java]
+----
+JsonbConfig config = new JsonbConfig()
+    .withPropertyOrderStrategy(PropertyOrderStrategy.REVERSE);
+
+Jsonb jsonb = JsonbBuilder.create(config);
+----
+
+== Handling Null Values
+
+=== Default Behavior
+
+JSON-B excludes null properties by default:
+
+[source,java]
+----
+public class Product {
+    private Long id = 1L;
+    private String name = "iPhone";
+    private String description = null;  // This will be excluded
+}
+----
+
+**Output:**
+[source,json]
+----
+{
+  "id": 1,
+  "name": "iPhone"
+}
+----
+
+=== The @JsonbNillable Annotation
+
+Force inclusion of null values:
+
+[source,java]
+----
+public class Product {
+    private Long id;
+    
+    private String name;
+    
+    @JsonbNillable  <!--1-->
+    private String description;
+    
+    @JsonbNillable  <!--2-->
+    private BigDecimal discountPrice;
+}
+----
+<1> Include null description
+<2> Include null discount price
+
+**Output with nulls:**
+[source,json]
+----
+{
+  "id": 1,
+  "name": "iPhone",
+  "description": null,
+  "discountPrice": null
+}
+----
+
+=== Class-Level Configuration
+
+Apply `@JsonbNillable` to entire class:
+
+[source,java]
+----
+@JsonbNillable  <!--1-->
+public class Product {
+    private Long id;
+    private String name;
+    private String description;  // All nulls included
+}
+----
+<1> All properties include nulls
+
+=== Global Configuration
+
+[source,java]
+----
+JsonbConfig config = new JsonbConfig()
+    .withNullValues(true);  // Include all nulls globally
+
+Jsonb jsonb = JsonbBuilder.create(config);
+----
+
+== Custom Serializers and Deserializers
+
+For complete control, implement custom adapters.
+
+=== Creating a Price Adapter
+
+Format prices with currency symbols:
+
+[source,java]
+----
+import jakarta.json.bind.adapter.JsonbAdapter;
+import java.math.BigDecimal;
+import java.text.NumberFormat;
+import java.util.Locale;
+
+public class PriceAdapter implements JsonbAdapter<BigDecimal, String> {
+    
+    private final NumberFormat currencyFormat = 
+        NumberFormat.getCurrencyInstance(Locale.US);
+    
+    @Override
+    public String adaptToJson(BigDecimal price) {  <!--1-->
+        if (price == null) {
+            return "$0.00";
+        }
+        return currencyFormat.format(price);
+    }
+    
+    @Override
+    public BigDecimal adaptFromJson(String json) {  <!--2-->
+        if (json == null || json.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        // Remove currency symbols and parse
+        String cleaned = json.replaceAll("[^0-9.]", "");
+        return new BigDecimal(cleaned);
+    }
+}
+----
+<1> Convert BigDecimal to formatted string
+<2> Parse formatted string back to BigDecimal
+
+=== Using the Adapter
+
+[source,java]
+----
+public class Product {
+    private Long id;
+    private String name;
+    
+    @JsonbTypeAdapter(PriceAdapter.class)  <!--1-->
+    private BigDecimal price;
+}
+----
+<1> Apply custom adapter to field
+
+**Output:**
+[source,json]
+----
+{
+  "id": 1,
+  "name": "iPhone",
+  "price": "$999.99"
+}
+----
+
+=== Creating an Enum Adapter
+
+Convert enums to custom representations:
+
+[source,java]
+----
+public enum ProductStatus {
+    AVAILABLE,
+    OUT_OF_STOCK,
+    DISCONTINUED,
+    COMING_SOON
+}
+
+public class ProductStatusAdapter 
+       implements JsonbAdapter<ProductStatus, String> {
+    
+    @Override
+    public String adaptToJson(ProductStatus status) {
+        return switch (status) {
+            case AVAILABLE -> "In Stock";
+            case OUT_OF_STOCK -> "Temporarily Unavailable";
+            case DISCONTINUED -> "No Longer Available";
+            case COMING_SOON -> "Pre-Order";
+        };
+    }
+    
+    @Override
+    public ProductStatus adaptFromJson(String json) {
+        return switch (json) {
+            case "In Stock" -> ProductStatus.AVAILABLE;
+            case "Temporarily Unavailable" -> ProductStatus.OUT_OF_STOCK;
+            case "No Longer Available" -> ProductStatus.DISCONTINUED;
+            case "Pre-Order" -> ProductStatus.COMING_SOON;
+            default -> throw new IllegalArgumentException("Unknown status: " + json);
+        };
+    }
+}
+----
+
+=== Complex Object Adapter
+
+Handle nested object transformations:
+
+[source,java]
+----
+import jakarta.json.*;
+
+public class AddressAdapter implements JsonbAdapter<Address, JsonObject> {
+    
+    @Override
+    public JsonObject adaptToJson(Address address) {
+        return Json.createObjectBuilder()
+            .add("formattedAddress", formatAddress(address))
+            .add("street", address.getStreet())
+            .add("city", address.getCity())
+            .add("state", address.getState())
+            .add("zipCode", address.getZipCode())
+            .add("country", address.getCountry())
+            .add("coordinates", Json.createObjectBuilder()
+                .add("latitude", address.getLatitude())
+                .add("longitude", address.getLongitude()))
+            .build();
+    }
+    
+    @Override
+    public Address adaptFromJson(JsonObject json) {
+        Address address = new Address();
+        address.setStreet(json.getString("street"));
+        address.setCity(json.getString("city"));
+        address.setState(json.getString("state"));
+        address.setZipCode(json.getString("zipCode"));
+        address.setCountry(json.getString("country"));
+        
+        if (json.containsKey("coordinates")) {
+            JsonObject coords = json.getJsonObject("coordinates");
+            address.setLatitude(coords.getJsonNumber("latitude").doubleValue());
+            address.setLongitude(coords.getJsonNumber("longitude").doubleValue());
+        }
+        
+        return address;
+    }
+    
+    private String formatAddress(Address addr) {
+        return String.format("%s, %s, %s %s, %s",
+            addr.getStreet(), addr.getCity(), 
+            addr.getState(), addr.getZipCode(), addr.getCountry());
+    }
+}
+----
+
+== Programmatic Configuration with JsonbConfig
+
+For JAX-RS integration, configure JSON-B programmatically:
+
+=== Creating a Custom ContextResolver
+
+[source,java]
+----
+import jakarta.json.bind.Jsonb;
+import jakarta.json.bind.JsonbBuilder;
+import jakarta.json.bind.JsonbConfig;
+import jakarta.json.bind.config.PropertyNamingStrategy;
+import jakarta.json.bind.config.PropertyOrderStrategy;
+import jakarta.ws.rs.ext.ContextResolver;
+import jakarta.ws.rs.ext.Provider;
+
+@Provider  <!--1-->
+public class JsonbConfiguration implements ContextResolver<Jsonb> {
+    
+    @Override
+    public Jsonb getContext(Class<?> type) {
+        JsonbConfig config = new JsonbConfig()
+            .withPropertyNamingStrategy(
+                PropertyNamingStrategy.LOWER_CASE_WITH_UNDERSCORES)  <!--2-->
+            .withPropertyOrderStrategy(
+                PropertyOrderStrategy.LEXICOGRAPHICAL)  <!--3-->
+            .withNullValues(false)  <!--4-->
+            .withFormatting(true)  <!--5-->
+            .withDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)  <!--6-->
+            .withLocale(Locale.US)  <!--7-->
+            .withAdapters(new PriceAdapter())  <!--8-->
+            .withSerializers(new CustomProductSerializer());  <!--9-->
+        
+        return JsonbBuilder.create(config);
+    }
+}
+----
+<1> `@Provider` makes it discoverable by JAX-RS
+<2> Apply global naming strategy
+<3> Order properties alphabetically
+<4> Exclude null values
+<5> Pretty-print JSON output
+<6> Global date format
+<7> Set locale for number formatting
+<8> Register custom adapters
+<9> Register custom serializers
+
+=== Configuration Properties
+
+[cols="2,3"]
+|===
+|Method |Purpose
+
+|`withPropertyNamingStrategy()`
+|Set global property naming convention
+
+|`withPropertyOrderStrategy()`
+|Control property output order
+
+|`withNullValues(boolean)`
+|Include/exclude null values globally
+
+|`withFormatting(boolean)`
+|Pretty-print JSON (indentation)
+
+|`withDateFormat(String, Locale)`
+|Global date format pattern
+
+|`withLocale(Locale)`
+|Set locale for number/date formatting
+
+|`withAdapters(JsonbAdapter...)`
+|Register custom adapters
+
+|`withSerializers(JsonbSerializer...)`
+|Register custom serializers
+
+|`withDeserializers(JsonbDeserializer...)`
+|Register custom deserializers
+
+|`withStrictIJSON(boolean)`
+|RFC 7493 I-JSON compliance
+
+|`withEncoding(String)`
+|Character encoding (default: UTF-8)
+|===
+
+== Building a Complete Example
+
+Let's create an enhanced product resource with all features:
+
+=== Enhanced Product Entity
+
+[source,java]
+----
+package io.microprofile.tutorial.store.product.entity;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import jakarta.json.bind.annotation.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@JsonbPropertyOrder({"id", "name", "displayName", "description", 
+                     "price", "discountedPrice", "category", 
+                     "status", "stockQuantity", "createdDate"})
+public class EnhancedProduct {
+    
+    private Long id;
+    
+    private String name;
+    
+    @JsonbProperty("displayName")
+    private String productDisplayName;
+    
+    private String description;
+    
+    @JsonbTypeAdapter(PriceAdapter.class)
+    private BigDecimal price;
+    
+    @JsonbTypeAdapter(PriceAdapter.class)
+    @JsonbNillable
+    private BigDecimal discountedPrice;
+    
+    @JsonbProperty("category")
+    private String productCategory;
+    
+    @JsonbTypeAdapter(ProductStatusAdapter.class)
+    private ProductStatus status;
+    
+    @JsonbDateFormat("yyyy-MM-dd'T'HH:mm:ss")
+    private LocalDateTime createdDate;
+    
+    @JsonbTransient
+    private String internalSku;
+    
+    @JsonbTransient
+    private BigDecimal wholesaleCost;
+    
+    private Integer stockQuantity;
+}
+----
+
+=== Enhanced Resource Endpoint
+
+[source,java]
+----
+package io.microprofile.tutorial.store.product.resource;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+import io.microprofile.tutorial.store.product.entity.EnhancedProduct;
+import io.microprofile.tutorial.store.product.entity.ProductStatus;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+
+@Path("/enhanced-products")
+@ApplicationScoped
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
+public class EnhancedProductResource {
+    
+    private List<EnhancedProduct> products;
+    
+    public EnhancedProductResource() {
+        products = new ArrayList<>();
+        
+        products.add(new EnhancedProduct(
+            1L,
+            "iPhone",
+            "Apple iPhone 15 Pro",
+            "Latest flagship smartphone with A17 Pro chip",
+            new BigDecimal("999.99"),
+            new BigDecimal("899.99"),
+            "Electronics",
+            ProductStatus.AVAILABLE,
+            LocalDateTime.now().minusDays(30),
+            "SKU-IPH-15-PRO",
+            new BigDecimal("650.00"),
+            150
+        ));
+        
+        products.add(new EnhancedProduct(
+            2L,
+            "MacBook",
+            "Apple MacBook Air M3",
+            "Lightweight laptop with M3 chip",
+            new BigDecimal("1299.99"),
+            null,  // No discount
+            "Electronics",
+            ProductStatus.AVAILABLE,
+            LocalDateTime.now().minusDays(15),
+            "SKU-MBA-M3",
+            new BigDecimal("850.00"),
+            75
+        ));
+        
+        products.add(new EnhancedProduct(
+            3L,
+            "AirPods",
+            "Apple AirPods Pro (2nd Gen)",
+            "Active Noise Cancellation earbuds",
+            new BigDecimal("249.99"),
+            new BigDecimal("199.99"),
+            "Audio",
+            ProductStatus.OUT_OF_STOCK,
+            LocalDateTime.now().minusDays(60),
+            "SKU-APP-PRO-2",
+            new BigDecimal("120.00"),
+            0
+        ));
+    }
+    
+    @GET
+    public List<EnhancedProduct> getAllProducts() {
+        return products;
+    }
+    
+    @GET
+    @Path("/{id}")
+    public Response getProduct(@PathParam("id") Long id) {
+        return products.stream()
+            .filter(p -> p.getId().equals(id))
+            .findFirst()
+            .map(p -> Response.ok(p).build())
+            .orElse(Response.status(Response.Status.NOT_FOUND).build());
+    }
+    
+    @GET
+    @Path("/category/{category}")
+    public List<EnhancedProduct> getProductsByCategory(
+            @PathParam("category") String category) {
+        return products.stream()
+            .filter(p -> p.getProductCategory().equalsIgnoreCase(category))
+            .toList();
+    }
+    
+    @POST
+    public Response createProduct(EnhancedProduct product) {
+        product.setId((long) (products.size() + 1));
+        product.setCreatedDate(LocalDateTime.now());
+        products.add(product);
+        return Response.status(Response.Status.CREATED)
+                      .entity(product)
+                      .build();
+    }
+}
+----
+
+=== Sample JSON Output
+
+GET `/catalog/api/enhanced-products`:
+
+[source,json]
+----
+[
+  {
+    "id": 1,
+    "name": "iPhone",
+    "displayName": "Apple iPhone 15 Pro",
+    "description": "Latest flagship smartphone with A17 Pro chip",
+    "price": "$999.99",
+    "discountedPrice": "$899.99",
+    "category": "Electronics",
+    "status": "In Stock",
+    "stockQuantity": 150,
+    "createdDate": "2026-02-02T10:30:00"
+  },
+  {
+    "id": 2,
+    "name": "MacBook",
+    "displayName": "Apple MacBook Air M3",
+    "description": "Lightweight laptop with M3 chip",
+    "price": "$1,299.99",
+    "discountedPrice": null,
+    "category": "Electronics",
+    "status": "In Stock",
+    "stockQuantity": 75,
+    "createdDate": "2026-02-17T14:22:00"
+  },
+  {
+    "id": 3,
+    "name": "AirPods",
+    "displayName": "Apple AirPods Pro (2nd Gen)",
+    "description": "Active Noise Cancellation earbuds",
+    "price": "$249.99",
+    "discountedPrice": "$199.99",
+    "category": "Audio",
+    "status": "Temporarily Unavailable",
+    "stockQuantity": 0,
+    "createdDate": "2026-01-03T09:15:00"
+  }
+]
+----
+
+**Notice:**
+- Custom property names (`displayName`, `category`)
+- Formatted prices with currency symbols
+- Human-readable status messages
+- Formatted dates
+- Null discount price included for MacBook
+- Sensitive fields (SKU, wholesale cost) excluded
+- Consistent property order
+
+== Testing Advanced Features
+
+=== Unit Test with Custom Configuration
+
+[source,java]
+----
+import jakarta.json.bind.Jsonb;
+import jakarta.json.bind.JsonbBuilder;
+import jakarta.json.bind.JsonbConfig;
+import org.junit.jupiter.api.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+public class EnhancedProductSerializationTest {
+    
+    private Jsonb jsonb;
+    
+    @BeforeEach
+    void setUp() {
+        JsonbConfig config = new JsonbConfig()
+            .withFormatting(true);
+        jsonb = JsonbBuilder.create(config);
+    }
+    
+    @AfterEach
+    void tearDown() throws Exception {
+        jsonb.close();
+    }
+    
+    @Test
+    void testCustomPropertyNames() throws Exception {
+        EnhancedProduct product = new EnhancedProduct();
+        product.setId(1L);
+        product.setProductDisplayName("Test Product");
+        product.setProductCategory("Test Category");
+        
+        String json = jsonb.toJson(product);
+        
+        assertTrue(json.contains("\"displayName\""));
+        assertTrue(json.contains("\"category\""));
+        assertFalse(json.contains("\"productDisplayName\""));
+        assertFalse(json.contains("\"productCategory\""));
+    }
+    
+    @Test
+    void testTransientFields() throws Exception {
+        EnhancedProduct product = new EnhancedProduct();
+        product.setId(1L);
+        product.setName("iPhone");
+        product.setInternalSku("SECRET-SKU");
+        product.setWholesaleCost(new BigDecimal("500.00"));
+        
+        String json = jsonb.toJson(product);
+        
+        assertFalse(json.contains("internalSku"));
+        assertFalse(json.contains("wholesaleCost"));
+        assertFalse(json.contains("SECRET-SKU"));
+        assertFalse(json.contains("500.00"));
+    }
+    
+    @Test
+    void testDateFormatting() throws Exception {
+        EnhancedProduct product = new EnhancedProduct();
+        product.setId(1L);
+        product.setCreatedDate(LocalDateTime.of(2026, 3, 4, 14, 30, 0));
+        
+        String json = jsonb.toJson(product);
+        
+        assertTrue(json.contains("\"createdDate\":\"2026-03-04T14:30:00\""));
+    }
+    
+    @Test
+    void testNullableField() throws Exception {
+        EnhancedProduct product = new EnhancedProduct();
+        product.setId(1L);
+        product.setName("iPhone");
+        product.setDiscountedPrice(null);  // Marked with @JsonbNillable
+        
+        String json = jsonb.toJson(product);
+        
+        assertTrue(json.contains("\"discountedPrice\":null"));
+    }
+    
+    @Test
+    void testDeserialization() throws Exception {
+        String json = """
+            {
+                "id": 1,
+                "name": "iPhone",
+                "displayName": "Apple iPhone 15",
+                "price": "$999.99",
+                "category": "Electronics"
+            }
+            """;
+        
+        EnhancedProduct product = jsonb.fromJson(json, EnhancedProduct.class);
+        
+        assertNotNull(product);
+        assertEquals(1L, product.getId());
+        assertEquals("iPhone", product.getName());
+        assertEquals("Apple iPhone 15", product.getProductDisplayName());
+        assertEquals("Electronics", product.getProductCategory());
+    }
+}
+----
+
+== Best Practices
+
+=== 1. Choose the Right Approach
+
+[cols="2,3,3"]
+|===
+|Scenario |Recommended Approach |Why
+
+|Simple POJO
+|No annotations (defaults)
+|Clean, maintainable code
+
+|External API contract
+|`@JsonbProperty`
+|Match required format
+
+|Sensitive data
+|`@JsonbTransient`
+|Security best practice
+
+|Complex formatting
+|Custom adapters
+|Full control, reusable
+
+|Global conventions
+|`JsonbConfig` + `@Provider`
+|Consistency across application
+|===
+
+=== 2. Performance Considerations
+
+* **Adapters are slower** than default serialization - use judiciously
+* **Number formatting** converts numbers to strings - impacts client parsing
+* **Date formatting** adds processing overhead - use only when necessary
+* **Null inclusion** increases payload size - exclude by default
+
+=== 3. API Design Guidelines
+
+**DO:**
+✅ Use standards-based types (`LocalDateTime`, `BigDecimal`)
+✅ Document custom formats in API specification
+✅ Validate date/number formats during deserialization
+✅ Exclude sensitive data with `@JsonbTransient`
+✅ Keep property names consistent and meaningful
+
+**DON'T:**
+❌ Mix formatted and raw numbers in same API
+❌ Use proprietary date formats without documentation
+❌ Expose internal implementation details
+❌ Create deeply nested adapter chains
+❌ Over-engineer simple serialization
+
+=== 4. Backward Compatibility
+
+When evolving APIs:
+
+[source,java]
+----
+public class Product {
+    private Long id;
+    
+    @JsonbProperty("name")
+    private String productName;
+    
+    @Deprecated
+    @JsonbProperty("oldName")  // Maintain old property for compatibility
+    public String getOldName() {
+        return productName;
+    }
+    
+    @JsonbNillable  // New optional field, include null for clarity
+    private String category;
+}
+----
+
+=== 5. Testing Strategy
+
+Test serialization at three levels:
+
+1. **Unit Tests**: Individual adapters and annotations
+2. **Integration Tests**: Full resource endpoints with REST Assured
+3. **Contract Tests**: Verify API compliance with consumers
+
+== Common Pitfalls and Solutions
+
+=== Pitfall 1: Forgetting No-Arg Constructor
+
+**Problem:**
+[source,java]
+----
+@AllArgsConstructor  // Only provides all-args constructor
+public class Product {
+    private Long id;
+    private String name;
+}
+----
+
+**Error:** `Unable to deserialize: No suitable constructor found`
+
+**Solution:**
+[source,java]
+----
+@AllArgsConstructor
+@NoArgsConstructor  // Required for JSON-B deserialization
+public class Product {
+    private Long id;
+    private String name;
+}
+----
+
+=== Pitfall 2: Circular References
+
+**Problem:**
+[source,java]
+----
+public class Category {
+    private String name;
+    private List<Product> products;  // References Product
+}
+
+public class Product {
+    private String name;
+    private Category category;  // References Category - circular!
+}
+----
+
+**Error:** `StackOverflowError` during serialization
+
+**Solution:** Use `@JsonbTransient` on one side:
+[source,java]
+----
+public class Product {
+    private String name;
+    
+    @JsonbTransient  // Break the cycle
+    private Category category;
+}
+----
+
+=== Pitfall 3: Incompatible Format Patterns
+
+**Problem:**
+[source,java]
+----
+@JsonbDateFormat("MM/dd/yyyy")  // US format
+private LocalDateTime timestamp;  // LocalDateTime includes time!
+----
+
+**Error:** Serialization works, but deserialization fails
+
+**Solution:** Match pattern to type:
+[source,java]
+----
+@JsonbDateFormat("MM/dd/yyyy HH:mm:ss")
+private LocalDateTime timestamp;
+----
+
+=== Pitfall 4: Adapter Performance
+
+**Problem:** Custom adapter called for every element in large collections:
+[source,java]
+----
+public class Report {
+    @JsonbTypeAdapter(ComplexAdapter.class)
+    private List<DataPoint> data;  // 10,000 items × expensive adapter
+}
+----
+
+**Solution:** Optimize adapter or consider batch processing
+
+== Conclusion
+
+Advanced JSON-B features provide powerful tools for precise control over JSON serialization in MicroProfile applications. Key takeaways:
+
+1. **@JsonbProperty** - Customize property names without changing Java code
+2. **@JsonbTransient** - Protect sensitive data from exposure
+3. **@JsonbDateFormat** - Control date/time representation
+4. **@JsonbNumberFormat** - Format numbers for human readability
+5. **@JsonbPropertyOrder** - Ensure consistent JSON structure
+6. **@JsonbNillable** - Explicitly handle null values
+7. **Custom Adapters** - Complete control for complex scenarios
+8. **JsonbConfig** - Global configuration for consistency
+
+Choose the simplest approach that meets your requirements. Start with defaults, add annotations as needed, and implement custom adapters only for complex transformations.
+
+The enhanced catalog service demonstrates these techniques in a practical, production-ready pattern suitable for modern microservices architectures.
+
+== Further Reading
+
+* https://jakarta.ee/specifications/jsonb/3.0/[Jakarta JSON Binding 3.0 Specification]
+* https://javaee.github.io/jsonb-spec/docs/user-guide.html[JSON-B User Guide]
+* https://eclipse-ee4j.github.io/yasson/[Eclipse Yasson Documentation]
+* https://openliberty.io/docs/latest/reference/feature/jsonb-3.0.html[Open Liberty JSON-B Feature]
+* https://github.com/eclipse-ee4j/jsonb-api[JSON-B API GitHub Repository]
+
+== Try It Yourself
+
+Extend the basic catalog service with these advanced features:
+
+[source,bash]
+----
+cd code/chapter02/catalog
+# Add the EnhancedProduct class and EnhancedProductResource
+mvn liberty:dev
+# Test: http://localhost:5050/catalog/api/enhanced-products
+----
+
+Experiment with different annotations and adapters to understand their impact on JSON output.
