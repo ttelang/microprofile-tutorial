@@ -1,17 +1,17 @@
 #!/bin/bash
-# filepath: /workspaces/microprofile-tutorial/code/chapter04/catalog/test-api.sh
+# filepath: /workspaces/microprofile-tutorial/code/chapter04/mp-ecomm-store/test-api.sh
 
-# MicroProfile Catalog Service API Test Script
+# MicroProfile E-Commerce Store API Test Script
 # This script tests all CRUD operations for the Product API
 
 set -e  # Exit on any error
 
 # Configuration
-BASE_URL="http://localhost:5050/catalog/api/products"
+BASE_URL="http://localhost:5050/mp-ecomm-store/api/products"
 CONTENT_TYPE="Content-Type: application/json"
 
 echo "=================================="
-echo "MicroProfile Catalog Service API Test"
+echo "MicroProfile E-Commerce Store API Test"
 echo "=================================="
 echo "Base URL: $BASE_URL"
 echo "=================================="
