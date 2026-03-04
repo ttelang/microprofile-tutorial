@@ -4,7 +4,7 @@
 
 == Introduction
 
-GraphQL is a modern query language and runtime for APIs that provides a powerful alternative to traditional REST APIs. This chapter explores MicroProfile GraphQL 2.0, a specification that brings GraphQL capabilities to Jakarta EE and MicroProfile applications. You will learn how to build flexible, efficient GraphQL APIs that allow clients to request exactly the data they need.
+GraphQL is a modern query language and runtime for APIs that provides a powerful alternative to traditional REST APIs. This chapter explores MicroProfile GraphQL 2.0, a specification that brings GraphQL capabilities to Jakarta EE and MicroProfile applications. Use the patterns and APIs described here to build flexible, efficient GraphQL APIs that allow clients to request exactly the data they need.
 
 For detailed information about MicroProfile GraphQL 2.0, refer to the official specification at https://download.eclipse.org/microprofile/microprofile-graphql-2.0/microprofile-graphql-spec-2.0.html[MicroProfile GraphQL 2.0 Specification].
 
@@ -18,10 +18,12 @@ For detailed information about MicroProfile GraphQL 2.0, refer to the official s
 - Integration with MicroProfile Config
 - Defining GraphQL service endpoints
 - Annotations for defining GraphQL operations and metadata
+- Scalar types, enumerations, and GraphQL interfaces
 - Custom Object Mapping and Field Resolution
 - Error Handling and Partial Results
 - Integration with OpenAPI
 - Deployment and Best Practices
+- What's New in MicroProfile GraphQL 2.0
 
 == What is GraphQL?
 
@@ -239,10 +241,13 @@ You can configure various aspects of your GraphQL service using MicroProfile Con
 [source, properties]
 ----
 # In microprofile-config.properties
+# Updated for MicroProfile GraphQL 2.0
 mp.graphql.defaultErrorMessage=An error occurred processing your request
-mp.graphql.exceptionsBlackList=java.lang.NullPointerException
-mp.graphql.exceptionsWhiteList=com.example.BusinessException
+mp.graphql.hideErrorMessage=java.lang.NullPointerException
+mp.graphql.showErrorMessage=com.example.BusinessException
 ----
+
+The `mp.graphql.hideErrorMessage` property specifies a comma-separated list of fully qualified exception class names whose error messages are replaced with the default error message when returned to clients. By default, all unchecked exceptions (subclasses of `RuntimeException`) have their messages hidden. The `mp.graphql.showErrorMessage` property specifies exception class names whose error messages are sent to clients. By default, all checked exceptions have their messages shown.
 
 === Using Config in GraphQL Services
 
@@ -722,6 +727,192 @@ public class OrderItem {
 }
 ----
 
+// Updated for MicroProfile GraphQL 2.0
+=== Defining GraphQL Interfaces with @Interface
+
+Use the `@Interface` annotation on a Java interface to define a GraphQL interface type. The MicroProfile GraphQL implementation generates a GraphQL interface in the schema for every class in the application that implements the annotated Java interface:
+
+[source, java]
+----
+import org.eclipse.microprofile.graphql.Interface;
+import org.eclipse.microprofile.graphql.Description;
+
+@Interface
+public interface Identifiable {
+    Long getId();
+}
+
+public class Product implements Identifiable {
+    private Long id;
+    private String name;
+
+    @Override
+    @Description("Unique product identifier")
+    public Long getId() { return id; }
+
+    // ...
+}
+
+public class Review implements Identifiable {
+    private Long id;
+    private String comment;
+
+    @Override
+    @Description("Unique review identifier")
+    public Long getId() { return id; }
+
+    // ...
+}
+----
+
+This generates a schema such as:
+
+[source, graphql]
+----
+interface Identifiable {
+  id: BigInteger
+}
+
+type Product implements Identifiable {
+  "Unique product identifier"
+  id: BigInteger
+  # ...
+}
+
+type Review implements Identifiable {
+  "Unique review identifier"
+  id: BigInteger
+  # ...
+}
+----
+
+NOTE: The MicroProfile GraphQL 2.0 specification does not support `@Interface` on input types.
+
+// Updated for MicroProfile GraphQL 2.0
+=== Defining Enumerable Types with @Enum
+
+Use the `@Enum` annotation to name an enum type in the generated GraphQL schema. When neither `@Enum` nor `@Name` is present, the implementation uses the Java enum name:
+
+[source, java]
+----
+import org.eclipse.microprofile.graphql.Enum;
+import org.eclipse.microprofile.graphql.Type;
+
+@Type("Product")
+public class Product {
+    private String name;
+    private StockStatus stockStatus;
+
+    @Enum("StockStatus")
+    public enum StockStatus {
+        IN_STOCK, LOW_STOCK, OUT_OF_STOCK
+    }
+
+    // getters and setters
+}
+----
+
+This generates the following in the schema:
+
+[source, graphql]
+----
+enum StockStatus {
+  IN_STOCK
+  LOW_STOCK
+  OUT_OF_STOCK
+}
+
+type Product {
+  name: String
+  stockStatus: StockStatus
+  # ...
+}
+----
+
+The GraphQL runtime returns a validation error when the client sends a value that is not included in the enumerated type.
+
+// Updated for MicroProfile GraphQL 2.0
+=== Formatting Scalars with @NumberFormat and @DateFormat
+
+Use the `@NumberFormat` annotation to apply a pattern to number scalar fields. When a format is applied, the formatted result is of type `String` in the GraphQL response:
+
+[source, java]
+----
+import org.eclipse.microprofile.graphql.NumberFormat;
+import org.eclipse.microprofile.graphql.DateFormat;
+import org.eclipse.microprofile.graphql.Type;
+
+@Type("Product")
+public class Product {
+
+    @NumberFormat(value = "$ #,##0.00", locale = "en-US")
+    private Double price;
+
+    // getters and setters
+}
+----
+
+Similarly, use `@DateFormat` to control how date scalar fields are serialized:
+
+[source, java]
+----
+import org.eclipse.microprofile.graphql.DateFormat;
+import java.time.LocalDate;
+
+@Type("Product")
+public class Product {
+
+    @DateFormat(value = "dd MMM yyyy")
+    private LocalDate releaseDate;
+
+    // getters and setters
+}
+----
+
+Date scalars default to ISO-8601 format when no `@DateFormat` annotation is present. The GraphQL annotation takes precedence over the equivalent JSON-B annotation (`@JsonbNumberFormat` or `@JsonbDateFormat`) when both are present on the same field.
+
+You may also place `@NumberFormat` or `@DateFormat` on a `@Query` or `@Mutation` method to transform the return value:
+
+[source, java]
+----
+@Query
+@DateFormat(value = "dd MMM yyyy")
+public LocalDate getProductReleaseDate(@Name("id") Long id) {
+    return productService.findById(id).getReleaseDate();
+}
+----
+
+// Updated for MicroProfile GraphQL 2.0
+=== Excluding Fields with @Ignore
+
+Use the `@Ignore` annotation to prevent a field from appearing in the generated GraphQL schema. The placement of the annotation determines which schema section is affected:
+
+* Placed on the Java field: excludes the field from both the output type and the input type.
+* Placed on the getter method: excludes the field from the output type only.
+* Placed on the setter method: excludes the field from the input type only.
+
+[source, java]
+----
+import org.eclipse.microprofile.graphql.Ignore;
+import org.eclipse.microprofile.graphql.Type;
+
+@Type("Product")
+public class Product {
+
+    @Ignore
+    private String internalCode; // excluded from both type and input
+
+    private String name;
+
+    @Ignore
+    public String getAuditLog() { // excluded from output type only
+        return auditLog;
+    }
+
+    // getters and setters
+}
+----
+
 == Custom Object Mapping and Field Resolution
 
 MicroProfile GraphQL provides powerful features for custom field resolution and handling complex data relationships.
@@ -1034,7 +1225,8 @@ public class ProductApi {
 }
 ----
 
-=== Custom Error Response with @GraphQLExceptionHandler
+// Updated for MicroProfile GraphQL 2.0
+=== Custom Error Handling with GraphQLException
 
 Create custom exception handlers for better error messages and control:
 
@@ -1733,19 +1925,87 @@ quarkus.http.enable-compression=true
 quarkus.http.compress-media-types=application/json,application/graphql
 ----
 
+== What's New in MicroProfile GraphQL 2.0
+
+// Updated for MicroProfile GraphQL 2.0
+
+MicroProfile GraphQL 2.0 is released as part of the MicroProfile 5.0 platform and aligns with Jakarta EE 9.1. The primary change in this release is the migration from the legacy `javax.*` package namespace to the `jakarta.*` namespace, consistent with the broader Jakarta EE 9 platform transition.
+
+=== Jakarta Namespace Migration
+
+All MicroProfile GraphQL APIs and supporting Jakarta EE specifications now use the `jakarta.*` package prefix instead of `javax.*`. This change affects CDI annotations, JSON-B types, and any Jakarta EE types used alongside MicroProfile GraphQL.
+
+Typical import changes required when migrating from MicroProfile GraphQL 1.x to 2.0:
+
+[source, java]
+----
+// MicroProfile GraphQL 1.x (Jakarta EE 8 / javax namespace)
+import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
+import javax.json.bind.annotation.JsonbProperty;
+
+// MicroProfile GraphQL 2.0 (Jakarta EE 9.1+ / jakarta namespace)
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.json.bind.annotation.JsonbProperty;
+----
+
+The `org.eclipse.microprofile.graphql.*` package itself is unchanged between 1.x and 2.0. Only the Jakarta EE dependency packages require updating.
+
+=== Configuration Property Naming
+
+The error message control properties were renamed in MicroProfile GraphQL 2.0 to use inclusive terminology:
+
+[cols="1,1", options="header"]
+|===
+| MicroProfile GraphQL 1.x | MicroProfile GraphQL 2.0
+| `mp.graphql.exceptionsWhiteList` | `mp.graphql.showErrorMessage`
+| `mp.graphql.exceptionsBlackList` | `mp.graphql.hideErrorMessage`
+|===
+
+Applications using the old property names must update their `microprofile-config.properties` files.
+
+=== Migration Notes
+
+To migrate an application from MicroProfile GraphQL 1.x to 2.0:
+
+1. Update the runtime environment to one that supports Jakarta EE 9.1 or later (for example, Open Liberty 22.0.0.3+, WildFly 26+, or Quarkus 2.8+).
+2. Update all `javax.*` imports in Java source files to `jakarta.*`.
+3. Rename `mp.graphql.exceptionsWhiteList` to `mp.graphql.showErrorMessage` in all configuration files.
+4. Rename `mp.graphql.exceptionsBlackList` to `mp.graphql.hideErrorMessage` in all configuration files.
+5. Update the `microprofile-graphql-api` dependency to version `2.0`.
+
+=== Breaking Changes
+
+* The `javax.*` → `jakarta.*` namespace change is a binary and source incompatibility. Recompilation is required.
+* Applications deployed on Jakarta EE 8 runtimes cannot use MicroProfile GraphQL 2.0. A runtime that supports Jakarta EE 9.1 or later is required.
+* The renamed configuration properties (`showErrorMessage` / `hideErrorMessage`) take effect immediately. The old property names are no longer recognized.
+
+=== Impact on Existing Applications
+
+Applications that expose GraphQL APIs through MicroProfile GraphQL 1.x require the following changes to adopt version 2.0:
+
+* No changes are needed to the business logic, GraphQL schema design, or annotation usage within the `org.eclipse.microprofile.graphql` package.
+* Only the Jakarta EE dependency imports and the two renamed configuration properties need updating.
+* No new deprecations or removed features exist in the 2.0 release beyond those caused by the namespace change.
+
 == Summary
 
-In this chapter, you learned about MicroProfile GraphQL 2.0, a powerful specification for building flexible and efficient GraphQL APIs in Jakarta EE and MicroProfile environments. We covered:
+In this chapter, you explored MicroProfile GraphQL 2.0, a specification for building flexible and efficient GraphQL APIs in Jakarta EE and MicroProfile environments. The chapter covered:
 
 * The fundamentals of GraphQL and how it differs from REST
 * Setting up MicroProfile GraphQL in your project with Maven or Gradle
 * Defining GraphQL endpoints using `@GraphQLApi` and exposing operations through the `/graphql` endpoint
 * Using annotations like `@Query`, `@Mutation`, `@Name`, `@Description`, and `@DefaultValue` to define and document your API
+* Defining GraphQL interface types with `@Interface`, enumerable types with `@Enum`, and excluding fields with `@Ignore`
+* Formatting scalar values with `@NumberFormat` and `@DateFormat`
 * Implementing custom field resolvers with `@Source` to handle complex data relationships
 * Solving the N+1 query problem with batch loading
-* Handling errors gracefully with custom exception handlers and returning partial results
+* Handling errors with `GraphQLException` and returning partial results
+* Controlling error message visibility with `mp.graphql.showErrorMessage` and `mp.graphql.hideErrorMessage`
 * Integrating with MicroProfile Config for externalized configuration
 * Optimising performance with caching, batching, and efficient query patterns
 * Best practices for schema design, pagination, and reducing payload sizes
+* Key changes introduced in MicroProfile GraphQL 2.0, including the Jakarta namespace migration and renamed configuration properties
 
-MicroProfile GraphQL 2.0 provides a robust foundation for building modern APIs that give clients the flexibility to request exactly the data they need while maintaining strong typing and excellent developer experience. By following the best practices outlined in this chapter, you can build efficient, maintainable, and performant GraphQL services.
+MicroProfile GraphQL 2.0 provides a robust foundation for building modern APIs that give clients the flexibility to request exactly the data they need while maintaining strong typing and excellent developer experience.
