@@ -9,7 +9,7 @@ toc::[]
 
 == Overview
 
-The MicroProfile Catalog Service is a modern Jakarta EE 10 application built with MicroProfile 6.1 specifications. This service provides a RESTful API for product catalog management with enhanced MicroProfile features and flexible persistence options. This project demonstrates the key capabilities of MicroProfile OpenAPI, MicroProfile Health, CDI qualifiers, and dual persistence architecture with both JPA/Derby database and in-memory implementations.
+The MicroProfile Catalog Service is a modern Jakarta EE 10 application built with MicroProfile specifications. This service provides a RESTful API for product catalog management with enhanced MicroProfile features and flexible persistence options. This project demonstrates the key capabilities of MicroProfile OpenAPI, MicroProfile Health, CDI qualifiers, and dual persistence architecture with both JPA/Derby database and in-memory implementations.
 
 == Features
 
@@ -612,7 +612,7 @@ The application uses MicroProfile Config to externalize configuration:
 [source,properties]
 ----
 # Enable OpenAPI scanning
-mp.openapi.scan=true
+mp.openapi.scan.disable=false
 
 # Maintenance mode configuration
 product.maintenanceMode=false

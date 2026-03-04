@@ -9,7 +9,7 @@ toc::[]
 
 == Overview
 
-The MicroProfile Catalog Service is a modern Jakarta EE 10 application built with MicroProfile 6.1 specifications and running on Open Liberty. This service provides a RESTful API for product catalog management with enhanced MicroProfile features.
+The MicroProfile Catalog Service is a modern Jakarta EE 10 application built with MicroProfile specifications and running on Open Liberty. This service provides a RESTful API for product catalog management with enhanced MicroProfile features.
 
 This project demonstrates the key capabilities of MicroProfile OpenAPI and in-memory persistence architecture.
 
@@ -157,7 +157,7 @@ The application uses MicroProfile Config to externalize configuration:
 [source,properties]
 ----
 # Enable OpenAPI scanning
-mp.openapi.scan=true
+mp.openapi.scan.disabled=false
 
 # Maintenance mode configuration
 product.maintenanceMode=false
@@ -227,8 +227,6 @@ Key architectural benefits of this change:
 * *Simplified Deployment*: No external database required
 * *Faster Startup*: No database initialization delay
 * *Reduced Dependencies*: Fewer libraries and configurations
-* *Easier Testing*: No test database setup needed
-* *Consistent Development Environment*: Same behavior across all development machines
 
 === Containerization with Docker
 
@@ -319,8 +317,8 @@ catalog/
 
 === Prerequisites
 
-* JDK 17+
-* Maven 3.8+
+* JDK 21
+* Maven 3.13.0
 
 === Building and Running
 
@@ -501,7 +499,7 @@ This enables scanning of OpenAPI annotations in the application.
 
 === Common Issues
 
-* *OpenAPI documentation not available*: Make sure `mp.openapi.scan=true` is set in the properties file
+* *OpenAPI documentation not available*: Make sure `mp.openapi.scan.disable=false` is set in the properties file
 * *Concurrent modification exceptions*: Ensure proper use of thread-safe collections and operations
 * *Service always in maintenance mode*: Check the `product.maintenanceMode` property in `microprofile-config.properties`
 * *API returning 503 responses*: The service is likely in maintenance mode; set `product.maintenanceMode=false` in configuration
@@ -618,5 +616,3 @@ The landing page is configured as the welcome file in `web.xml`:
 ----
 
 This provides a user-friendly entry point for API consumers and developers.
-
-
