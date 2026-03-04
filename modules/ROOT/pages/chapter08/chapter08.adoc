@@ -16,6 +16,7 @@ This chapter explains how to enhance your microservices' resilience and reliabil
 - Setting Timeouts
 - Implementing Fallback Logic
 - Isolating Resources for Fault Tolerance
+- What's New in MicroProfile Fault Tolerance 4.1
 
 == What is Fault Tolerance?
 
@@ -91,7 +92,7 @@ The MicroProfile Fault Tolerance annotations provide a declarative way to implem
 | Annotation | Description
 | `@Asynchronous` | Ensures that the annotated method executes in a separate thread, allowing non-blocking execution. This is useful for improving responsiveness and handling long-running tasks asynchronously. 
 | `@Retry` | Specifies that the annotated method should automatically retry on failure. Parameters such as `maxRetries`, `delay`, `maxDuration`, and `jitter` control retry behavior. Configurations can be externalized using MicroProfile Config.
-| `@Timeout` | Specifies the maximum duration (in milliseconds) the method can execute before being aborted. If the timeout is exceeded, a `FaultToleranceException` is thrown. 
+| `@Timeout` | Specifies the maximum duration (in milliseconds) the method can execute before being aborted. If the timeout is exceeded, a `TimeoutException` is thrown. // Updated for MicroProfile Fault Tolerance 4.1
 | `@CircuitBreaker` | Defines a circuit breaker mechanism to prevent repeated calls to a failing method. Includes parameters like `failureRatio`, `delay`, and `requestVolumeThreshold`.
 | `@Fallback` | Specifies alternative logic to execute when the primary method fails. This ensures meaningful responses and graceful degradation.
 | `@Bulkhead` | Limits the number of concurrent method executions to isolate system resources and prevent cascading failures.
@@ -243,7 +244,7 @@ In this approach, you gain flexibility to adapt retry policies based on the envi
 - **Limit Retries:** Avoid setting `maxRetries` too high, as excessive retries can overwhelm the system or cause cascading failures.
 - **Use Jitter:** Always configure jitter to reduce the risk of synchronized retry attempts by multiple services.
 - **Abort Non-Recoverable Errors:** Use the `abortOn` parameter to exclude critical exceptions that retries cannot resolve.
-- **Monitor Metrics:** Integrate with MicroProfile Metrics to track retry patterns and adjust configurations dynamically based on real-world performance.
+- **Monitor Metrics:** Integrate with MicroProfile Metrics or MicroProfile Telemetry to track retry patterns and adjust configurations dynamically based on real-world performance. // Updated for MicroProfile Fault Tolerance 4.1
 - **Combine Strategies:** For robust error handling, use retries alongside other fault tolerance mechanisms, such as timeouts and circuit breakers.
 
 === Avoiding and Managing Cascading Failures
@@ -270,13 +271,15 @@ A circuit breaker is a critical fault tolerance mechanism that protects a system
 
 ==== Circuit Breaker Parameters
 
+// Updated for MicroProfile Fault Tolerance 4.1
 |=== 
 | Parameter                 | Description 
 | `failureRatio`            | Specifies the proportion of failed requests required to open the circuit breaker.
 | `requestVolumeThreshold`  | The minimum number of requests made in a rolling time window before the failure ratio is evaluated.
 | `delay`                   | The time (in milliseconds) the circuit breaker remains open before transitioning to the "half-open" state.
 | `successThreshold`        | The number of consecutive successful test requests required in the "half-open" state to close the circuit breaker.
-| `failOn`                  | Specifies the exception(s) considered failures contributing to the failure ratio.
+| `failOn`                  | Specifies the exception(s) considered failures contributing to the failure ratio. Defaults to `Throwable.class`.
+| `skipOn`                  | Specifies the exception(s) that are not considered failures. Takes precedence over `failOn` when both match.
 |===
 
 Below is an example of configuring a circuit breaker for a service method using the `@CircuitBreaker` annotation:
@@ -331,12 +334,14 @@ io.microprofile.tutorial.store.payment.service.ProductService/fetchProductDetail
 ==== Best Practices for Circuit Breaker
 
 - **Set Realistic Failure Ratios and Thresholds:** Tailor parameters to your services' expected load and failure behavior.
-- **Monitor Metrics:** Use MicroProfile Metrics to monitor circuit breaker state transitions.
+- **Monitor Metrics:** Use MicroProfile Metrics or MicroProfile Telemetry to monitor circuit breaker state transitions. // Updated for MicroProfile Fault Tolerance 4.1
 - **Combine with Other Strategies:** Use circuit breakers alongside retries and timeouts for a robust fault tolerance setup.
 
 === Using `@Asynchronous` Annotation
 
 The *`@Asynchronous`* annotation in MicroProfile Fault Tolerance is used to enable asynchronous execution of methods. It allows operations to run in a separate thread, freeing up the main thread for other tasks. This approach enhances the application's responsiveness and scalability, particularly in high-concurrency or latency-sensitive scenarios.
+
+A method annotated with `@Asynchronous` must return either `java.util.concurrent.Future` or `java.util.concurrent.CompletionStage`. Annotating a method that returns any other type causes a `FaultToleranceDefinitionException` at startup. The CDI `RequestScoped` context is active during the asynchronous method invocation. // Updated for MicroProfile Fault Tolerance 4.1
 
 ==== Why Use `@Asynchronous`?
 
@@ -410,7 +415,8 @@ io.microprofile.tutorial.store.payment.service.ProductService/fetchData/Timeout/
 
 ==== Best Practices for Using @Asynchronous
 
-- *Use `CompletableStage` or `Future`*: Return types like `CompletableStage` allow asynchronous methods to integrate seamlessly with other asynchronous workflows.
+// Updated for MicroProfile Fault Tolerance 4.1
+- *Use `CompletionStage` rather than `Future`*: Return types like `CompletionStage` allow other fault tolerance annotations (`@Retry`, `@CircuitBreaker`, `@Timeout`, `@Bulkhead`) to react to exceptionally completed stages. With `Future`, only exceptions thrown directly from the method body trigger fault tolerance processing.
 
 ==== Asynchronous Execution in Fault Tolerance Strategies
 
@@ -581,6 +587,37 @@ public class FallbackHandlerImpl implements FallbackHandler<String> {
 }
 ----
 
+==== Controlling When Fallback Triggers
+
+// Updated for MicroProfile Fault Tolerance 4.1
+Use the `applyOn` and `skipOn` parameters on `@Fallback` to control precisely which exceptions trigger the fallback. When an exception is thrown:
+
+- If the exception is assignable to any type in `skipOn`, it is rethrown without invoking the fallback.
+- Otherwise, if the exception is assignable to any type in `applyOn`, the fallback is invoked.
+- Otherwise, the exception is rethrown.
+
+The following example triggers the fallback for `ExceptionA` and `ExceptionB` but skips it for the more-specific `ExceptionBSub`:
+
+[source,java]
+----
+import org.eclipse.microprofile.faulttolerance.Fallback;
+
+public class ProductService {
+
+    @Retry(maxRetries = 2)
+    @Fallback(applyOn = {ExceptionA.class, ExceptionB.class},
+              skipOn = ExceptionBSub.class,
+              fallbackMethod = "getProductFallback")
+    public String getProduct(Long id) {
+        return productService.fetchById(id);
+    }
+
+    private String getProductFallback() {
+        return "Default product data";
+    }
+}
+----
+
 ==== Combining Fallbacks with Other Fault Tolerance Strategies
 
 Fallback logic can be combined with other fault tolerance mechanisms to create a robust strategy:
@@ -638,53 +675,46 @@ This example demonstrates the use of MicroProfile Fault Tolerance annotations `@
 
 ==== Externalizing `@Timeout` Configuration using MicroProfile Config
 
-To externalize the @Timeout configuration using MicroProfile Config, you can replace the hardcoded timeout value with a configurable property. This allows us to modify the timeout dynamically without changing the source code.
+// Updated for MicroProfile Fault Tolerance 4.1
+To externalize the `@Timeout` configuration using MicroProfile Config, use the standard MicroProfile Config property naming convention. This allows you to modify the timeout value without changing the source code. Annotation parameters are compile-time constants and cannot reference runtime-injected values directly.
 
-* Define a Configurable Property: Use `@ConfigProperty` to inject the timeout value.
+* Annotate the method with `@Timeout` using the default or a baseline value:
 
 [source, java]
 ----
+import org.eclipse.microprofile.faulttolerance.Timeout;
 
-// ... 
 @RequestScoped
 public class ProductService {
 
     @Inject
-    private ProductRepository productRepository; // Access to the database
+    private ProductRepository productRepository;
 
     @Inject
-    private ProductCache productCache; // Cache mechanism
+    private ProductCache productCache;
 
-    // Inject the timeout value from MicroProfile Config
-    @Inject
-    @ConfigProperty(name = "product.service.timeout", defaultValue = "2000")
-    private long timeoutValue;
-
-    // ...
-----
-
-* Use the Configured Value in @Timeout Annotation: Define a getter method and using it in the annotation.
-
-[source, java]
-----
-    ... 
-    /**
-     * Provide the timeout value dynamically using a method reference.
-     */
-    @Timeout(value = getTimeout()) // Use method reference to fetch dynamic value
-    public long getTimeout() {
-        return timeoutValue;
+    @Timeout(2000)
+    @Fallback(fallbackMethod = "getProductsFromCache")
+    public List<Product> getProducts() {
+        return productRepository.findAllProducts();
     }
+
+    public List<Product> getProductsFromCache() {
+        return productCache.getAll().stream()
+                .map(obj -> (Product) obj)
+                .collect(Collectors.toList());
+    }
+}
 ----
 
-* Define the Configuration Property: Configure the timeout in *microprofile-config.properties*:
+* Override the timeout value at runtime in `microprofile-config.properties`:
 
-[source]
+[source,properties]
 ----
-io.microprofile.tutorial.store.product.service.ProductService.timeout=3000
+io.microprofile.tutorial.store.product.service.ProductService/getProducts/Timeout/value=3000
 ----
 
-This sets the timeout to 3000 milliseconds (3 seconds) instead of the default 2000 making your application more configurable and adaptable without code changes.
+This sets the timeout to 3000 milliseconds (3 seconds) instead of the annotated 2000 milliseconds, making your application configurable and adaptable without code changes.
 
 ==== Best Practices for Fallbacks
 
@@ -723,6 +753,7 @@ MicroProfile supports two types of bulkheads:
 
 The semaphore-style bulkhead pattern limits the number of concurrent requests that can be processed by a service or method at any given time. Any additional requests are immediately rejected when the specified concurrency limit is reached. This approach prevents resource contention and protects the system from being overwhelmed during high traffic or failure scenarios.
 
+// Updated for MicroProfile Fault Tolerance 4.1
 [source,java]
 ----
 package io.microprofile.tutorial.store.payment.service;
@@ -742,14 +773,6 @@ public class PaymentService {
     @Inject
     private Logger logger;
 
-    @Inject
-    @ConfigProperty(name = "payment.simulatedDelay", defaultValue = "1000")
-    private int simulatedDelay;
-
-    @Inject
-    @ConfigProperty(name = "payment.bulkhead.value", defaultValue = "5")
-    private int bulkheadValue;
-
     /**
      * Processes payment transactions with limited concurrency to prevent
      * system overload and ensure stability during high traffic.
@@ -762,7 +785,7 @@ public class PaymentService {
      * @return A success message indicating the processing status.
      */
     @Asynchronous
-    @Bulkhead(value = bulkheadValue)
+    @Bulkhead(5)
     public CompletionStage<String> processPayment() {
         logger.info("Starting payment processing...");
         simulateDelay();
@@ -775,7 +798,7 @@ public class PaymentService {
      */
     private void simulateDelay() {
         try {
-            Thread.sleep(simulatedDelay); // Simulating delay
+            Thread.sleep(1000); // Simulating delay
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             logger.severe("Error during simulated delay: " + e.getMessage());
@@ -793,6 +816,7 @@ In this example:
 
 The thread-pool-style bulkhead pattern leverages a thread pool to achieve resource isolation. Incoming requests are placed into a queue when the maximum allowed number of threads are in use. Queued requests are executed as threads become available. This design helps manage resource contention effectively.
 
+// Updated for MicroProfile Fault Tolerance 4.1
 [source,java]
 ----
 package io.microprofile.tutorial.store.payment.service;
@@ -804,11 +828,12 @@ import org.eclipse.microprofile.faulttolerance.Asynchronous;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class PaymentService {
 
-    private static final Logger logger = LoggerFactory.getLogger(PaymentService.class);
+    private static final Logger logger = Logger.getLogger(PaymentService.class.getName());
 
     /**
      * Processes payment transactions with limited concurrency using a thread pool
@@ -820,11 +845,10 @@ public class PaymentService {
      */
     @Bulkhead(value = 5, waitingTaskQueue = 10)
     @Asynchronous
-    public CompletionStage<Void> processPayment() {
-        return CompletableFuture.runAsync(() -> {
-            simulateDelay();
-            System.out.println("Payment processed with limited concurrency.");
-        }).thenRun(() -> logger.info("Payment processed with limited concurrency."));
+    public CompletionStage<String> processPayment() {
+        simulateDelay();
+        logger.info("Payment processed with limited concurrency.");
+        return CompletableFuture.completedFuture("Payment processed with limited concurrency.");
     }
 
     private void simulateDelay() {
@@ -869,11 +893,41 @@ com.example.Service/dynamicBulkheadOperation/Bulkhead/waitingTaskQueue=10
 ==== Best Practices for Resource Isolation
 
 - **Isolate Critical Resources:** Use bulkheads for high-priority operations, such as authentication, to ensure they are not impacted by failures elsewhere.
-- **Monitor Usage:** Track bulkhead metrics using MicroProfile Metrics to identify bottlenecks and adjust limits.
+- **Monitor Usage:** Track bulkhead metrics using MicroProfile Metrics or MicroProfile Telemetry to identify bottlenecks and adjust limits. // Updated for MicroProfile Fault Tolerance 4.1
 - **Plan for Scaling:** Test bulkhead configurations under various load conditions to ensure scalability.
 - **Combine with Graceful Degradation:** Pair bulkheads with fallbacks to handle rejected requests gracefully.
 
 By effectively isolating resources, you can ensure that your microservices remain reliable and resilient, even in the face of unexpected failures or high demand. This approach not only protects critical operations but also improves overall system stability.
+
+== What's New in MicroProfile Fault Tolerance 4.1
+
+// Updated for MicroProfile Fault Tolerance 4.1
+MicroProfile Fault Tolerance 4.1 is a minor release with no incompatible changes or API/SPI modifications. The following changes were introduced:
+
+=== MicroProfile Telemetry Integration
+
+Fault Tolerance 4.1 formalizes integration with the MicroProfile Telemetry specification in addition to the existing MicroProfile Metrics integration. When MicroProfile Fault Tolerance is used with MicroProfile Telemetry, metrics are automatically added for each method annotated with `@Retry`, `@Timeout`, `@CircuitBreaker`, `@Bulkhead`, or `@Fallback`.
+
+The key difference between the two integrations:
+
+- *MicroProfile Metrics* exports fault tolerance metrics in the `base` scope as counters, gauges, and histograms (durations in nanoseconds).
+- *MicroProfile Telemetry* exports the same conceptual metrics using OpenTelemetry types: counters emit `long` values; histograms record `double` values in seconds with explicit bucket boundaries: `0.005`, `0.01`, `0.025`, `0.05`, `0.075`, `0.1`, `0.25`, `0.5`, `0.75`, `1`, `2.5`, `5`, `7.5`, and `10`.
+
+When all three specifications (Fault Tolerance, Metrics, and Telemetry) are active, Fault Tolerance exports metrics to both systems simultaneously.
+
+The `MP_Fault_Tolerance_Metrics_Enabled` config property controls only the MicroProfile Metrics integration. Telemetry integration follows the MicroProfile Telemetry configuration.
+
+=== Migration Notes
+
+No migration steps are required when upgrading from Fault Tolerance 4.0 to 4.1.
+
+=== Breaking Changes
+
+There are no breaking changes in this release.
+
+=== Impact on Existing Applications
+
+Applications that use MicroProfile Fault Tolerance 4.0 continue to work unchanged with 4.1. If the deployment also includes MicroProfile Telemetry, fault tolerance metrics are automatically reported through Telemetry in addition to, or instead of, MicroProfile Metrics. Review dashboards and alerting queries to account for the different metric types and units used by MicroProfile Telemetry.
 
 == Summary
 
