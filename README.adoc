@@ -62,28 +62,32 @@ private ProductServiceClient productClient;
 
 **Chapter 11** has been comprehensively updated to MicroProfile Rest Client 4.0, covering the following:
 
-** Addtional Topics Coverage **
+** Additional Topics Coverage **
 
-* **Jakarta EE 10 Alignment** - Complete namespace migration (`javax.*` → `jakarta.*`), breaking changes, and compatibility benefits
 * **Defining REST Client Interfaces** - `@RegisterRestClient` usage, configKey configuration, and interface design patterns
-* **CDI Integration** - Mandatory `@RestClient` qualifier, scope management (`@ApplicationScoped`, `@RequestScoped`), lifecycle management
+* **CDI Integration** - Scope management (`@ApplicationScoped`, `@RequestScoped`), lifecycle management
 * **MicroProfile Config Integration** - Complete configuration reference (URL, timeouts, scopes, providers, SSL/TLS), configuration precedence, environment-specific overrides
 * **Parameter Configuration** - `@PathParam`, `@QueryParam`, `@HeaderParam`, `@BeanParam` with practical examples
 * **Request & Response Handling** - All HTTP methods (GET, POST, PUT, DELETE, PATCH), response types (DTO, `Response`, `void`, collections), `AutoCloseable` resource management
 * **JSON & Multipart Data** - JSON-B automatic serialization, JSON-B annotations, multipart file uploads, JSON-P for dynamic processing
 * **Error Handling** - `ResponseExceptionMapper` implementation, priority-based exception mapping, checked vs unchecked exceptions
-* **RestClientBuilder API** - Programmatic client creation with new `baseUri(String)` method, complete configuration options (timeouts, SSL, proxies), when to use vs CDI injection
-* **Custom Filters & Interceptors** - ClientRequestFilter/ClientResponseFilter for HTTP-level interception (authentication, logging, header manipulation), WriterInterceptor/ReaderInterceptor for entity-level processing (compression, encryption), execution order with `@Priority`, three registration methods
+* **RestClientBuilder API** - Programmatic client creation, complete configuration options (timeouts, SSL, proxies), when to use vs CDI injection
+* **Custom Filters & Interceptors** - ClientRequestFilter/ClientResponseFilter for HTTP-level interception (authentication, logging, header manipulation), WriterInterceptor/ReaderInterceptor for entity-level processing (compression, encryption), three registration methods
 
 ** Code Examples**
-
-* Added code examples demonstrating real-world patterns
-* Authentication filters (Basic Auth, Bearer Token, header propagation)
-* Response/request logging and caching filters
-* GZIP compression/decompression interceptors
+ 
+* MP E-commerce servces (Product, Order, Payment services) in Chapter 11 have been updated to use MicroProfile Rest Client 4.0
+* Updated Maven and Gradle configurations to use the latest MicroProfile dependencies
+* New examples demonstrating the simplified `baseUri(String)` method
 * Request/response body validation
 * Complete CRUD operations combining all concepts
-* E-commerce domain examples (Product, Order, Payment services)
+* **Custom filters** - ClientRequestFilter and ClientResponseFilter implementations that intercept HTTP requests/responses to add cross-cutting concerns like authentication, logging, and header manipulation without modifying business logic
+* **Multipart handling** - Uploading and processing multipart/form-data for file uploads, combining binary content with metadata in a single request using JAX-RS multipart annotations
+* **Error mapping** - ResponseExceptionMapper implementations that transform HTTP error responses into domain-specific exceptions, providing centralized error handling with priority-based mapping strategies (using `@Priority` annotations to control which mapper handles specific status codes first when multiple mappers are registered)
+* **Authentication filters** - Practical implementations of Basic Authentication, Bearer Token (OAuth/JWT), and header propagation patterns that automatically inject credentials into outgoing REST client requests using ClientRequestFilter
+* **Response/request logging and caching filters** - Filter implementations that log HTTP request/response details for debugging and auditing, plus client-side caching strategies using conditional requests (ETags, Last-Modified headers) to reduce network traffic and improve performance
+* **GZIP compression/decompression interceptors** - WriterInterceptor and ReaderInterceptor implementations that automatically compress outgoing request bodies and decompress incoming response bodies using GZIP, reducing bandwidth usage for large payloads
+
 
 ** Best Practices **
 
@@ -688,8 +692,8 @@ See the link:CONTRIBUTORS.adoc[Contributors Guide] for detailed setup instructio
 
 ### For Code Development (Developers)
 
-* Java Development Kit (JDK) 17 or later
-* Maven 3.8 or later
+* Java Development Kit (JDK) 21 or later
+* Maven 3.13 or later
 * Git
 
 See the link:DEVELOPERS.adoc[Developers Guide] for detailed setup instructions.

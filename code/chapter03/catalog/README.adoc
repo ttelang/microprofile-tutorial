@@ -7,15 +7,44 @@
 
 == Overview
 
-The MicroProfile Catalog Service is a Jakarta EE 10 and MicroProfile 6.1 application that provides a RESTful API for managing product catalog information in an e-commerce platform. It demonstrates the use of modern Jakarta EE features including CDI, Jakarta Persistence, Jakarta RESTful Web Services, and Bean Validation.
+The MicroProfile Catalog Service is a Jakarta EE 10 and MicroProfile application that provides a RESTful API for managing product catalog information in an e-commerce platform. It demonstrates the use of modern Jakarta EE features including CDI, Jakarta Persistence, Jakarta RESTful Web Services, and Bean Validation.
 
 == Features
 
-* RESTful API using Jakarta RESTful Web Services
-* Persistence with Jakarta Persistence API and Derby embedded database
-* CDI (Contexts and Dependency Injection) for component management
-* Bean Validation for input validation
-* Running on Open Liberty for lightweight deployment
+=== Core Technologies
+* *Jakarta EE 10* - Modern enterprise Java platform
+* *MicroProfile 7.1* - Cloud-native microservices specifications
+* *Open Liberty* - Lightweight, production-ready runtime
+* *Java 21* - Latest LTS Java version
+
+=== API & Web Services
+* *RESTful CRUD Operations* - Complete Create, Read, Update, Delete operations for products
+* *Advanced Search* - Query products by name, description, and price range using query parameters
+* *Jakarta RESTful Web Services* - JAX-RS annotations (@GET, @POST, @PUT, @DELETE)
+* *JSON Processing* - Automatic JSON serialization/deserialization with JSON-B
+
+=== Data Persistence
+* *Jakarta Persistence (JPA)* - Object-relational mapping with entity annotations
+* *Named Queries* - Predefined JPQL queries for common operations
+* *Derby Embedded Database* - Zero-configuration in-memory database
+* *Multiple Repository Implementations* - Switchable JPA and In-Memory repositories using CDI qualifiers
+
+=== Validation & Quality
+* *Bean Validation* - Input validation with Jakarta Validation annotations (@NotNull, @NotBlank, @Size, @DecimalMin)
+* *Entity Validation* - Automatic validation on Product entity fields
+
+=== Logging & Monitoring
+* *Java Util Logging* - Standard JDK logging framework (java.util.logging.Logger)
+* *Manual Logging* - Explicit logging statements in REST resources and service layer
+* *Operation Tracking* - Logs for all CRUD operations and search queries
+* *Log Levels* - INFO for normal operations, structured logging with parameters
+
+NOTE: This service uses manual logging. For automatic method logging with CDI interceptors, see the Payment Service in this chapter, which uses a `@Logged` annotation combined with a `LoggingInterceptor` class annotated with `@Interceptor` and `@AroundInvoke`. The interceptor automatically captures method entry, exit, parameters, return values, execution time, and exceptions without cluttering the business logic with logging code. This approach demonstrates aspect-oriented programming (AOP) where cross-cutting concerns like logging are separated from core business functionality.
+
+=== Dependency Injection
+* *CDI (Contexts and Dependency Injection)* - Loose coupling with @Inject and @ApplicationScoped
+* *CDI Qualifiers* - Custom qualifiers (@JPA, @InMemory) for selecting repository implementations
+* *Repository Pattern* - Interface-based data access layer with multiple implementations
 
 == Project Structure
 
@@ -101,8 +130,8 @@ The Open Liberty server is configured in `src/main/liberty/config/server.xml`:
 
 === Prerequisites
 
-* JDK 17 or higher
-* Maven 3.8.x or higher
+* JDK 21 or higher
+* Maven 3.13.x or higher
 * Docker (optional, for containerization)
 
 === Development Mode

@@ -1,0 +1,265 @@
+= Chapter 03: Building RESTful Microservices
+:toc:
+:icons: font
+:source-highlighter: highlight.js
+
+== Overview
+
+Chapter 03 introduces building RESTful microservices with Jakarta EE 10 and MicroProfile 7.1. This chapter contains two complete microservices demonstrating essential enterprise patterns for e-commerce applications:
+
+* *Catalog Service* - Product catalog management with persistence
+* *Payment Service* - Payment processing with idempotency and audit trails
+
+Both services demonstrate modern cloud-native development practices including RESTful APIs, dependency injection, data persistence, and cross-cutting concerns.
+
+== Services in This Chapter
+
+=== Catalog Service (`catalog/`)
+
+A full-featured product catalog microservice demonstrating CRUD operations and data persistence.
+
+*Port:* 5050
+
+*Key Features:*
+
+* Full CRUD operations for product management
+* Advanced search with multiple criteria (name, description, price range)
+* Jakarta Persistence (JPA) with Derby embedded database
+* Multiple repository implementations (JPA and In-Memory) using CDI qualifiers
+* Bean Validation for data integrity
+* Named queries for optimized database access
+
+*REST Endpoints:*
+
+[source,bash]
+----
+GET    /catalog/api/products           # Get all products
+GET    /catalog/api/products/{id}      # Get product by ID
+POST   /catalog/api/products           # Create new product
+PUT    /catalog/api/products/{id}      # Update product
+DELETE /catalog/api/products/{id}      # Delete product
+GET    /catalog/api/products/search    # Search products (query params)
+----
+
+*Technologies:* Jakarta EE 10, MicroProfile 7.1, JPA, Bean Validation, CDI, Derby
+
+link:catalog/README.adoc[📘 View Catalog Service Documentation]
+
+'''
+
+=== Payment Service (`payment/`)
+
+A payment processing microservice with idempotency support and comprehensive audit trails.
+
+*Port:* 9080
+
+*Key Features:*
+
+* Payment processing, validation, and refunds
+* Idempotency support using PUT method with unique payment IDs
+* In-memory caching to prevent duplicate charges (24-hour TTL)
+* Comprehensive audit trail for compliance and troubleshooting
+* CDI interceptors for automatic method logging
+* Conflict detection for duplicate payment IDs
+
+*REST Endpoints:*
+
+[source,bash]
+----
+POST /payment/api/payments/process        # Process payment (non-idempotent)
+PUT  /payment/api/payments/{paymentId}    # Process payment (idempotent)
+POST /payment/api/payments/validate       # Validate payment details
+POST /payment/api/payments/refund         # Process refund
+
+GET  /payment/api/audit/records                      # Get all audit records
+GET  /payment/api/audit/payment/{paymentId}          # Get audits for payment
+GET  /payment/api/audit/operation/{operationType}    # Get audits by operation
+GET  /payment/api/audit/status/{status}              # Get audits by status
+----
+
+*Technologies:* Jakarta EE 10, CDI Interceptors, RESTful Web Services, Lombok
+
+link:payment/README.adoc[📘 View Payment Service Documentation]
+
+'''
+
+== Quick Start
+
+=== Prerequisites
+
+* JDK 21 or higher
+* Maven 3.9.x or higher
+
+=== Running Both Services
+
+Each service runs independently on its own port:
+
+.Terminal 1 - Catalog Service
+[source,bash]
+----
+cd catalog
+mvn liberty:dev
+----
+
+The Catalog Service will start on http://localhost:5050/catalog
+
+.Terminal 2 - Payment Service
+[source,bash]
+----
+cd payment
+mvn liberty:dev
+----
+
+The Payment Service will start on http://localhost:9080/payment
+
+=== Testing the Services
+
+.Test Catalog Service
+[source,bash]
+----
+# Get all products
+curl http://localhost:5050/catalog/api/products
+
+# Create a product
+curl -X POST http://localhost:5050/catalog/api/products \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Coffee","description":"Premium Arabica","price":12.99}'
+
+# Search products
+curl "http://localhost:5050/catalog/api/products/search?name=Coffee&minPrice=10&maxPrice=20"
+----
+
+.Test Payment Service
+[source,bash]
+----
+# Process payment (idempotent with unique ID)
+curl -X PUT http://localhost:9080/payment/api/payments/payment-12345 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cardNumber": "4111111111111111",
+    "cardHolderName": "John Doe",
+    "expiryDate": "12/25",
+    "securityCode": "123",
+    "amount": 99.99
+  }'
+
+# View audit trail
+curl http://localhost:9080/payment/api/audit/records
+----
+
+== Learning Objectives
+
+By completing Chapter 03, you will learn:
+
+=== RESTful API Design
+* Implementing CRUD operations with JAX-RS
+* Designing idempotent APIs using HTTP methods correctly
+* Query parameter handling for search operations
+* Proper HTTP status code usage
+
+=== Data Persistence
+* Jakarta Persistence (JPA) entity mapping
+* Named queries for database operations
+* Repository pattern for data access
+* Embedded database configuration
+
+=== Dependency Injection & CDI
+* Service and repository injection with @Inject
+* CDI scopes (@ApplicationScoped, @RequestScoped)
+* CDI qualifiers for implementation selection
+* Interface-based programming
+
+=== Enterprise Patterns
+* Idempotency in distributed systems
+* Audit trails for compliance
+* CDI interceptors for cross-cutting concerns
+* Repository pattern variations (JPA vs In-Memory)
+
+=== Validation & Error Handling
+* Bean Validation annotations
+* Input validation before processing
+* HTTP error response handling
+* Conflict detection and prevention
+
+== Architecture Patterns
+
+=== Layered Architecture
+
+Both services follow a clean layered architecture:
+
+----
+┌─────────────────────────────────────┐
+│     REST Resources (JAX-RS)         │  ← HTTP endpoints
+├─────────────────────────────────────┤
+│     Service Layer (Business Logic)  │  ← Application logic
+├─────────────────────────────────────┤
+│     Repository (Data Access)        │  ← Database operations
+├─────────────────────────────────────┤
+│     Entities (Domain Models)        │  ← Data models
+└─────────────────────────────────────┘
+----
+
+=== Key Patterns Demonstrated
+
+* *Repository Pattern* - Abstract data access behind interfaces
+* *Dependency Injection* - Loose coupling via CDI
+* *Interceptor Pattern* - Cross-cutting concerns (logging)
+* *Strategy Pattern* - Multiple repository implementations
+* *Idempotency Pattern* - Safe retry of operations
+
+== Technology Stack
+
+[cols="1,2,3"]
+|===
+|Technology |Version |Purpose
+
+|Java
+|21 (LTS)
+|Programming language
+
+|Jakarta EE
+|10.0
+|Enterprise Java platform
+
+|MicroProfile
+|7.1
+|Cloud-native microservices
+
+|Open Liberty
+|Latest
+|Application runtime
+
+|Maven
+|3.9.x
+|Build and dependency management
+
+|Derby
+|Latest
+|Embedded database (Catalog)
+
+|JUnit
+|5.10.0
+|Unit testing
+
+|Lombok
+|1.18.36
+|Reduce boilerplate code
+|===
+
+== Next Steps
+
+After completing Chapter 03:
+
+1. *Explore the Code* - Review the implementation details in each service
+2. *Run the Tests* - Execute unit tests with `mvn test`
+3. *Modify and Experiment* - Change features to understand the patterns
+4. *Integration* - Try connecting the services together
+5. *Move to Chapter 04* - Build on these concepts with advanced features
+
+== Additional Resources
+
+* link:catalog/README.adoc[Catalog Service Documentation]
+* link:payment/README.adoc[Payment Service Documentation]
+* https://jakarta.ee/specifications/platform/10/[Jakarta EE 10 Specification]
+* https://microprofile.io/[MicroProfile Official Site]
+* https://openliberty.io/guides/[Open Liberty Guides]

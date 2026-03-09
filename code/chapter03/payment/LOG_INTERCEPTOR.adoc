@@ -1,0 +1,551 @@
+= Automatic Method Logging with CDI Interceptors in Jakarta EE
+:author: MicroProfile Tutorial Team
+:date: March 9, 2026
+:toc:
+:icons: font
+:source-highlighter: highlight.js
+
+== Introduction
+
+In modern enterprise Java applications, logging is essential for monitoring, debugging, and performance analysis. However, manually adding logging statements to every method creates several problems:
+
+* **Code Clutter**: Business logic becomes obscured by logging code
+* **Inconsistency**: Different developers log in different ways
+* **Maintenance Burden**: Changing log format requires updating every method
+* **Incomplete Implementation**: Easy to forget important details like execution time, exception handling, or parameter logging
+
+*CDI Interceptors* solve these problems by applying the **Aspect-Oriented Programming (AOP)** principle: separate cross-cutting concerns from business logic. With interceptors, you can add logging to any method with a single annotation—no manual logging code required!
+
+In this tutorial, we'll build a production-ready logging interceptor that automatically captures:
+
+* Method entry with parameter values
+* Method exit with return values  
+* Execution time in milliseconds
+* Exception details with execution time
+
+This is the same pattern used in the MicroProfile Tutorial's Payment Service.
+
+== What Are CDI Interceptors?
+
+CDI (Contexts and Dependency Injection) Interceptors allow you to intercept method calls and execute code before and after the target method runs. They're perfect for cross-cutting concerns like:
+
+* **Logging** - Automatic method tracing
+* **Security** - Authorization checks
+* **Transaction Management** - Begin/commit transactions
+* **Performance Monitoring** - Method execution timing
+* **Caching** - Cache method results
+* **Validation** - Pre/post-condition checks
+
+=== How Interceptors Work
+
+[source]
+----
+   Client calls method
+          │
+          ▼
+   ┌─────────────────┐
+   │  @Logged        │ ◄──Annotation triggers interceptor
+   │  PaymentService │
+   └────────┬────────┘
+            │
+            ▼
+   ┌─────────────────────────┐
+   │  LoggingInterceptor     │ ◄── Intercepts the call
+   │  @AroundInvoke          │
+   │                         │
+   │  1. Log entry + params  │
+   │  2. Start timer         │
+   │  3. context.proceed()   │ ◄── Execute actual method
+   │  4. Log exit + duration │
+   │  5. Return result       │
+   └─────────────────────────┘
+            │
+            ▼
+      Return to client
+----
+
+== Step 1: Create the Interceptor Binding Annotation
+
+First, we define a custom annotation that will mark which methods/classes should be logged.
+
+.src/main/java/io/microprofile/tutorial/store/payment/interceptor/Logged.java
+[source,java]
+----
+package io.microprofile.tutorial.store.payment.interceptor;
+
+import jakarta.interceptor.InterceptorBinding;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+/**
+ * Interceptor binding annotation for automatic method logging.
+ * 
+ * Apply this annotation to methods or classes to automatically log:
+ * - Method entry with parameters
+ * - Method exit with return value
+ * - Execution time in milliseconds
+ * - Any exceptions thrown
+ * 
+ * Usage:
+ *   @Logged  // On a class - logs all public methods
+ *   public class PaymentService { ... }
+ * 
+ *   @Logged  // On a method - logs only this method
+ *   public void processPayment(...) { ... }
+ */
+@InterceptorBinding                      // <1>
+@Target({ElementType.TYPE,              // <2>
+         ElementType.METHOD})
+@Retention(RetentionPolicy.RUNTIME)     // <3>
+public @interface Logged {
+}
+----
+<1> `@InterceptorBinding` - Marks this as an interceptor binding annotation (not just a regular annotation)
+<2> `@Target` - Can be applied to classes (`TYPE`) or methods (`METHOD`)
+<3> `@Retention(RUNTIME)` - Must be available at runtime for CDI to process it
+
+[IMPORTANT]
+====
+**Common Mistake**: Forgetting `@InterceptorBinding` will cause CDI to ignore the annotation, and no logging will occur!
+====
+
+== Step 2: Implement the Logging Interceptor
+
+Now we create the interceptor that performs the actual logging.
+
+.src/main/java/io/microprofile/tutorial/store/payment/interceptor/LoggingInterceptor.java
+[source,java]
+----
+package io.microprofile.tutorial.store.payment.interceptor;
+
+import jakarta.annotation.Priority;
+import jakarta.interceptor.AroundInvoke;
+import jakarta.interceptor.Interceptor;
+import jakarta.interceptor.InvocationContext;
+
+import java.util.Arrays;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ * Logging interceptor that automatically logs method entry, exit, and execution time.
+ * 
+ * This interceptor is applied to any method or class annotated with @Logged.
+ */
+@Logged                                    // <1>
+@Interceptor                               // <2>
+@Priority(Interceptor.Priority.APPLICATION) // <3>
+public class LoggingInterceptor {
+    
+    @AroundInvoke                          // <4>
+    public Object logMethodCall(InvocationContext context) throws Exception {
+        // Get method metadata
+        final String className = context.getTarget().getClass().getName();
+        final String methodName = context.getMethod().getName();
+        final Logger logger = Logger.getLogger(className);  // <5>
+        
+        // Log method entry with parameters
+        logger.log(Level.INFO, "Entering method: {0}.{1} with parameters: {2}",
+                new Object[]{className, methodName, Arrays.toString(context.getParameters())});
+        
+        // Start timing
+        final long startTime = System.currentTimeMillis();
+        
+        try {
+            // Execute the actual method
+            Object result = context.proceed();  // <6>
+            
+            // Calculate execution time
+            final long executionTime = System.currentTimeMillis() - startTime;
+            
+            // Log successful exit
+            logger.log(Level.INFO, "Exiting method: {0}.{1}, execution time: {2}ms, result: {3}",
+                    new Object[]{className, methodName, executionTime, result});
+            
+            return result;  // <7>
+            
+        } catch (Exception e) {
+            // Log exceptions with execution time
+            final long executionTime = System.currentTimeMillis() - startTime;
+            logger.log(Level.SEVERE, "Exception in method: {0}.{1}, execution time: {2}ms, exception: {3}",
+                    new Object[]{className, methodName, executionTime, e.getMessage()});
+            
+            // Re-throw the exception to preserve normal error handling
+            throw e;  // <8>
+        }
+    }
+}
+----
+<1> `@Logged` - The interceptor MUST be annotated with the binding annotation
+<2> `@Interceptor` - Marks this class as an interceptor
+<3> `@Priority` - Defines execution order when multiple interceptors exist (required in Jakarta EE 10)
+<4> `@AroundInvoke` - Method that wraps the target method call
+<5> Uses the target class's logger (better for filtering logs)
+<6> `context.proceed()` executes the actual business method
+<7> Return the original method's result
+<8> Re-throw exceptions to maintain normal error flow
+
+=== Key Implementation Details
+
+**Why final variables?**
+
+The `final` keyword ensures values don't change during execution, and helps the JVM optimize the code.
+
+**Why Arrays.toString()?**
+
+Converting parameters to strings prevents calling `toString()` on null objects, which would cause `NullPointerException`.
+
+**Why create logger per method?**
+
+Using the target class's logger (`Logger.getLogger(className)`) allows filtering logs by package or class in production logging configurations.
+
+== Step 3: Configure CDI to Enable the Interceptor
+
+CDI requires explicit registration of interceptors in `beans.xml`.
+
+.src/main/webapp/WEB-INF/beans.xml
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="https://jakarta.ee/xml/ns/jakartaee"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee 
+                           https://jakarta.ee/xml/ns/jakartaee/beans_4_0.xsd"
+       version="4.0"
+       bean-discovery-mode="all">  <!--1-->
+    
+    <interceptors>  <!--2-->
+        <class>io.microprofile.tutorial.store.payment.interceptor.LoggingInterceptor</class>
+    </interceptors>
+</beans>
+----
+<1> `bean-discovery-mode="all"` - Scan all classes for CDI beans
+<2> Register the interceptor (order matters if you have multiple interceptors)
+
+[WARNING]
+====
+**Common Mistake**: Forgetting to add the interceptor to `beans.xml` is the #1 reason why interceptors don't work! The application will compile and run, but no logging will occur.
+====
+
+== Step 4: Use the @Logged Annotation
+
+Now you can apply automatic logging to your services!
+
+=== Option 1: Apply to Entire Class
+
+.PaymentService.java
+[source,java]
+----
+package io.microprofile.tutorial.store.payment.service;
+
+import io.microprofile.tutorial.store.payment.interceptor.Logged;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+
+/**
+ * Payment service with automatic logging on ALL public methods.
+ * No manual logging code needed!
+ */
+@ApplicationScoped
+@Logged  // <-- All public methods automatically logged
+public class PaymentService {
+    
+    @Inject
+    private IdempotencyService idempotencyService;
+    
+    // Automatically logged: entry, parameters, exit, result, duration
+    public boolean processPayment(PaymentDetails paymentDetails) {
+        // Pure business logic - no logging code!
+        if (!validatePaymentDetails(paymentDetails)) {
+            return false;
+        }
+        
+        // Simulate payment processing
+        return true;
+    }
+    
+    // Also automatically logged
+    public boolean validatePaymentDetails(PaymentDetails details) {
+        return details != null && 
+               details.getCardNumber() != null &&
+               details.getAmount() != null;
+    }
+}
+----
+
+=== Option 2: Apply to Specific Methods
+
+.PaymentResource.java
+[source,java]
+----
+package io.microprofile.tutorial.store.payment.resource;
+
+import io.microprofile.tutorial.store.payment.interceptor.Logged;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+
+@ApplicationScoped
+@Path("/payments")
+public class PaymentResource {
+    
+    @Inject
+    private PaymentService paymentService;
+    
+    // Only this method is logged
+    @POST
+    @Path("/process")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Logged  // <-- Selective logging
+    public Response processPayment(PaymentDetails paymentDetails) {
+        boolean success = paymentService.processPayment(paymentDetails);
+        
+        if (success) {
+            return Response.ok()
+                    .entity("{\"status\": \"success\"}")
+                    .build();
+        } else {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"status\": \"failed\"}")
+                    .build();
+        }
+    }
+    
+    // This method is NOT logged (no @Logged annotation)
+    @GET
+    @Path("/health")
+    public Response health() {
+        return Response.ok("UP").build();
+    }
+}
+----
+
+== Testing the Logging Interceptor
+
+=== 1. Start the Application
+
+[source,bash]
+----
+cd payment
+mvn liberty:dev
+----
+
+The application will start on `http://localhost:9080`
+
+=== 2. Make a Test Request
+
+[source,bash]
+----
+curl -X POST http://localhost:9080/payment/api/payments/process \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cardNumber": "4111111111111111",
+    "cardHolderName": "John Doe",
+    "expiryDate": "12/25",
+    "securityCode": "123",
+    "amount": 99.99
+  }'
+----
+
+=== 3. Observe the Automatic Logs
+
+You should see output like:
+
+[source,log]
+----
+INFO: Entering method: io.microprofile.tutorial.store.payment.service.PaymentService.processPayment 
+      with parameters: [PaymentDetails(cardNumber=4111111111111111, cardHolderName=John Doe, 
+      expiryDate=12/25, securityCode=123, amount=99.99)]
+
+INFO: Entering method: io.microprofile.tutorial.store.payment.service.PaymentService.validatePaymentDetails 
+      with parameters: [PaymentDetails(cardNumber=4111111111111111, ...)]
+
+INFO: Exiting method: io.microprofile.tutorial.store.payment.service.PaymentService.validatePaymentDetails, 
+      execution time: 2ms, result: true
+
+INFO: Exiting method: io.microprofile.tutorial.store.payment.service.PaymentService.processPayment, 
+      execution time: 45ms, result: true
+----
+
+Notice:
+
+* **No manual logging code** in the business methods
+* **Nested method calls** are tracked (validatePaymentDetails called from processPayment)
+* **Execution time** automatically measured
+* **Parameters and results** captured
+* **Clean separation** between business logic and logging
+
+=== 4. Test Exception Handling
+
+Trigger a validation error:
+
+[source,bash]
+----
+curl -X POST http://localhost:9080/payment/api/payments/process \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cardNumber": null,
+    "amount": 99.99
+  }'
+----
+
+Log output:
+
+[source,log]
+----
+INFO: Entering method: io.microprofile.tutorial.store.payment.service.PaymentService.processPayment 
+      with parameters: [PaymentDetails(cardNumber=null, amount=99.99)]
+
+SEVERE: Exception in method: io.microprofile.tutorial.store.payment.service.PaymentService.processPayment, 
+        execution time: 12ms, exception: Card number cannot be null
+----
+
+== Real-World Benefits
+
+=== Before: Manual Logging (Problems)
+
+[source,java]
+----
+@ApplicationScoped
+public class PaymentService {
+    
+    private static final Logger LOGGER = Logger.getLogger(PaymentService.class.getName());
+    
+    public boolean processPayment(PaymentDetails details) {
+        LOGGER.info("Entering processPayment with: " + details);  // ← Clutter
+        long start = System.currentTimeMillis();                   // ← Clutter
+        
+        try {
+            if (!validatePaymentDetails(details)) {
+                LOGGER.info("Validation failed");                  // ← Clutter
+                return false;
+            }
+            
+            boolean result = true;
+            
+            LOGGER.info("Exiting processPayment: " + result +      // ← Clutter
+                       ", duration: " + (System.currentTimeMillis() - start) + "ms");
+            return result;
+            
+        } catch (Exception e) {
+            LOGGER.severe("Exception: " + e.getMessage());         // ← Clutter
+            throw e;
+        }
+    }
+}
+----
+
+**Problems:**
+
+* 7 lines of logging code vs. 4 lines of business logic
+* Easy to forget timing or exception logging
+* Inconsistent log formats
+* Hard to change logging strategy globally
+
+=== After: Interceptor-Based Logging (Clean!)
+
+[source,java]
+----
+@ApplicationScoped
+@Logged  // <-- One annotation replaces all logging code!
+public class PaymentService {
+    
+    // Pure business logic - zero logging clutter
+    public boolean processPayment(PaymentDetails details) {
+        if (!validatePaymentDetails(details)) {
+            return false;
+        }
+        return true;
+    }
+}
+----
+
+**Benefits:**
+
+* 100% business logic, 0% logging code
+* Consistent logging automatically
+* Change logging globally by modifying interceptor once
+* Better testability (test business logic without logging)
+
+== Common Pitfalls and Solutions
+
+[cols="1,2,2"]
+|===
+|Problem |Symptom |Solution
+
+|Interceptor not firing
+|No logs appear
+|Check `beans.xml` has the interceptor registered
+
+|Wrong logger name
+|Can't filter logs by class
+|Use `Logger.getLogger(className)` not static logger
+
+|Missing @InterceptorBinding
+|Annotation ignored
+|Add `@InterceptorBinding` to custom annotation
+
+|No @Priority
+|Unpredictable behavior
+|Add `@Priority(Interceptor.Priority.APPLICATION)`
+
+|Forgetting to re-throw exceptions
+|Exceptions silently swallowed
+|Always `throw e;` in catch block
+
+|Private methods not intercepted
+|Only some methods log
+|CDI only intercepts public methods
+|===
+
+[IMPORTANT]
+====
+**CDI Proxies Limitation**: Interceptors only work on CDI-managed beans invoked through proxies. Direct calls within the same class (e.g., `this.method()`) won't trigger interceptors. Use `@Inject` to reference the bean if you need interception on internal calls.
+====
+
+== Conclusion
+
+CDI Interceptors provide a powerful, clean way to implement automatic method logging in Jakarta EE and MicroProfile applications. By using interceptors:
+
+✅ **Separate concerns** - Business logic stays clean +
+✅ **Reduce boilerplate** - One annotation replaces multiple lines of code +
+✅ **Ensure consistency** - All methods logged the same way +
+✅ **Easy maintenance** - Change logging in one place +
+✅ **Better testability** - Test business logic without logging noise +
+✅ **Performance tracking** - Automatic execution time measurement
+
+=== Key Takeaways
+
+1. **Create binding annotation** with `@InterceptorBinding`
+2. **Implement interceptor** with `@AroundInvoke` method
+3. **Register in beans.xml** - don't forget this step!
+4. **Apply @Logged** to classes or methods
+5. **Use final variables** for thread safety
+6. **Always re-throw exceptions** to preserve error flow
+7. **Remember CDI limitations** - only injected beans, only public methods
+
+=== Next Steps
+
+To extend this pattern:
+
+* Add performance alerting for slow methods
+* Implement sensitive data masking
+* Integrate with OpenTelemetry for distributed tracing
+* Add request ID correlation across microservices
+* Create audit interceptors for compliance tracking
+* Build security interceptors for authorization
+
+The complete, working code is available in the MicroProfile Tutorial repository under `code/chapter03/payment/`.
+
+---
+
+*Clean code through separation of concerns! 🚀*
+
+**Related Resources:**
+* https://jakarta.ee/specifications/interceptors/[Jakarta Interceptors Specification]
+* https://jakarta.ee/specifications/cdi/[Jakarta CDI Specification]
