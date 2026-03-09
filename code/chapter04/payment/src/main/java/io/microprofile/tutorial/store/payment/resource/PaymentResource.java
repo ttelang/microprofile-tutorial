@@ -6,6 +6,17 @@ import io.microprofile.tutorial.store.payment.interceptor.Logged;
 import io.microprofile.tutorial.store.payment.service.IdempotencyService;
 import io.microprofile.tutorial.store.payment.service.PaymentService;
 
+import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
+import org.eclipse.microprofile.openapi.annotations.media.Content;
+import org.eclipse.microprofile.openapi.annotations.media.ExampleObject;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
+import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
@@ -29,6 +40,7 @@ import java.math.BigDecimal;
 @ApplicationScoped
 @Logged  // Automatic logging for all REST endpoints
 @Path("/payments")
+@Tag(name = "Payments", description = "Payment processing operations")
 public class PaymentResource {
 
     @Inject
@@ -47,6 +59,85 @@ public class PaymentResource {
     @Path("/process")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
+    @Operation(
+        summary = "Process a payment",
+        description = """
+            Process a payment transaction with the provided card details.
+            
+            **Note:** This endpoint is NOT idempotent. Multiple identical requests will create multiple charges.
+            For idempotent payment processing, use `PUT /payments/{paymentId}` instead.
+            
+            **Automatic Logging:** This method is logged automatically via CDI @Logged interceptor.
+            """
+    )
+    @RequestBody(
+        description = "Payment details including card information and amount",
+        required = true,
+        content = @Content(
+            mediaType = MediaType.APPLICATION_JSON,
+            schema = @Schema(implementation = PaymentDetails.class),
+            examples = {
+                @ExampleObject(
+                    name = "Valid Payment",
+                    summary = "Valid payment with all required fields",
+                    value = """
+                        {
+                          "cardNumber": "4111111111111111",
+                          "cardHolderName": "John Doe",
+                          "expiryDate": "12/25",
+                          "securityCode": "123",
+                          "amount": 99.99
+                        }
+                        """
+                ),
+                @ExampleObject(
+                    name = "Large Payment",
+                    summary = "Payment with larger amount",
+                    value = """
+                        {
+                          "cardNumber": "5500000000000004",
+                          "cardHolderName": "Jane Smith",
+                          "expiryDate": "06/26",
+                          "securityCode": "456",
+                          "amount": 1299.99
+                        }
+                        """
+                )
+            }
+        )
+    )
+    @APIResponses({
+        @APIResponse(
+            responseCode = "200",
+            description = "Payment processed successfully",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                examples = @ExampleObject(
+                    value = """
+                        {
+                          "status": "success",
+                          "message": "Payment processed successfully"
+                        }
+                        """
+                )
+            )
+        ),
+        @APIResponse(
+            responseCode = "400",
+            description = "Invalid payment details or validation failed",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                examples = @ExampleObject(
+                    value = """
+                        {
+                          "status": "failed",
+                          "message": "Payment validation failed"
+                        }
+                        """
+                )
+            )
+        )
+    })
     public Response processPayment(PaymentDetails paymentDetails) {
         // Interceptor logs entry with paymentDetails parameter
         
@@ -90,8 +181,149 @@ public class PaymentResource {
     @Path("/{paymentId}")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
+    @Operation(
+        summary = "Process idempotent payment",
+        description = """
+            Process a payment with idempotency guarantee using HTTP PUT semantics.
+            
+            ### Idempotency Behavior
+            - **Same Payment ID + Same Details = Same Result** (cached, no reprocessing)
+            - **Same Payment ID + Different Details = 409 Conflict** (prevents accidental duplicates)
+            - **New Payment ID = New Payment Processing**
+            
+            ### Cache Duration
+            Idempotency records are cached for **24 hours**. After expiration, the same payment ID
+            can be reused for a new payment.
+            
+            ### Best Practices
+            - Use UUID or GUID for payment IDs (e.g., `payment-550e8400-e29b-41d4-a716-446655440000`)
+            - Store payment ID on client side before making request
+            - Retry the same request with same ID on network failures
+            - Check `cached: true` in response to detect retry scenarios
+            
+            **Automatic Logging:** This method is logged automatically via CDI @Logged interceptor.
+            """
+    )
+    @APIResponses({
+        @APIResponse(
+            responseCode = "200",
+            description = "Payment processed successfully (or cached result from previous request)",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                schema = @Schema(implementation = String.class),
+                examples = {
+                    @ExampleObject(
+                        name = "New Payment Success",
+                        summary = "Payment processed for the first time",
+                        value = """
+                            {
+                              "status": "success",
+                              "message": "Payment processed successfully",
+                              "cached": false
+                            }
+                            """
+                    ),
+                    @ExampleObject(
+                        name = "Cached Payment Success",
+                        summary = "Payment result returned from cache (idempotent retry)",
+                        value = """
+                            {
+                              "status": "success",
+                              "message": "Payment processed successfully",
+                              "cached": true
+                            }
+                            """
+                    )
+                }
+            )
+        ),
+        @APIResponse(
+            responseCode = "400",
+            description = "Payment ID missing or payment validation failed",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                examples = {
+                    @ExampleObject(
+                        name = "Missing Payment ID",
+                        value = """
+                            {
+                              "status": "failed",
+                              "message": "Payment ID is required"
+                            }
+                            """
+                    ),
+                    @ExampleObject(
+                        name = "Validation Failed",
+                        value = """
+                            {
+                              "status": "failed",
+                              "message": "Payment validation failed",
+                              "cached": false
+                            }
+                            """
+                    ),
+                    @ExampleObject(
+                        name = "Cached Failure",
+                        value = """
+                            {
+                              "status": "failed",
+                              "message": "Invalid card number",
+                              "cached": true
+                            }
+                            """
+                    )
+                }
+            )
+        ),
+        @APIResponse(
+            responseCode = "409",
+            description = "Conflict: Same payment ID used with different payment details",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                examples = @ExampleObject(
+                    value = """
+                        {
+                          "status": "conflict",
+                          "message": "Payment ID already used with different payment details"
+                        }
+                        """
+                )
+            )
+        )
+    })
     public Response processPaymentIdempotent(
+            @Parameter(
+                description = "Unique payment identifier (UUID recommended). Must be provided by client to enable idempotency.",
+                required = true,
+                schema = @Schema(
+                    type = SchemaType.STRING,
+                    example = "payment-550e8400-e29b-41d4-a716-446655440000",
+                    pattern = "^[a-zA-Z0-9-_]+$",
+                    minLength = 5,
+                    maxLength = 100
+                )
+            )
             @PathParam("paymentId") String paymentId,
+            @RequestBody(
+                description = "Payment details (paymentId will be set from path parameter)",
+                required = true,
+                content = @Content(
+                    mediaType = MediaType.APPLICATION_JSON,
+                    schema = @Schema(implementation = PaymentDetails.class),
+                    examples = @ExampleObject(
+                        name = "Idempotent Payment",
+                        value = """
+                            {
+                              "cardNumber": "4111111111111111",
+                              "cardHolderName": "John Doe",
+                              "expiryDate": "12/25",
+                              "securityCode": "123",
+                              "amount": 99.99
+                            }
+                            """
+                    )
+                )
+            )
             PaymentDetails paymentDetails) {
         
         // Validate payment ID is provided
@@ -151,6 +383,84 @@ public class PaymentResource {
     @Path("/validate")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
+    @Operation(
+        summary = "Validate payment details",
+        description = """
+            Validates payment details without processing the actual payment.
+            
+            This endpoint is useful for:
+            - Client-side validation before submitting full payment
+            - Testing card details before checkout
+            - Pre-flight checks in payment forms
+            
+            **Automatic Logging:** This method is logged automatically via CDI @Logged interceptor.
+            """
+    )
+    @RequestBody(
+        description = "Payment details to validate",
+        required = true,
+        content = @Content(
+            mediaType = MediaType.APPLICATION_JSON,
+            schema = @Schema(implementation = PaymentDetails.class),
+            examples = {
+                @ExampleObject(
+                    name = "Valid Payment Details",
+                    value = """
+                        {
+                          "cardNumber": "4111111111111111",
+                          "cardHolderName": "John Doe",
+                          "expiryDate": "12/25",
+                          "securityCode": "123",
+                          "amount": 99.99
+                        }
+                        """
+                ),
+                @ExampleObject(
+                    name = "Invalid Payment Details",
+                    description = "Missing required fields",
+                    value = """
+                        {
+                          "cardNumber": null,
+                          "cardHolderName": "Jane Doe",
+                          "amount": 50.00
+                        }
+                        """
+                )
+            }
+        )
+    )
+    @APIResponses({
+        @APIResponse(
+            responseCode = "200",
+            description = "Payment details are valid",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                examples = @ExampleObject(
+                    value = """
+                        {
+                          "valid": true,
+                          "message": "Payment details are valid"
+                        }
+                        """
+                )
+            )
+        ),
+        @APIResponse(
+            responseCode = "400",
+            description = "Payment details are invalid",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                examples = @ExampleObject(
+                    value = """
+                        {
+                          "valid": false,
+                          "message": "Payment details are invalid"
+                        }
+                        """
+                )
+            )
+        )
+    })
     public Response validatePayment(PaymentDetails paymentDetails) {
         // Interceptor handles logging automatically
         
@@ -179,7 +489,61 @@ public class PaymentResource {
     @Path("/refund")
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response refundPayment(@QueryParam("amount") BigDecimal amount) {
+    @Operation(
+        summary = "Process a refund",
+        description = """
+            Process a refund for a previous payment.
+            
+            **Note:** This is a simplified refund implementation for demonstration purposes.
+            Production systems would require payment ID reference and additional validation.
+            
+            **Automatic Logging:** This method is logged automatically via CDI @Logged interceptor.
+            """
+    )
+    @APIResponses({
+        @APIResponse(
+            responseCode = "200",
+            description = "Refund processed successfully",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                examples = @ExampleObject(
+                    value = """
+                        {
+                          "status": "success",
+                          "message": "Refund processed successfully"
+                        }
+                        """
+                )
+            )
+        ),
+        @APIResponse(
+            responseCode = "400",
+            description = "Invalid refund amount",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                examples = @ExampleObject(
+                    value = """
+                        {
+                          "status": "failed",
+                          "message": "Invalid refund amount"
+                        }
+                        """
+                )
+            )
+        )
+    })
+    public Response refundPayment(
+            @Parameter(
+                description = "Amount to refund (must be positive)",
+                required = true,
+                schema = @Schema(
+                    type = SchemaType.NUMBER,
+                    format = "double",
+                    minimum = "0.01",
+                    example = "99.99"
+                )
+            )
+            @QueryParam("amount") BigDecimal amount) {
         // Interceptor logs the refund request automatically
         
         boolean success = paymentService.refundPayment(amount);
