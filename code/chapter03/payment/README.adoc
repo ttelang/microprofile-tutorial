@@ -248,6 +248,24 @@ Perfect for understanding the "why" and "how" behind the implementation!
 
 The Payment Service includes comprehensive audit trail functionality to track all payment operations for compliance, troubleshooting, and security monitoring. Every payment operation is automatically logged with detailed information.
 
+[NOTE]
+====
+📖 **Want to learn how to build comprehensive audit trails from scratch?**
+
+Check out our in-depth guide: link:AUDIT_LOGGING_BLOG.adoc[Building Comprehensive Audit Trails for Payment Services]
+
+This blog post covers:
+
+* Regulatory requirements (PCI DSS, SOX, GDPR) for payment logging
+* What data should be audited and how to handle sensitive information
+* Implementing a complete audit trail system with entity, service, and REST API
+* Security best practices for masking card numbers and protecting sensitive data
+* Real-world use cases: fraud detection, dispute resolution, troubleshooting
+* Production considerations: persistent storage, async logging, retention policies
+
+Perfect for understanding compliance requirements and building production-ready audit systems!
+====
+
 === What Gets Audited
 
 Every payment operation creates an audit record that captures:

@@ -35,11 +35,11 @@ SDKMAN allows easy switching between Java versions:
 # List installed Java versions
 sdk list java | grep -E ".*\s+installed"
 
-# Switch to JDK 17 for the current shell session
-sdk use java 17.0.15-ms
+# Switch to JDK 21 for the current shell session
+sdk use java 21.0.9-ms
 
-# Make JDK 17 the default for all sessions
-sdk default java 17.0.15-ms
+# Make JDK 21 the default for all sessions
+sdk default java 21.0.9-ms
 
 # Verify the current Java version
 java -version

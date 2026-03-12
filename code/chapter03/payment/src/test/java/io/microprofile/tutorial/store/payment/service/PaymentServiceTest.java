@@ -1,26 +1,60 @@
 package io.microprofile.tutorial.store.payment.service;
 
 import io.microprofile.tutorial.store.payment.entity.PaymentDetails;
+import io.microprofile.tutorial.store.payment.entity.PaymentAuditRecord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 /**
  * Unit tests for PaymentService with 100% code coverage.
  * Tests all methods and all code branches.
  */
+@ExtendWith(MockitoExtension.class)
 class PaymentServiceTest {
 
+    @Mock
+    private PaymentAuditService auditService;
+    
+    @Mock
+    private IdempotencyService idempotencyService;
+
+    @InjectMocks
     private PaymentService paymentService;
 
     @BeforeEach
     void setUp() {
-        paymentService = new PaymentService();
+        // Mockito will inject mocks automatically via @InjectMocks
+        // Configure default behavior for audit service to avoid NullPointerExceptions
+        // Use lenient() to allow unused stubs without strict checking
+        lenient().when(auditService.logAudit(
+                anyString(), 
+                any(PaymentAuditRecord.AuditOperationType.class),
+                any(PaymentAuditRecord.AuditStatus.class),
+                any(),
+                anyString(),
+                anyLong(),
+                anyBoolean()
+        )).thenReturn(new PaymentAuditRecord());
+        
+        lenient().when(auditService.logRefundAudit(
+                any(PaymentAuditRecord.AuditOperationType.class),
+                any(PaymentAuditRecord.AuditStatus.class),
+                any(BigDecimal.class),
+                anyString(),
+                anyLong()
+        )).thenReturn(new PaymentAuditRecord());
     }
 
     @Nested
