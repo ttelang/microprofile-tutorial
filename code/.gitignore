@@ -1,7 +1,7 @@
 # Compiled class files
 *.class
 
-# Log files
+# Log files (general)
 *.log
 
 # BlueJ files
@@ -35,11 +35,24 @@ buildNumber.properties
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
 
-# Liberty
+# OpenLiberty Runtime (keep src/main/liberty/config/* for source configs)
 .liberty/
-.factorypath
 wlp/
-liberty/
+**/target/liberty/
+**/liberty/wlp/
+**/workarea/
+**/servers/*/workarea/
+**/servers/*/logs/
+**/servers/*/apps/
+**/servers/*/dropins/
+
+# Derby Database (runtime data)
+**/data/catalogDB/
+**/data/*.lck
+**/data/*.properties
+
+# Java upgrade logs
+.github/java-upgrade/
 
 # IntelliJ IDEA
 .idea/
