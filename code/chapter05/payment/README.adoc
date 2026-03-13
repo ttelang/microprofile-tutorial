@@ -1,38 +1,117 @@
-= Payment Service
+= Payment Service - Chapter 5
 
-This microservice is part of the Jakarta EE 10 and MicroProfile 6.1-based e-commerce application. It handles payment processing and transaction management.
+This microservice is part of the Jakarta EE 10 and MicroProfile-based e-commerce application. It handles payment processing, idempotency, audit logging, and demonstrates **advanced MicroProfile Config patterns**.
+
+== Chapter 5 Focus: Advanced MicroProfile Configuration
+
+The Payment Service demonstrates **advanced MicroProfile Config concepts** including:
+
+* **@ConfigProperties** - Grouping related configuration properties into a configuration bean
+* **Custom ConfigSource** - Creating custom configuration sources with specific ordinality
+* **External Integration Configuration** - Managing complex third-party service settings
+* **Security-Sensitive Configuration** - Handling API keys and credentials
 
 == Features
 
-* Payment transaction processing
-* Dynamic configuration management via MicroProfile Config
-* RESTful API endpoints with JSON support
-* Custom ConfigSource implementation
-* OpenAPI documentation
+* Payment transaction processing with idempotency support
+* Payment audit trail for compliance and troubleshooting
+* CDI interceptors for automatic logging
+* **Grouped configuration management via @ConfigProperties**
+* **Custom ConfigSource implementation**
+* RESTful API endpoints with comprehensive OpenAPI documentation
+* Integration with external payment gateways
 
-== Endpoints
+== Configuration Architecture
 
-=== GET /payment/api/payment-config
-* Returns all current payment configuration values
-* Example: `GET http://localhost:9080/payment/api/payment-config`
-* Response: `{"gateway.endpoint":"https://api.paymentgateway.com"}`
+=== Grouped Configuration with @ConfigProperties
 
-=== POST /payment/api/payment-config
-* Updates a payment configuration value
-* Example: `POST http://localhost:9080/payment/api/payment-config`
-* Request body: `{"key": "payment.gateway.endpoint", "value": "https://new-api.paymentgateway.com"}`
-* Response: `{"key":"payment.gateway.endpoint","value":"https://new-api.paymentgateway.com","message":"Configuration updated successfully"}`
+The Payment Service uses the **@ConfigProperties** annotation to group related payment gateway configuration into a single configuration bean. This is more maintainable than injecting individual properties.
 
-=== POST /payment/api/authorize
-* Processes a payment
-* Example: `POST http://localhost:9080/payment/api/authorize`
-* Response: `{"status":"success", "message":"Payment processed successfully."}`
+==== PaymentGatewayConfig Bean
 
-=== POST /payment/api/payment-config/process-example
-* Example endpoint demonstrating payment processing with configuration
-* Example: `POST http://localhost:9080/payment/api/payment-config/process-example`
-* Request body: `{"cardNumber":"4111111111111111", "cardHolderName":"Test User", "expiryDate":"12/25", "securityCode":"123", "amount":100.00}`
-* Response: `{"amount":100.00,"message":"Payment processed successfully","status":"success","configUsed":{"gatewayEndpoint":"https://new-api.paymentgateway.com"}}`
+[source,java]
+----
+@ConfigProperties(prefix = "payment.gateway")
+@ApplicationScoped
+public class PaymentGatewayConfig {
+    
+    // Maps to: payment.gateway.endpoint
+    public String endpoint;
+    
+    // Maps to: payment.gateway.apiKey
+    public String apiKey;
+    
+    // Maps to: payment.gateway.timeout
+    public int timeout;
+    
+    // Maps to: payment.gateway.retryAttempts
+    public int retryAttempts;
+    
+    // Maps to: payment.gateway.sandboxMode
+    public boolean sandboxMode;
+}
+----
+
+==== Configuration Properties
+
+Defined in `src/main/resources/META-INF/microprofile-config.properties`:
+
+[source,properties]
+----
+# MicroProfile Config Properties for Payment Service (Chapter 5)
+
+# OpenAPI Configuration
+mp.openapi.scan=true
+
+# Payment Gateway Configuration
+# These properties are automatically mapped to PaymentGatewayConfig bean
+payment.gateway.endpoint=https://api.paymentgateway.com/v1
+payment.gateway.apiKey=demo-api-key-12345
+payment.gateway.timeout=5000
+payment.gateway.retryAttempts=3
+payment.gateway.sandboxMode=true
+----
+
+==== Using Grouped Configuration
+
+Instead of injecting individual properties:
+
+[source,java]
+----
+// OLD APPROACH (not used in Chapter 5):
+@Inject @ConfigProperty(name="payment.gateway.endpoint") String endpoint;
+@Inject @ConfigProperty(name="payment.gateway.timeout") int timeout;
+// ... more individual properties
+----
+
+The service injects the entire configuration group:
+
+[source,java]
+----
+// CHAPTER 5 APPROACH:
+@ApplicationScoped
+public class PaymentService {
+    
+    @Inject
+    private PaymentGatewayConfig gatewayConfig;
+    
+    public boolean processPayment(PaymentDetails paymentDetails) {
+        // Access configuration via the bean
+        System.out.println("Using gateway: " + gatewayConfig.endpoint);
+        System.out.println("Timeout: " + gatewayConfig.timeout + "ms");
+        System.out.println("Sandbox mode: " + gatewayConfig.sandboxMode);
+        // ...
+    }
+}
+----
+
+**Benefits of @ConfigProperties:**
+
+* Cleaner code with less injection boilerplate
+* Logical grouping of related configuration
+* Single point of configuration for a feature
+* Better testability and mockability
+* Easier refactoring and maintenance
 
 == Building and Running the Service
 
@@ -64,140 +143,142 @@ The server will start on port 9080 (HTTP) and 9081 (HTTPS).
 
 == Project Structure
 
-* `src/main/java/io/microprofile/tutorial/PaymentRestApplication.java` - Jakarta Restful web service application class
-* `src/main/java/io/microprofile/tutorial/store/payment/config/` - Configuration classes
-* `src/main/java/io/microprofile/tutorial/store/payment/resource/` - REST resource endpoints
-* `src/main/java/io/microprofile/tutorial/store/payment/service/` - Business logic services
-* `src/main/java/io/microprofile/tutorial/store/payment/entity/` - Data models
-* `src/main/resources/META-INF/services/` - Service provider configuration
-* `src/main/liberty/config/` - Liberty server configuration
+* `src/main/java/io/microprofile/tutorial/store/payment/`
+  ** `PaymentRestApplication.java` - Jakarta RESTful Web Services application class
+  ** `config/PaymentGatewayConfig.java` - **@ConfigProperties bean for grouped configuration**
+  ** `config/PaymentServiceConfigSource.java` - **Custom ConfigSource implementation**
+  ** `resource/PaymentResource.java` - REST endpoints for payment processing
+  ** `resource/PaymentAuditResource.java` - REST endpoints for audit trail
+  ** `service/PaymentService.java` - Business logic using grouped configuration
+  ** `service/IdempotencyService.java` - Idempotency management
+  ** `service/PaymentAuditService.java` - Audit logging service
+  ** `entity/` - Data models (PaymentDetails, IdempotencyRecord, PaymentAuditRecord)
+  ** `interceptor/LoggingInterceptor.java` - CDI interceptor for automatic logging
+* `src/main/resources/META-INF/`
+  ** `microprofile-config.properties` - Configuration properties
+  ** `services/org.eclipse.microprofile.config.spi.ConfigSource` - Custom ConfigSource registration
+* `src/main/liberty/config/server.xml` - Liberty server configuration
 
-== Custom ConfigSource
+== Key Learnings - Chapter 5
 
-The Payment Service implements a custom MicroProfile ConfigSource named `PaymentServiceConfigSource` that provides payment-specific configuration with high priority (ordinal: 600).
+This Payment Service demonstrates advanced MicroProfile Config patterns:
 
-=== Available Configuration Properties
+1. **@ConfigProperties Grouping** - Group related properties into a configuration bean instead of injecting them individually
+2. **Custom ConfigSource** - Create custom configuration sources with specific priority levels
+3. **Configuration Ordinality** - Understand how MicroProfile Config resolves configuration from multiple sources
+4. **Integration Configuration** - Manage complex external service configurations (payment gateways)
+5. **Security Considerations** - Handle sensitive configuration like API keys appropriately
 
-[cols="1,2,2", options="header"]
-|===
-|Property
-|Description
-|Default Value
+**Comparison with Catalog Service:**
 
-|payment.gateway.endpoint
-|Payment gateway endpoint URL
-|https://api.paymentgateway.com
-|===
+* **Catalog Service** (Basic) - Individual `@ConfigProperty` injection, simple type conversion
+* **Payment Service** (Advanced) - Grouped `@ConfigProperties`, custom ConfigSource, complex integrations
 
-=== Testing ConfigSource Endpoints
+== Related Documentation
 
-You can test the ConfigSource endpoints using curl or any REST client:
+* See `code/chapter05/catalog/` for basic MicroProfile Config examples
+* See the main Chapter 5 documentation for complete MicroProfile Config coverage
+* OpenAPI documentation available at `/openapi` and `/openapi/ui` when running
 
-[source,bash]
-----
-# Get current configuration
-curl -s http://localhost:9080/payment/api/payment-config | json_pp
+=== Custom ConfigSource
 
-# Update configuration property
-curl -s -X POST -H "Content-Type: application/json" \
-  -d '{"key":"payment.gateway.endpoint", "value":"https://new-api.paymentgateway.com"}' \
-  http://localhost:9080/payment/api/payment-config | json_pp
+The Payment Service implements a **custom ConfigSource** named `PaymentServiceConfigSource` that provides payment-specific configuration with high priority (ordinal: 600).
 
-# Test payment processing with the configuration
-curl -s -X POST -H "Content-Type: application/json" \
-  -d '{"cardNumber":"4111111111111111", "cardHolderName":"Test User", "expiryDate":"12/25", "securityCode":"123", "amount":100.00}' \
-  http://localhost:9080/payment/api/payment-config/process-example | json_pp
-
-# Test basic payment authorization
-curl -s -X POST -H "Content-Type: application/json" \
-  http://localhost:9080/payment/api/authorize | json_pp
-----
-
-=== Implementation Details
-
-The custom ConfigSource is implemented in the following classes:
-
-* `PaymentServiceConfigSource.java` - Implements the MicroProfile ConfigSource interface
-* `PaymentConfig.java` - Utility class for accessing configuration properties
-
-Example usage in application code:
+==== Implementation
 
 [source,java]
 ----
-// Inject standard MicroProfile Config
-@Inject
-@ConfigProperty(name="payment.gateway.endpoint")
-private String endpoint;
+public class PaymentServiceConfigSource implements ConfigSource {
+    
+    private Map<String, String> properties = new HashMap<>();
 
-// Or use the utility class
-String gatewayUrl = PaymentConfig.getConfigProperty("payment.gateway.endpoint");
+    public PaymentServiceConfigSource() {
+        // Load payment service configurations dynamically
+        properties.put("payment.gateway.apiKey", "secret_api_key");
+        properties.put("payment.gateway.endpoint", "https://api.paymentgateway.com");
+    }
+
+    @Override
+    public Map<String, String> getProperties() {
+        return properties;
+    }
+
+    @Override
+    public String getValue(String propertyName) {
+        return properties.get(propertyName);
+    }
+
+    @Override
+    public String getName() {
+        return "PaymentServiceConfigSource";
+    }
+
+    @Override
+    public int getOrdinal() {
+        // High priority to override default configurations
+        return 600;
+    }
+
+    @Override
+    public Set<String> getPropertyNames() {
+        return properties.keySet();
+    }
+}
 ----
 
-The custom ConfigSource provides a higher priority (ordinal: 600) than system properties and environment variables, allowing for service-specific defaults while still enabling override via standard mechanisms.
+==== Registration
 
-=== MicroProfile Config Sources
+The custom ConfigSource is registered via the ServiceLoader mechanism in:
+`src/main/resources/META-INF/services/org.eclipse.microprofile.config.spi.ConfigSource`
 
-MicroProfile Config uses a prioritized set of configuration sources. The payment service uses the following configuration sources in order of priority (highest to lowest):
+[source]
+----
+io.microprofile.tutorial.store.payment.config.PaymentServiceConfigSource
+----
 
-1. Custom ConfigSource (`PaymentServiceConfigSource`) - Ordinal: 600
+==== Configuration Source Priority
+
+MicroProfile Config uses a prioritized set of configuration sources. The payment service configuration sources in order of priority (highest to lowest):
+
+1. **Custom ConfigSource** (`PaymentServiceConfigSource`) - Ordinal: 600
 2. System properties - Ordinal: 400
 3. Environment variables - Ordinal: 300
 4. microprofile-config.properties file - Ordinal: 100
 
-==== Updating Configuration Values
+The custom ConfigSource provides service-specific defaults while still allowing override via system properties or environment variables.
 
-You can update configuration properties through different methods:
+== API Endpoints
 
-===== 1. Using the REST API (runtime)
+=== POST /payment/api/payments
 
-This uses the custom ConfigSource and persists only for the current server session:
-
-[source,bash]
+* Processes a payment with idempotency support
+* Example: `POST http://localhost:9080/payment/api/payments`
+* Request body:
++
+[source,json]
 ----
-curl -X POST -H "Content-Type: application/json" \
-  -d '{"key":"payment.gateway.endpoint", "value":"https://test-api.paymentgateway.com"}' \
-  http://localhost:9080/payment/api/payment-config
-----
-
-===== 2. Using System Properties (startup)
-
-[source,bash]
-----
-# Linux/macOS
-mvn liberty:run -Dpayment.gateway.endpoint=https://sys-api.paymentgateway.com
-
-# Windows
-mvn liberty:run "-Dpayment.gateway.endpoint=https://sys-api.paymentgateway.com"
+{
+  "paymentId": "payment-550e8400-e29b-41d4-a716-446655440000",
+  "cardNumber": "4111111111111111",
+  "cardHolderName": "John Doe",
+  "expiryDate": "12/25",
+  "securityCode": "123",
+  "amount": 99.99
+}
 ----
 
-===== 3. Using Environment Variables (startup)
+=== GET /payment/api/payments/audit
 
-Environment variable names must follow the MicroProfile Config convention (uppercase with underscores):
+* Retrieves payment audit trail
+* Example: `GET http://localhost:9080/payment/api/payments/audit`
+* Returns comprehensive audit logs for all payment operations
 
-[source,bash]
-----
-# Linux/macOS
-export PAYMENT_GATEWAY_ENDPOINT=https://env-api.paymentgateway.com
-mvn liberty:run
+=== GET /payment/api/payments/audit/{paymentId}
 
-# Windows PowerShell
-$env:PAYMENT_GATEWAY_ENDPOINT="https://env-api.paymentgateway.com"
-mvn liberty:run
+* Retrieves audit trail for a specific payment
+* Example: `GET http://localhost:9080/payment/api/payments/audit/payment-123`
 
-# Windows CMD
-set PAYMENT_GATEWAY_ENDPOINT=https://env-api.paymentgateway.com
-mvn liberty:run
-
-# To clear the environment variable:
-# Linux/macOS
-unset PAYMENT_GATEWAY_ENDPOINT
-
-# Windows PowerShell
-Remove-Item Env:PAYMENT_GATEWAY_ENDPOINT
-
-# Windows CMD
-set PAYMENT_GATEWAY_ENDPOINT=
-----
+For complete API documentation, see the OpenAPI specification at `/openapi` or Swagger UI at `/openapi/ui`.
 
 ===== 4. Using microprofile-config.properties File (build time)
 

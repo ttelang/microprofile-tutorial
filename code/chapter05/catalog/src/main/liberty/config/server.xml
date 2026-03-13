@@ -1,13 +1,11 @@
-<server description="MicroProfile Tutorial Liberty Server">
+<server description="MicroProfile Catalog Service - Chapter 5: Configuration">
     <featureManager>
-        <platform>microProfile-7.1</platform>
         <platform>jakartaEE-10.0</platform>
         <feature>restfulWS</feature>
-        <feature>jsonp</feature>
         <feature>jsonb</feature>
         <feature>cdi</feature>
-        <feature>mpConfig</feature>
-        <feature>mpOpenAPI</feature>
+        <feature>mpConfig-3.1</feature>
+        <feature>mpOpenAPI-4.1</feature>
     </featureManager>
 
     <httpEndpoint httpPort="${default.http.port}" httpsPort="${default.https.port}"

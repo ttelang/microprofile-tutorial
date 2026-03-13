@@ -162,120 +162,103 @@ For Gradle, modify your _build.gradle_ file with the following dependency:
 implementation 'org.eclipse.microprofile.config:microprofile-config-api:3.1'
 ----
 
-Let’s now modify the `getProducts()` method to return a `jakarta.ws.rs.core.Response` object instead of a list of Product entities directly, we can utilize the `Response` class to build our response.  This approach allows for a more standardized and flexible API response handling, including the ability to set HTTP status codes and headers. 
+In this chapter, we'll explore MicroProfile Config using two services from our e-commerce application. We'll start with the *Catalog Service* to learn basic configuration concepts like property injection, type conversion, and default values. Then we'll move to the *Payment Service* to explore advanced techniques including grouped configuration with `@ConfigProperties` and custom configuration sources.
 
-Lets create a configuration file with the name _microprofile-config.properties_ and the content as below: 
+Let's begin by creating a configuration file for the *Catalog Service*. Create a file named _microprofile-config.properties_ and place it in the _src/main/resources/META-INF/_ directory of the catalog service with the following content: 
 
 [source]
 ----
-# microprofile-config.properties
+# MicroProfile Config Properties for Catalog Service (Chapter 5)
+
+# Enable OpenAPI scanning
+mp.openapi.scan=true
+
+# Product Catalog Configuration - Basic Examples
 product.maintenanceMode=false
+product.catalog.name=E-Commerce Product Catalog
+product.resultsPerPage=20
+product.enableNewArrivals=true
+product.discount.percentage=15.0
 ----
-
-This configuration file should be placed in the _src/main/resources/META-INF/_ directory of your application.
-
-=== Reading Configuration Properties
-
-Next inject this configuration value to a private variable in the ProductResource and consume this within all the operations of this service.
 
 MicroProfile Config will automatically detect and use the properties defined in this file, allowing you to externalize configuration and easily adjust the behavior of your application based on the environment in which it is deployed.
 
-Below is the updated `ProductResource` class and `getProducts()` method:
+=== Reading Configuration Properties from the Catalog Service
+
+Let's start with the *Catalog Service* to understand basic configuration property injection. We'll inject configuration values into the `ProductResource` class to control various aspects of the product catalog.
+
+Below is an excerpt from the `ProductResource` class showing how to use `@ConfigProperty` to inject configuration values:
 
 [source, java]
 ----
 package io.microprofile.tutorial.store.product.resource;
 
-import io.microprofile.tutorial.store.product.entity.Product;
-import io.microprofile.tutorial.store.product.repository.ProductRepository;
-
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
-import jakarta.ws.rs.*;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
-
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.eclipse.microprofile.openapi.annotations.Operation;
-import org.eclipse.microprofile.openapi.annotations.media.Content;
-import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import jakarta.enterprise.context.RequestScoped;
+import jakarta.inject.Inject;
 
-import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
-import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
-
-import java.util.List;
-
+@RequestScoped
 @Path("/products")
-@ApplicationScoped
 public class ProductResource {
 
-   @Inject
-   @ConfigProperty(name="product.maintenanceMode", defaultValue="false")
-   private boolean maintenanceMode;
-  
-   @Inject
-   private ProductRepository productRepository;
+    // Basic @ConfigProperty injection with default value
+    @Inject
+    @ConfigProperty(name="product.maintenanceMode", defaultValue="false")
+    private boolean maintenanceMode;
 
-   @GET
-   @Produces(MediaType.APPLICATION_JSON)
-   @Transactional
-   
-   // OpenAPI code 
-   // … 
-   
-   public Response getProducts() {
+    // Type conversion examples - different types
+    @Inject
+    @ConfigProperty(name="product.resultsPerPage", defaultValue="10")
+    private int resultsPerPage;
+    
+    @Inject
+    @ConfigProperty(name="product.enableNewArrivals", defaultValue="true")
+    private boolean enableNewArrivals;
+    
+    @Inject
+    @ConfigProperty(name="product.catalog.name", defaultValue="E-Commerce Catalog")
+    private String catalogName;
 
-       List<Product> products = productRepository.findAllProducts();
+    @Inject
+    private ProductService productService;
 
-       // If in maintenance mode, return Service Unavailable status
-       if (maintenanceMode) {
-          return Response
-                  .status(Response.Status.SERVICE_UNAVAILABLE)
-                  .entity("The product catalog service is currently in maintenance mode. Please try again later.")
-                  .build();
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getAllProducts() {
+        List<Product> products = productService.findAllProducts();
 
-       // If products found, return products and OK status
-       } else if (products != null && !products.isEmpty()) {
-           return Response
-                   .status(Response.Status.OK)
-                   .entity(products).build();
+        if (maintenanceMode) {
+            return Response
+                    .status(Response.Status.SERVICE_UNAVAILABLE)
+                    .entity("Service is under maintenance")
+                    .build();
+        }
 
-      // If products not found, return Not Found status and message
-      } else {
-          return Response
-                  .status(Response.Status.NOT_FOUND)
-                  .entity("No products found")
-                  .build();
-      }
-   }
+        if (products != null && !products.isEmpty()) {
+            return Response.status(Response.Status.OK).entity(products).build();
+        } else {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("No products found").build();
+        }
+    }
 }
 ----
 
 Explanation: 
 
-- `@Inject`: This CDI annotation enables dependency injection. It tells the container to inject an instance of a specified bean at runtime. As we have learnt previously, dependency injection enables loose coupling between classes and their dependencies, making the code more modular, easier to test, and maintain.
+- `@Inject`: This CDI annotation enables dependency injection, telling the container to inject an instance of a specified bean at runtime. Dependency injection enables loose coupling between classes and their dependencies, making the code more modular, easier to test, and maintain.
 
-- `@ConfigProperty(name="product.maintenanceMode", defaultValue="false")`: This MicroProfile Config annotation used along with `@Inject` to inject configuration property values into beans. It allows developers to externalize configuration from the application code, making applications more flexible and environment-agnostic. The `name` parameter specifies the key of the configuration property to be injected. In this case, `product.maintenanceMode` is the key for a property that controls whether this service is in maintenance mode. The `defaultValue` provides a default value to be used if the specified configuration property is not found in any of the configured sources. Here, the default value is `false`, indicating that, by default, the service is not in maintenance mode unless explicitly configured otherwise.
-- `private boolean maintenanceMode`: This field is set to the value of the `product.maintenanceMode` configuration property. Due to the `defaultValue ="false"`, if the configuration is not specified elsewhere, `maintenanceMode` will be `false`, meaning the service operates normally.
+- `@ConfigProperty(name="product.maintenanceMode", defaultValue="false")`: This MicroProfile Config annotation is used along with `@Inject` to inject configuration property values into beans. It allows developers to externalize configuration from the application code, making applications more flexible and environment-agnostic. The `name` parameter specifies the key of the configuration property to be injected. The `defaultValue` provides a fallback value if the property is not found in any configured source.
 
-- `private ProductRepository productRepository`: This field is injected with an instance of ProductRepository.  This class abstracts the data access operations for products. This injection decouples the class from the specific implementation of the repository, making the code more modular and easier to adapt or replace parts of it in the future.
+- `private boolean maintenanceMode`: This field controls whether the catalog service is in maintenance mode, demonstrating boolean type conversion from the configuration property.
 
-- The `getProducts()` method retrieves all products from the repository by calling `productRepository.findAllProducts()`, which queries the database to retrieve a list of all available products.
-Before proceeding to return the list of products, the method checks the `maintenanceMode` flag. If `maintenanceMode` is `true`, the service is currently undergoing maintenance, and thus, it is not appropriate to perform regular operations. The method constructs and returns a Response with a `503 Service Unavailable` HTTP status code, along with a message indicating that the product catalog service is in maintenance mode.
+- `private int resultsPerPage`: The number of results to display per page, demonstrating automatic type conversion from String to int.
 
-- If the service is not in maintenance mode, then the method checks if the list of retrieved products is not `null` and not empty. 
+- `private boolean enableNewArrivals`: A feature flag to enable or disable the new arrivals section, providing flexibility to toggle features without code changes.
 
-- If products are found, it constructs a Response with a status of `200 OK` and includes the list of products as the response entity. This indicates a successful operation where product data is found and returned. 
+- `private String catalogName`: The display name for the catalog, demonstrating String property injection.
 
-- If the products list is`null` or empty, indicating no products were found, the method constructs and returns a `Response` with a `404 Not Found` status code and a message stating that no products were found.
-
-When we deploy the application and invoke the `/api/products` endpoint, we should see the list of products as below:
-
-[source, json]
-----
-[{"description":"Apple iPhone 15 Pro","id":1,"name":"iPhone 15 Pro","price":999.0}]
-----
+- The `getAllProducts()` method demonstrates how to use these injected configuration values in business logic. It checks the maintenance mode flag and returns an appropriate response based on the configuration.
 
 === Specifying Default Values for a `ConfigProperty`
 
@@ -291,47 +274,163 @@ public class ProductResource {
    … 
 ----
 
-In the example above , the `false` default value will be used if the `product.maintenanceMode` property does not exist.
+In the example above, the `false` default value will be used if the `product.maintenanceMode` property does not exist.
 
 === Type Conversion in `ConfigProperty`
 
-`ConfigProperty` also supports type conversion, so we can inject our configuration data into fields of any type:
+`ConfigProperty` also supports type conversion, so we can inject our configuration data into fields of any type. Let's look at examples from both `ProductResource` and `ProductService`:
 
 [source, java]
 ----
+public class ProductResource {
    @Inject
    @ConfigProperty(name="product.maintenanceMode", defaultValue="false")
-   private boolean maintenanceMode;
+   private boolean maintenanceMode;  // String to boolean
+
+   @Inject
+   @ConfigProperty(name="product.resultsPerPage", defaultValue="10")
+   private int resultsPerPage;  // String to int
+
+   @Inject
+   @ConfigProperty(name="product.catalog.name", defaultValue="E-Commerce Catalog")
+   private String catalogName;  // String (no conversion)
+   …
+}
+
+public class ProductService {
+   @Inject
+   @ConfigProperty(name="product.discount.percentage", defaultValue="10.0")
+   private Double discountPercentage;  // String to Double
+   …
+}
 ----
 
-In this example, the `product.maintenanceMode` property will be converted to an `Boolean` before it is injected into the `maintenanceMode` field.
+In these examples, the configuration properties will be converted to their respective types (`boolean`, `int`, `String`, and `Double`) before they are injected into the corresponding fields. MicroProfile Config provides built-in converters for common types.
 
-=== Converting Configuration data to a POJO
+=== Using @ConfigProperties to Group Related Configuration - Payment Service
 
-We can also use the Config API to convert our configuration data to a POJO:
+Now that we've covered basic configuration injection with the Catalog Service, let's explore a more *advanced technique* used in the *Payment Service*: grouping related configuration properties using `@ConfigProperties`.
+
+MicroProfile Config provides the `@ConfigProperties` annotation to group related configuration properties into a single POJO (Plain Old Java Object). This approach is more organized and maintainable than injecting individual properties when you have multiple related configuration values.
+
+First, let's create the configuration file for the Payment Service (_src/main/resources/META-INF/microprofile-config.properties_):
+
+[source]
+----
+# MicroProfile Config Properties for Payment Service (Chapter 5)
+
+# OpenAPI Configuration
+mp.openapi.scan=true
+
+# Payment Gateway Configuration
+# These properties demonstrate @ConfigProperties grouping
+# All properties with prefix "payment.gateway" are automatically
+# mapped to PaymentGatewayConfig bean
+payment.gateway.endpoint=https://api.paymentgateway.com/v1
+payment.gateway.apiKey=demo-api-key-12345
+payment.gateway.timeout=5000
+payment.gateway.retryAttempts=3
+payment.gateway.sandboxMode=true
+----
+
+Now, create the `PaymentGatewayConfig` class to group these related properties:
 
 [source, java]
 ----
-import org.eclipse.microprofile.config.inject.ConfigProperty;
+package io.microprofile.tutorial.store.payment.config;
 
+import org.eclipse.microprofile.config.inject.ConfigProperties;
+import jakarta.enterprise.context.ApplicationScoped;
 
-public class MyApplication {
-    @Inject
-    private MaintenanceMessage message;
-}
+@ConfigProperties(prefix = "payment.gateway")
+@ApplicationScoped
+public class PaymentGatewayConfig {
+    
+    public String endpoint;
+    public String apiKey;
+    public int timeout;
+    public int retryAttempts;
+    public boolean sandboxMode;
 
+    // Getters and setters
+    public String getEndpoint() {
+        return endpoint;
+    }
 
-public class MaintenanceMessage {
-    @ConfigProperty(name="product.maintenanceMessage")
-    private String message;
+    public void setEndpoint(String endpoint) {
+        this.endpoint = endpoint;
+    }
+
+    public String getApiKey() {
+        return apiKey;
+    }
+
+    public void setApiKey(String apiKey) {
+        this.apiKey = apiKey;
+    }
+
+    public int getTimeout() {
+        return timeout;
+    }
+
+    public void setTimeout(int timeout) {
+        this.timeout = timeout;
+    }
+
+    public int getRetryAttempts() {
+        return retryAttempts;
+    }
+
+    public void setRetryAttempts(int retryAttempts) {
+        this.retryAttempts = retryAttempts;
+    }
+
+    public boolean isSandboxMode() {
+        return sandboxMode;
+    }
+
+    public void setSandboxMode(boolean sandboxMode) {
+        this.sandboxMode = sandboxMode;
+    }
 }
 ----
 
-In this example, we’re injecting a property named "product.maintenanceMessage" into the message field of our MaintenanceMessage class.
+With `@ConfigProperties`, you can inject the entire configuration group into your `PaymentService`:
 
-=== Creating a Custom `ConfigSource`
+[source, java]
+----
+@ApplicationScoped
+public class PaymentService {
+    
+    // Inject grouped configuration instead of individual properties
+    @Inject
+    private PaymentGatewayConfig gatewayConfig;
 
-As we saw, the Config API makes it easy to inject configuration properties into an application. The Config API defines a contract for config implementations. A ConfigSource is used to read configuration data from a particular source. For example, we could create a ConfigSource that reads configuration data from a file.
+    public boolean processPayment(PaymentDetails paymentDetails) {
+        // Access properties via getters
+        System.out.println("Processing payment via gateway: " + gatewayConfig.getEndpoint());
+        System.out.println("Gateway timeout: " + gatewayConfig.getTimeout() + "ms");
+        System.out.println("Sandbox mode: " + gatewayConfig.isSandboxMode());
+        
+        // Use the configuration in your business logic
+        // ...
+        return true;
+    }
+}
+----
+
+The `@ConfigProperties` annotation automatically maps configuration properties with the specified prefix (`payment.gateway`) to the fields in the POJO. For example, `payment.gateway.apiKey` maps to the `apiKey` field, `payment.gateway.endpoint` maps to the `endpoint` field, and so on.
+
+*Benefits of @ConfigProperties:*
+
+- *Cleaner code*: Less injection boilerplate compared to individual `@ConfigProperty` annotations
+- *Logical grouping*: Related configuration is organized together
+- *Single point of configuration*: One bean represents an entire feature's configuration
+- *Better testability*: Easier to mock the entire configuration group in tests
+
+=== Creating a Custom `ConfigSource` - Payment Service
+
+Continuing with our *Payment Service* advanced techniques, let's explore creating a custom `ConfigSource`. The Config API defines a contract for config implementations. A ConfigSource is used to read configuration data from a particular source. For example, we could create a ConfigSource that reads configuration data from a database, cloud service, or external API.
 
 `ConfigSource` interface has the following methods: 
 
@@ -359,14 +458,16 @@ import java.util.Set;
 
 import org.eclipse.microprofile.config.spi.ConfigSource;
 
-public class PaymentServiceConfigSource implements ConfigSource{
-  
-   private Map<String, String> properties = new HashMap<>();
+public class PaymentServiceConfigSource implements ConfigSource {
 
-   public PaymentServiceConfigSource() {
+    private static final Map<String, String> properties = new HashMap<>();
+    private static final String NAME = "PaymentServiceConfigSource";
+    private static final int ORDINAL = 50; // Higher ordinal means higher priority
+    
+    public PaymentServiceConfigSource() {
        // Load payment service configurations dynamically
        // This example uses hardcoded values for demonstration
-       properties.put("payment.gateway.apiKey", "secret_api_key");
+       // In production, you might load from database, cloud service, etc.
        properties.put("payment.gateway.endpoint", "https://api.paymentgateway.com");
    }
 
@@ -376,25 +477,32 @@ public class PaymentServiceConfigSource implements ConfigSource{
    }
 
    @Override
+   public Set<String> getPropertyNames() {
+       return properties.keySet();
+   }
+
+   @Override
    public String getValue(String propertyName) {
        return properties.get(propertyName);
    }
 
    @Override
    public String getName() {
-       return "PaymentServiceConfigSource";
+       return NAME;
    }
 
    @Override
    public int getOrdinal() {
-       // Ensuring high priority to override default configurations if necessary
-       return 600;
+       return ORDINAL;
    }
-
-   @Override
-   public Set<String> getPropertyNames() {
-       // Return the set of all property names available in this config source
-       return properties.keySet();}
+    
+   /**
+    * Updates a configuration property at runtime.
+    * Demonstrates dynamic configuration updates.
+    */
+   public static void setProperty(String key, String value) {
+       properties.put(key, value);
+   }
 }
 ----
 
@@ -436,59 +544,56 @@ public class PaymentDetails {
 
 The `PaymentDetails` class succinctly encapsulates the necessary attributes for processing payments. This class can be used to pass payment details for processing payments, validating card details, and logging transaction information. 
 
-Next, implement the `PaymentService` class, which utilizes MicroProfile Config to inject the necessary configurations. It represents a simple service that could call a payment gateway API using the configurations provided by the custom `ConfigSource`.
+Next, let's see how the `PaymentService` class utilizes the grouped `PaymentGatewayConfig` along with the custom `ConfigSource` we created. This represents a real-world service that calls a payment gateway API using the configurations:
 
 [source, java]
 ----
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-import jakarta.ws.rs.POST;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.Consumes;
-import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
-import jakarta.enterprise.context.RequestScoped;
+package io.microprofile.tutorial.store.payment.service;
+
+import io.microprofile.tutorial.store.payment.config.PaymentGatewayConfig;
+import io.microprofile.tutorial.store.payment.entity.PaymentDetails;
+import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
-@Path("/authorize")
-@RequestScoped
+@ApplicationScoped
 public class PaymentService {
-
+    
+    // Inject the entire grouped configuration
     @Inject
-    @ConfigProperty(name = "payment.gateway.apiKey")
-    private String apiKey;
+    private PaymentGatewayConfig gatewayConfig;
 
-    @Inject
-    @ConfigProperty(name = "payment.gateway.endpoint")
-    private String endpoint;
-
-    @POST
-    @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.APPLICATION_JSON)
-    public Response processPayment(PaymentDetails paymentDetails) {
-        // Example logic to call the payment gateway API
-        System.out.println("Processing payment with details: " + paymentDetails.toString());
-        System.out.println("Calling payment gateway API at: " + endpoint);
-        // Assuming a successful payment operation for demonstration purposes
-        // Actual implementation would involve calling the payment gateway and handling the response
+    /**
+     * Processes a payment using configured payment gateway settings.
+     */
+    public boolean processPayment(PaymentDetails paymentDetails) {
+        if (!validatePaymentDetails(paymentDetails)) {
+            return false;
+        }
         
-        // Dummy response for successful payment processing
-        String result = "{\"status\":\"success\", \"message\":\"Payment processed successfully.\"}";
-        return Response.ok(result, MediaType.APPLICATION_JSON).build();
+        // Use grouped configuration from PaymentGatewayConfig
+        System.out.println("Processing payment via gateway: " + gatewayConfig.getEndpoint());
+        System.out.println("Gateway timeout: " + gatewayConfig.getTimeout() + "ms");
+        System.out.println("Sandbox mode: " + gatewayConfig.isSandboxMode());
+        
+        // Simulate payment processing logic
+        // In production, this would call the actual payment gateway API
+        return true;
+    }
+    
+    private boolean validatePaymentDetails(PaymentDetails paymentDetails) {
+        return paymentDetails != null 
+            && paymentDetails.getCardNumber() != null 
+            && paymentDetails.getAmount() != null;
     }
 }
 ----
 
 **Explanation:**
 
-- `@Path("/authorize")`: Defines the base URI for the RESTful service. This class will handle requests made to URIs that start with `/payment/api/authorize`.
-- `@RequestScoped`: Indicates that a new instance of `PaymentService` is created for each HTTP request.
-- `@POST`: Specifies that the `processPayment` method will respond to HTTP POST requests, which is appropriate for operations that change server state (in this case, processing a payment).
-- `@Consumes(MediaType.APPLICATION_JSON)`: Indicates that the method expects requests to have a payload formatted as JSON, aligning with how payment details might be sent.
-- `@Produces(MediaType.APPLICATION_JSON)`: Specifies that the method produces JSON-formatted responses, useful for indicating the result of the payment processing operation.
-- `Response processPayment(PaymentDetails paymentDetails)`: The method now returns a Response object, allowing for more flexible HTTP response handling. The PaymentDetails parameter would be a POJO (Plain Old Java Object) representing the payment information sent by the client.
-
-The clients can call to process payments through the e-Commerce application using this RESTful web service endpoint. The actual logic for calling the payment gateway API and handling the response would be implemented within this method, utilizing the injected configuration properties for authentication and endpoint URL.
+- `@ApplicationScoped`: Indicates that a single instance of `PaymentService` is created for the entire application lifecycle.
+- `@Inject private PaymentGatewayConfig gatewayConfig`: Instead of injecting individual properties, we inject the entire grouped configuration bean. This is cleaner and more maintainable.
+- The `processPayment()` method accesses configuration through the `gatewayConfig` bean using getter methods (`getEndpoint()`, `getTimeout()`, `isSandboxMode()`).
+- This approach demonstrates the benefits of `@ConfigProperties`: cleaner code, logical grouping, and easier testing.
 
 `ConfigSources` are hierarchical, which means that we can override properties from one `ConfigSource` with another `ConfigSource`. For example, we could create a `ConfigSource` that reads configuration data from a file, and another `ConfigSource` that reads configuration data from system properties. The system properties would take precedence over the file-based `ConfigSource`, which would take precedence over the default `ConfigSource`.
 

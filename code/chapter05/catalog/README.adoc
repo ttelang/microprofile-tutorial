@@ -11,7 +11,7 @@ toc::[]
 
 The MicroProfile Catalog Service is a modern Jakarta EE 10 application built with MicroProfile specifications and running on Open Liberty. This service provides a RESTful API for product catalog management with enhanced MicroProfile features.
 
-This project demonstrates the key capabilities of MicroProfile OpenAPI and in-memory persistence architecture.
+This project demonstrates the key capabilities of MicroProfile OpenAPI, in-memory persistence architecture, and **basic MicroProfile Config patterns** for externalizing configuration.
 
 == Features
 
@@ -20,6 +20,7 @@ This project demonstrates the key capabilities of MicroProfile OpenAPI and in-me
 * *In-Memory Persistence* using ConcurrentHashMap for thread-safe data storage
 * *HTML Landing Page* with API documentation and service status
 * *Maintenance Mode* support with configuration-based toggles
+* *MicroProfile Config* demonstrating basic configuration injection patterns
 
 == MicroProfile Features Implemented
 
@@ -150,54 +151,107 @@ public List<Product> findAllProducts() {
 
 NOTE: This implementation is suitable for development, testing, and scenarios where persistence across restarts is not required.
 
-=== MicroProfile Config
+=== MicroProfile Config - Basic Configuration Patterns
 
-The application uses MicroProfile Config to externalize configuration:
+The Catalog Service demonstrates **fundamental MicroProfile Config concepts** including property injection, type conversion, and default values. These examples provide a foundation for understanding configuration management in MicroProfile applications.
+
+==== Configuration Properties
+
+The service uses the following configuration properties defined in `microprofile-config.properties`:
 
 [source,properties]
 ----
-# Enable OpenAPI scanning
-mp.openapi.scan.disabled=false
+# MicroProfile Config Properties for Catalog Service (Chapter 5)
 
-# Maintenance mode configuration
+# Enable OpenAPI scanning
+mp.openapi.scan=true
+
+# Product Catalog Configuration - Basic Examples
 product.maintenanceMode=false
-product.maintenanceMessage=The product catalog service is currently in maintenance mode. Please try again later.
+product.catalog.name=E-Commerce Product Catalog
+product.resultsPerPage=20
+product.enableNewArrivals=true
+product.discount.percentage=15.0
 ----
 
-The maintenance mode configuration allows dynamic control of service availability:
+==== Configuration Properties Explained
 
-* `product.maintenanceMode` - When set to `true`, the service returns a 503 Service Unavailable response
-* `product.maintenanceMessage` - Customizable message displayed when the service is in maintenance mode
+* `product.maintenanceMode` (boolean) - When set to `true`, the service returns a 503 Service Unavailable response. Demonstrates boolean property injection with a default value.
+* `product.catalog.name` (String) - The display name of the catalog. Shows String property injection.
+* `product.resultsPerPage` (int) - Number of products to display per page. Demonstrates automatic type conversion from String to int.
+* `product.enableNewArrivals` (boolean) - Feature flag to enable/disable new arrivals section. Shows feature toggle pattern.
+* `product.discount.percentage` (Double) - Default discount percentage for products. Demonstrates String to Double conversion.
 
-==== Maintenance Mode Implementation
+==== Basic Configuration Injection Examples
 
-The service checks the maintenance mode configuration before processing requests:
+The service demonstrates different MicroProfile Config injection patterns:
+
+===== Example 1: Boolean Property with Default Value (ProductResource)
 
 [source,java]
 ----
 @Inject
 @ConfigProperty(name="product.maintenanceMode", defaultValue="false")
 private boolean maintenanceMode;
-    
-@Inject
-@ConfigProperty(name="product.maintenanceMessage", 
-                defaultValue="The product catalog service is currently in maintenance mode. Please try again later.")
-private String maintenanceMessage;
 
-// In request handling method
-if (maintenance.isMaintenanceMode()) {
+// Usage in request handling
+if (maintenanceMode) {
     return Response
             .status(Response.Status.SERVICE_UNAVAILABLE)
-            .entity(maintenance.getMaintenanceMessage())
+            .entity("Service is under maintenance")
             .build();
 }
 ----
 
-This pattern enables:
+===== Example 2: Type Conversion - String to int (ProductResource)
 
-* Graceful service degradation during maintenance periods
-* Dynamic control without redeployment (when using external configuration sources)
-* Clear communication to API consumers
+[source,java]
+----
+@Inject
+@ConfigProperty(name="product.resultsPerPage", defaultValue="10")
+private int resultsPerPage;
+----
+
+MicroProfile Config automatically converts the String value from the configuration file to an int.
+
+===== Example 3: String Property (ProductResource)
+
+[source,java]
+----
+@Inject
+@ConfigProperty(name="product.catalog.name", defaultValue="E-Commerce Catalog")
+private String catalogName;
+----
+
+===== Example 4: Type Conversion - String to Double (ProductService)
+
+[source,java]
+----
+@Inject
+@ConfigProperty(name="product.discount.percentage", defaultValue="10.0")
+private Double discountPercentage;
+
+public List<Product> findAllProducts() {
+    LOGGER.info("Finding all products. Discount rate: " + discountPercentage + "%");
+    return repository.findAllProducts();
+}
+----
+
+==== Key Concepts Demonstrated
+
+The Catalog Service showcases these fundamental MicroProfile Config patterns:
+
+1. **Property Injection with @ConfigProperty**: Inject configuration values directly into CDI beans
+2. **Default Values**: Provide fallback values when properties are not configured
+3. **Automatic Type Conversion**: MicroProfile Config converts String values to various types:
+   * boolean - for feature flags
+   * int - for numeric settings
+   * String - for text values
+   * Double - for decimal numbers
+4. **Feature Flags**: Use boolean properties to enable/disable features (e.g., maintenanceMode, enableNewArrivals)
+5. **Environment-Specific Configuration**: Externalize configuration to adapt to different environments without code changes
+
+These basic patterns provide the foundation. For more advanced configuration techniques like grouped properties (@ConfigProperties) and custom configuration sources, see the Payment Service in this chapter.
 
 == Architecture
 

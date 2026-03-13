@@ -4,12 +4,16 @@ import io.microprofile.tutorial.store.product.entity.Product;
 import io.microprofile.tutorial.store.product.repository.ProductRepository;
 import jakarta.enterprise.context.RequestScoped;
 import jakarta.inject.Inject;
+
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+
 import java.util.List;
 import java.util.logging.Logger;
 
 /**
  * Service class for Product operations.
  * Contains business logic for product management.
+ * Demonstrates MicroProfile Config with type conversion examples.
  */
 @RequestScoped
 public class ProductService {
@@ -18,6 +22,11 @@ public class ProductService {
 
     @Inject
     private ProductRepository repository;
+    
+    // Type conversion example: String to Double
+    @Inject
+    @ConfigProperty(name="product.discount.percentage", defaultValue="10.0")
+    private Double discountPercentage;
 
     /**
      * Retrieves all products.
@@ -25,7 +34,7 @@ public class ProductService {
      * @return List of all products
      */
     public List<Product> findAllProducts() {
-        LOGGER.info("Service: Finding all products");
+        LOGGER.info("Service: Finding all products. Discount rate: " + discountPercentage + "%");
         return repository.findAllProducts();
     }
     

@@ -36,9 +36,23 @@ public class ProductResource {
 
     private static final Logger LOGGER = Logger.getLogger(ProductResource.class.getName());
 
+    // Basic @ConfigProperty injection with default value
     @Inject
-    @ConfigProperty(name="product.maintenanceMode")
+    @ConfigProperty(name="product.maintenanceMode", defaultValue="false")
     private boolean maintenanceMode;
+
+    // Type conversion examples - different types
+    @Inject
+    @ConfigProperty(name="product.resultsPerPage", defaultValue="10")
+    private int resultsPerPage;
+    
+    @Inject
+    @ConfigProperty(name="product.enableNewArrivals", defaultValue="true")
+    private boolean enableNewArrivals;
+    
+    @Inject
+    @ConfigProperty(name="product.catalog.name", defaultValue="E-Commerce Catalog")
+    private String catalogName;
 
     @Inject
     private ProductService productService;
