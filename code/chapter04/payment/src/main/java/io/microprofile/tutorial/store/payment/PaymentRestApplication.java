@@ -121,12 +121,8 @@ import jakarta.ws.rs.core.Application;
     },
     servers = {
         @Server(
-            url = "http://localhost:9080/payment",
-            description = "Development server"
-        ),
-        @Server(
-            url = "https://api.example.com/payment",
-            description = "Production server"
+            url = "/payment",
+            description = "Payment API server (works with localhost, Codespaces, and production)"
         )
     },
     externalDocs = @ExternalDocumentation(
