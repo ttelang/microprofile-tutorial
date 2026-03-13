@@ -1,0 +1,22 @@
+<server description="MicroProfile Tutorial Liberty Server">
+    <featureManager>
+        <platform>microProfile-7.1</platform>
+        <platform>jakartaee-10.0</platform>
+        <feature>restfulWS</feature>
+        <feature>jsonb</feature>
+        <feature>mpOpenAPI-4.1</feature>
+        <feature>mpRestClient-4.0</feature>
+        <feature>beanValidation</feature>
+        <feature>cdi</feature>
+    </featureManager>
+
+    <httpEndpoint httpPort="${default.http.port}" httpsPort="${default.https.port}"
+                  id="defaultHttpEndpoint" host="*" />
+    <webApplication location="mp-ecomm-store.war" contextRoot="${app.context.root}"/>
+    
+    <!-- Logging configuration -->
+    <logging traceSpecification="*=info:io.microprofile.tutorial.*=all" 
+             consoleLogLevel="INFO"
+             maxFileSize="20"
+             maxFiles="10"/>
+</server>

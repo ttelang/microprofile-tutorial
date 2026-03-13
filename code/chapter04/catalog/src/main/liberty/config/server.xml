@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<server description="Product Catalog Service">
+    <featureManager>
+        <platform>microProfile-7.1</platform>
+        <platform>jakartaEE-10.0</platform>
+        <feature>restfulWS-3.1</feature>
+        <feature>jsonp-2.1</feature>
+        <feature>jsonb-3.0</feature>
+        <feature>cdi-4.0</feature>
+        <feature>mpConfig-3.1</feature>
+        <feature>mpOpenAPI-4.1</feature>
+        <feature>persistence-3.1</feature>
+        <feature>jdbc-4.3</feature>
+        <feature>beanValidation-3.0</feature>
+    </featureManager>
+
+    <httpEndpoint id="defaultHttpEndpoint"
+                  httpPort="${default.http.port}"
+                  httpsPort="${default.https.port}"
+                  host="*" />
+
+    <!-- Derby Embedded Database -->
+    <library id="derby-lib">
+        <fileset dir="${shared.resource.dir}" includes="derby*.jar"/>
+    </library>
+
+    <!-- Database Datasource -->
+    <dataSource id="catalogDB" jndiName="jdbc/catalogDB">
+        <jdbcDriver libraryRef="derby-lib"/>
+        <properties.derby.embedded 
+            databaseName="${server.config.dir}/data/catalogDB"
+            createDatabase="create"/>
+    </dataSource>
+
+    <webApplication location="catalog.war" contextRoot="${app.context.root}"/>
+</server>
