@@ -3,8 +3,17 @@ package io.microprofile.tutorial.store.product.service;
 import io.microprofile.tutorial.store.product.entity.Product;
 import io.microprofile.tutorial.store.product.repository.JPA;
 import io.microprofile.tutorial.store.product.repository.ProductRepositoryInterface;
+import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+
+import org.eclipse.microprofile.metrics.MetricRegistry;
+import org.eclipse.microprofile.metrics.Counter;
+import org.eclipse.microprofile.metrics.Timer;
+import org.eclipse.microprofile.metrics.Metadata;
+import org.eclipse.microprofile.metrics.MetricUnits;
+import org.eclipse.microprofile.metrics.annotation.RegistryScope;
+
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -20,6 +29,41 @@ public class ProductService {
     @Inject
     @JPA
     private ProductRepositoryInterface repository;
+    
+    // Programmatic metrics - injecting MetricRegistry
+    @Inject
+    @RegistryScope(scope = MetricRegistry.APPLICATION_SCOPE)
+    private MetricRegistry registry;
+    
+    private Counter productCreatedCounter;
+    private Counter productDeletedCounter;
+    private Timer searchTimer;
+    
+    @PostConstruct
+    public void initMetrics() {
+        // Programmatically register metrics with rich metadata
+        productCreatedCounter = registry.counter(
+            Metadata.builder()
+                .withName("products.created.total")
+                .withDescription("Total number of products created")
+                .build()
+        );
+        
+        productDeletedCounter = registry.counter(
+            Metadata.builder()
+                .withName("products.deleted.total")
+                .withDescription("Total number of products deleted")
+                .build()
+        );
+        
+        searchTimer = registry.timer(
+            Metadata.builder()
+                .withName("product.search.duration")
+                .withDescription("Time taken to execute product search")
+                .withUnit(MetricUnits.MILLISECONDS)
+                .build()
+        );
+    }
 
     /**
      * Retrieves all products.
@@ -50,7 +94,9 @@ public class ProductService {
      */
     public Product createProduct(Product product) {
         LOGGER.info("Service: Creating new product: " + product);
-        return repository.createProduct(product);
+        Product created = repository.createProduct(product);
+        productCreatedCounter.inc(); // Track product creation with programmatic counter
+        return created;
     }
     
     /**
@@ -80,7 +126,11 @@ public class ProductService {
      */
     public boolean deleteProduct(Long id) {
         LOGGER.info("Service: Deleting product with ID: " + id);
-        return repository.deleteProduct(id);
+        boolean deleted = repository.deleteProduct(id);
+        if (deleted) {
+            productDeletedCounter.inc(); // Track product deletion with programmatic counter
+        }
+        return deleted;
     }
     
     /**
@@ -94,6 +144,13 @@ public class ProductService {
      */
     public List<Product> searchProducts(String name, String description, Double minPrice, Double maxPrice) {
         LOGGER.info("Service: Searching for products with criteria");
-        return repository.searchProducts(name, description, minPrice, maxPrice);
+        
+        // Use timer context to measure search performance programmatically
+        Timer.Context context = searchTimer.time();
+        try {
+            return repository.searchProducts(name, description, minPrice, maxPrice);
+        } finally {
+            context.stop();
+        }
     }
 }

@@ -230,7 +230,7 @@ public class ProductResource {
     unit = "none", 
   description = "Current number of products in the catalog")
   public long getProductCount() {
-     return productCatalogSize;
+     return productService.findAllProducts().size();
   }
 }
 ----
@@ -249,6 +249,363 @@ io_microprofile_tutorial_store_product_resource_ProductResource_productCatalogSi
 ----
 
 Vendors may, by their own implementation, support `/metrics?name=<name>` to directly retrieve that metric from all scopes. However, the specification itself only illustrates `/metrics?scope=<scope>&name=<name>`.
+
+NOTE: The `@Gauge` annotated method is called each time the metrics endpoint is accessed. For expensive operations, consider caching the value in a field and updating it periodically, then returning the cached value from the gauge method.
+
+== Using the Programmatic Metrics API
+
+While annotations provide a declarative way to add metrics, the programmatic API offers more flexibility and control. You can inject the `MetricRegistry` to create and manage metrics programmatically.
+
+=== Injecting MetricRegistry
+
+To use the programmatic API, inject the `MetricRegistry` with the appropriate scope:
+
+[source, java]
+----
+import org.eclipse.microprofile.metrics.MetricRegistry;
+import org.eclipse.microprofile.metrics.annotation.RegistryScope;
+import jakarta.inject.Inject;
+
+@ApplicationScoped
+public class ProductService {
+    
+    @Inject
+    @RegistryScope(scope = MetricRegistry.APPLICATION_SCOPE)
+    private MetricRegistry registry;
+    
+    private Counter productCounter;
+    
+    @PostConstruct
+    public void initMetrics() {
+        productCounter = registry.counter("products.processed");
+    }
+    
+    public void processProduct(Product product) {
+        productCounter.inc();
+        // Business logic here
+    }
+}
+----
+
+=== Creating Metrics with Metadata
+
+The programmatic API allows you to specify rich metadata for your metrics:
+
+[source, java]
+----
+import org.eclipse.microprofile.metrics.Metadata;
+import org.eclipse.microprofile.metrics.MetricUnits;
+
+@PostConstruct
+public void initMetrics() {
+    Metadata metadata = Metadata.builder()
+        .withName("product.processing.time")
+        .withDisplayName("Product Processing Time")
+        .withDescription("Time taken to process product operations")
+        .withType(MetricType.TIMER)
+        .withUnit(MetricUnits.MILLISECONDS)
+        .build();
+        
+    Timer timer = registry.timer(metadata);
+}
+----
+
+=== Example: ProductService with Programmatic Metrics
+
+Here's a complete example from our ProductService showing how to use programmatic metrics:
+
+[source, java]
+----
+@ApplicationScoped
+public class ProductService {
+    
+    @Inject
+    @RegistryScope(scope = MetricRegistry.APPLICATION_SCOPE)
+    private MetricRegistry registry;
+    
+    private Counter productCreatedCounter;
+    private Counter productDeletedCounter;
+    private Timer searchTimer;
+    
+    @PostConstruct
+    public void initMetrics() {
+        // Programmatically register metrics with rich metadata
+        productCreatedCounter = registry.counter(
+            Metadata.builder()
+                .withName("products.created.total")
+                .withDescription("Total number of products created")
+                .build()
+        );
+        
+        productDeletedCounter = registry.counter(
+            Metadata.builder()
+                .withName("products.deleted.total")
+                .withDescription("Total number of products deleted")
+                .build()
+        );
+        
+        searchTimer = registry.timer(
+            Metadata.builder()
+                .withName("product.search.duration")
+                .withDescription("Time taken to execute product search")
+                .withUnit(MetricUnits.MILLISECONDS)
+                .build()
+        );
+    }
+    
+    public Product createProduct(Product product) {
+        Product created = repository.createProduct(product);
+        productCreatedCounter.inc(); // Track product creation
+        return created;
+    }
+    
+    public boolean deleteProduct(Long id) {
+        boolean deleted = repository.deleteProduct(id);
+        if (deleted) {
+            productDeletedCounter.inc(); // Track product deletion
+        }
+        return deleted;
+    }
+    
+    public List<Product> searchProducts(String name, String description, 
+                                       Double minPrice, Double maxPrice) {
+        // Use timer context to measure search performance
+        Timer.Context context = searchTimer.time();
+        try {
+            return repository.searchProducts(name, description, minPrice, maxPrice);
+        } finally {
+            context.stop();
+        }
+    }
+}
+----
+
+=== When to Use Programmatic vs. Annotation-Based Metrics
+
+*Use Annotations when:*
+
+- Metrics are static and known at compile time
+- You want simpler, more readable code
+- Metrics align with specific methods
+
+*Use Programmatic API when:*
+
+- Metrics need to be created dynamically at runtime
+- You need more control over metric metadata
+- Metrics don't align with specific method boundaries
+- You're working with legacy code or third-party libraries
+
+== Tracking Value Distributions with Histograms
+
+Histograms measure the statistical distribution of values in a stream of data. They are useful for tracking metrics like request sizes, response times distributions, or payload sizes.
+
+=== Creating a Histogram Programmatically
+
+While MicroProfile Metrics doesn't provide a `@Histogram` annotation, you can create histograms programmatically:
+
+[source, java]
+----
+@ApplicationScoped
+public class ProductResource {
+    
+    @Inject
+    @RegistryScope(scope = MetricRegistry.APPLICATION_SCOPE)
+    private MetricRegistry registry;
+    
+    private Histogram payloadSizeHistogram;
+    
+    @PostConstruct
+    public void init() {
+        payloadSizeHistogram = registry.histogram(
+            Metadata.builder()
+                .withName("product.response.payload.size")
+                .withDescription("Distribution of product response sizes")
+                .withUnit(MetricUnits.BYTES)
+                .build()
+        );
+    }
+    
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getAllProducts() {
+        List<Product> products = productService.findAllProducts();
+        String json = JsonbBuilder.create().toJson(products);
+        
+        // Track the distribution of response sizes
+        payloadSizeHistogram.update(json.getBytes().length);
+        
+        return Response.ok(json).build();
+    }
+}
+----
+
+The histogram will track statistics such as count, min, max, mean, median (p50), and percentiles (p75, p95, p99). This is particularly useful for understanding the distribution of values and identifying outliers.
+
+== Using @SimplyTimed for Lightweight Timing
+
+The `@SimplyTimed` annotation provides a simpler alternative to `@Timed` when you only need basic timing information (count and total time) without detailed statistics:
+
+[source, java]
+----
+import org.eclipse.microprofile.metrics.annotation.SimplyTimed;
+
+@GET
+@Path("/search")
+@SimplyTimed(
+    name = "product.search.time",
+    description = "Simple timing for product search operations",
+    absolute = true
+)
+public Response searchProducts(@QueryParam("name") String name) {
+    return Response.ok(productService.searchProducts(name, null, null, null)).build();
+}
+----
+
+`@SimplyTimed` is more performant than `@Timed` as it doesn't maintain detailed histograms and percentile calculations. Use it when you only need to track call count and total duration, making it ideal for high-throughput endpoints where the overhead of detailed statistics is not warranted.
+
+*Key Differences:*
+
+- `@Timed` provides: count, rate, min, max, mean, stddev, percentiles (p50, p75, p95, p98, p99, p999)
+- `@SimplyTimed` provides: count, elapsed time (total duration)
+
+NOTE: While MicroProfile Metrics 5.1 includes the `@SimplyTimed` annotation, we use `@Timed` in our code examples as it provides more comprehensive metrics for learning purposes. In production scenarios with high-throughput endpoints, consider using `@SimplyTimed` to reduce overhead.
+
+== Accessing Metrics in Different Formats
+
+MicroProfile Metrics 5.x uses Prometheus format as the standard output format. JSON format is optional in the specification and is not supported by all implementations, including Open Liberty.
+
+=== Prometheus Format
+
+Access metrics at `/metrics` to get Prometheus-formatted output:
+
+[source,bash]
+----
+curl http://localhost:5050/metrics?scope=application
+----
+
+Output:
+[source]
+----
+# TYPE productAccessCount_total counter
+# HELP productAccessCount_total Number of times the list of products is requested
+productAccessCount_total{mp_scope="application"} 5.0
+----
+
+NOTE: In MicroProfile Metrics 5.x, JSON format is optional and not supported by all implementations. Open Liberty uses Prometheus format exclusively. For programmatic access to metrics data, parse the Prometheus text format or integrate with monitoring tools like Prometheus and Grafana.
+
+=== Filtering Metrics
+
+You can filter metrics by scope and name:
+
+[source,bash]
+----
+# Get all application metrics
+curl http://localhost:5050/metrics?scope=application
+
+# Get a specific metric by name
+curl http://localhost:5050/metrics?scope=application&name=productAccessCount
+
+# Get base metrics (JVM metrics)
+curl http://localhost:5050/metrics?scope=base
+
+# Get vendor-specific metrics
+curl http://localhost:5050/metrics?scope=vendor
+
+# Get all metrics from all scopes
+curl http://localhost:5050/metrics
+----
+
+== Best Practices for MicroProfile Metrics
+
+=== Metric Naming Conventions
+
+Follow these naming conventions for consistency:
+
+* Use lowercase with dots as separators: `product.access.count`
+* Start with the domain/component: `catalog.product.search.time`
+* Use suffixes to indicate metric type:
+  - `.total` for counters: `requests.total`
+  - `.current` for gauges: `connection.pool.size.current`
+  - `.duration` or `.time` for timers: `request.processing.duration`
+  - `.size` for histograms: `response.payload.size`
+
+=== Performance Considerations
+
+* *Keep metrics lightweight*: Avoid expensive operations in `@Gauge` methods as they're called on every metrics scrape
+* *Use appropriate metric types*: Don't use a Timer when a simple Counter would suffice
+* *Limit cardinality*: Avoid high-cardinality tags (e.g., user IDs, timestamps) that create too many unique metric combinations
+* *Cache gauge values*: For expensive calculations, cache the value and update it periodically rather than computing on every scrape
+* *Use @SimplyTimed for high-throughput endpoints*: When detailed statistics aren't needed, use `@SimplyTimed` instead of `@Timed`
+
+=== When to Use Each Metric Type
+
+* *Counter*: Use for monotonically increasing values (requests processed, items created, errors occurred)
+* *Gauge*: Use for values that go up and down (queue size, active sessions, memory usage, current catalog size)
+* *Timer*: Use to measure duration and count of events with detailed statistics (method execution time, request processing)
+* *Histogram*: Use to track distribution of values (response sizes, batch sizes, payload distributions)
+
+=== Using Tags Effectively
+
+Tags (also known as labels) add dimensions to your metrics:
+
+[source, java]
+----
+@Timed(
+    name = "product.operations.duration",
+    tags = {"operation=read", "resource=product"},
+    absolute = true
+)
+public Response getProductById(@PathParam("id") Long id) {
+    // ...
+}
+
+@Timed(
+    name = "product.operations.duration",
+    tags = {"operation=create", "resource=product"},
+    absolute = true
+)
+public Response createProduct(Product product) {
+    // ...
+}
+----
+
+This allows you to query metrics with different tag combinations, such as filtering by operation type or resource.
+
+=== Integration with Monitoring Tools
+
+MicroProfile Metrics is designed to work seamlessly with monitoring tools:
+
+* *Prometheus*: Scrapes the `/metrics` endpoint at regular intervals
+* *Grafana*: Creates dashboards and visualizations from Prometheus data
+* *Kubernetes*: Uses metrics for autoscaling decisions via the Metrics Server
+
+Example Prometheus scrape configuration:
+
+[source,yaml]
+----
+scrape_configs:
+  - job_name: 'microprofile-catalog'
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['catalog-service:5050']
+----
+
+=== Security Considerations
+
+By default, metrics endpoints may require authentication. In our Open Liberty configuration, we've disabled authentication for development:
+
+[source,xml]
+----
+<mpMetrics authentication="false" />
+----
+
+In production, consider:
+
+* Enabling authentication for metrics endpoints
+* Using network policies to restrict access to metrics
+* Exposing metrics only to internal monitoring systems
+* Not including sensitive data in metric names or tags
 
 == Summary
 

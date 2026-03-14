@@ -111,6 +111,37 @@
         </configuration>
       </plugin>
 
+      <!-- Create symlinks to satisfy Derby manifest classpath references -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>create-derby-symlinks</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <executable>bash</executable>
+              <arguments>
+                <argument>-c</argument>
+                <argument>
+                  DERBY_DIR="${project.build.directory}/liberty/wlp/usr/servers/mpServer/derby";
+                  mkdir -p "$DERBY_DIR";
+                  cd "$DERBY_DIR";
+                  [ -f derby-10.16.1.1.jar ] &amp;&amp; ln -sf derby-10.16.1.1.jar derby.jar;
+                  [ -f derbyshared-10.16.1.1.jar ] &amp;&amp; ln -sf derbyshared-10.16.1.1.jar derbyshared.jar;
+                  [ -f derbytools-10.16.1.1.jar ] &amp;&amp; ln -sf derbytools-10.16.1.1.jar derbytools.jar;
+                  true
+                </argument>
+              </arguments>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-war-plugin</artifactId>

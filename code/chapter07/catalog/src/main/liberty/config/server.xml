@@ -22,20 +22,27 @@
 
     <!-- Derby DataSource Configuration -->
     <dataSource id="DefaultDataSource" jndiName="jdbc/catalogDB" type="javax.sql.DataSource">
-        <jdbcDriver>
-            <library>
-                <fileset dir="${server.config.dir}/derby"/>
-            </library>
-        </jdbcDriver>
+        <jdbcDriver libraryRef="derbyLib"/>
         <properties databaseName="catalogDB" createDatabase="create" 
                    connectionAttributes="upgrade=true"/>
     </dataSource>
 
-    <!-- Derby Embedded Driver -->
-    <library id="derbyLib">
+    <!-- Derby Embedded Driver - using apiTypeVisibility to ignore manifest warnings -->
+    <library id="derbyLib" apiTypeVisibility="spec,ibm-api,third-party">
         <fileset dir="${server.config.dir}/derby" includes="*.jar"/>
     </library>
 
-    <webApplication location="catalog.war" contextRoot="${app.context.root}"/>
+    <!-- Configure classloader to ignore manifest class path warnings -->
+    <applicationManager autoExpand="true"/>
+    
+    <webApplication location="catalog.war" contextRoot="${app.context.root}">
+        <classloader delegation="parentLast" commonLibraryRef="derbyLib">
+        </classloader>
+    </webApplication>
+
+    <!-- Suppress Derby JAR manifest class path warnings -->
+    <logging messageSource="message,trace,accessLog,ffdc,audit" 
+             suppressSensitiveTrace="true"
+             hideMessage="SRVE9967W"/>
 
 </server>

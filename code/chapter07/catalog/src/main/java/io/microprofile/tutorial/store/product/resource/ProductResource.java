@@ -11,14 +11,21 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.eclipse.microprofile.metrics.MetricRegistry;
+import org.eclipse.microprofile.metrics.MetricUnits;
+import org.eclipse.microprofile.metrics.Metadata;
+import org.eclipse.microprofile.metrics.Histogram;
+import org.eclipse.microprofile.metrics.annotation.RegistryScope;
 import org.eclipse.microprofile.metrics.annotation.Counted;
 import org.eclipse.microprofile.metrics.annotation.Gauge;
 import org.eclipse.microprofile.metrics.annotation.Timed;
 
 import io.microprofile.tutorial.store.product.entity.Product;
 import io.microprofile.tutorial.store.product.service.ProductService;
+import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.json.bind.JsonbBuilder;
 
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -45,6 +52,25 @@ public class ProductResource {
 
     @Inject
     private ProductService productService;
+    
+    // Programmatic metrics - injecting MetricRegistry
+    @Inject
+    @RegistryScope(scope = MetricRegistry.APPLICATION_SCOPE)
+    private MetricRegistry registry;
+    
+    private Histogram responsePayloadHistogram;
+    
+    @PostConstruct
+    public void initMetrics() {
+        // Example of programmatic metric registration with rich metadata
+        responsePayloadHistogram = registry.histogram(
+            Metadata.builder()
+                .withName("product.response.payload.size")
+                .withDescription("Distribution of product list response sizes")
+                .withUnit(MetricUnits.BYTES)
+                .build()
+        );
+    }
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
@@ -82,6 +108,10 @@ public class ProductResource {
         }
 
         if (products != null && !products.isEmpty()) {
+            // Track response payload size distribution using programmatic histogram
+            String json = JsonbBuilder.create().toJson(products);
+            responsePayloadHistogram.update(json.getBytes().length);
+            
             return Response
                     .status(Response.Status.OK)
                     .entity(products).build();
@@ -107,9 +137,9 @@ public class ProductResource {
     @Path("/{id}")
     @Produces(MediaType.APPLICATION_JSON)
     @Timed(name = "productLookupTime",
-            tags = {"method=getProduct"},
+            tags = {"operation=read", "resource=product"},
             absolute = true, 
-            description = "Time spent looking up products")
+            description = "Time spent looking up products by ID")
     @Operation(summary = "Get product by ID", description = "Returns a product by its ID")
     @APIResponses({
         @APIResponse(responseCode = "200", description = "Product found", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Product.class))),
