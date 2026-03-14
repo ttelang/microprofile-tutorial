@@ -4,6 +4,8 @@
 
 This introductory chapter provides a comprehensive overview of the MicroProfile platform, setting the stage for subsequent chapters in this tutorial. It aims to familiarize you with the fundamentals of the MicroProfile platform, its need, and benefits. Finally, we will discuss its place in the broader context of enterprise Java development.
 
+NOTE: This tutorial is based on MicroProfile 7.1 Platform, the latest version of the specification optimized for cloud-native microservices development.
+
 == Topics to be covered:
 - What is MicroProfile
 - Need for MicroProfile
@@ -76,7 +78,7 @@ MicroProfile specifications are divided into two main categories: Platform and S
 
 :figure-caption: Figure 
 .MicroProfile Specifications
-image::https://microprofile.io/wp-content/uploads/2024/11/microprofile_release_7.0.png[MicroProfile 6.1]
+image::https://microprofile.io/wp-content/uploads/2024/11/microprofile_release_7.0.png[MicroProfile 7.0 Specifications]
 
 === MicroProfile Platform Component Specifications
 
@@ -108,7 +110,7 @@ Standalone specifications address more advanced needs that every microservices a
 | link:https://microprofile.io/specifications/microprofile-lra/[Long Running Actions (LRA)]| Focuses on providing a model for developing services that participate in long-running processes, ensuring consistency and reliability without necessarily locking data.
 | link:https://microprofile.io/specifications/microprofile-reactive-messaging/[Reactive Messaging]| Aims to facilitate building applications that communicate via reactive streams, enabling the development of event-driven, responsive, and resilient microservices.
 | link:https://microprofile.io/specifications/microprofile-reactive-streams-operators/[Reactive Streams Operators]| Provides a way to process data streams in a reactive manner, allowing for non-blocking system design and improving the efficiency of data processing in microservices.
-| link:https://microprofile.io/specifications/microprofile-opentracing/[Open Tracing]|  Integrates distributed tracing by defining a way for services to trace requests across service boundaries, improving observability.
+| link:https://microprofile.io/specifications/microprofile-opentracing/[Open Tracing]| *(Archived - replaced by Telemetry in MicroProfile 6.1+)* Integrates distributed tracing by defining a way for services to trace requests across service boundaries, improving observability.
 |=======================
 
 == MicroProfile Implementations
