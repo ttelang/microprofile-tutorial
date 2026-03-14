@@ -1,19 +1,19 @@
 package io.microprofile.tutorial.store.payment.config;
 
-import org.eclipse.microprofile.config.inject.ConfigProperties;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
 /**
  * Configuration properties group for Payment Gateway settings.
  * 
- * This class demonstrates the @ConfigProperties annotation from MicroProfile Config 3.1,
- * which allows grouping related configuration properties under a common prefix.
+ * This class demonstrates grouping related configuration properties for better organization.
+ * Each property is injected individually using @ConfigProperty.
  * 
- * Instead of injecting individual properties:
+ * Instead of scattering configuration injections across multiple classes:
  * <pre>
  * {@code @Inject @ConfigProperty(name="payment.gateway.endpoint") String endpoint;}
  * {@code @Inject @ConfigProperty(name="payment.gateway.apiKey") String apiKey;}
- * {@code @Inject @ConfigProperty(name="payment.gateway.timeout") int timeout;}
  * </pre>
  * 
  * You can inject the entire configuration group:
@@ -22,85 +22,67 @@ import jakarta.enterprise.context.ApplicationScoped;
  * </pre>
  * 
  * This provides several benefits:
- * - Cleaner code with less injection boilerplate
+ * - Cleaner code with centralized configuration
  * - Grouped related configuration logically
  * - Single point of configuration for a feature
  * - Better testability and mockability
  */
-@ConfigProperties(prefix = "payment.gateway")
 @ApplicationScoped
 public class PaymentGatewayConfig {
     
-    /**
-     * Payment gateway API endpoint URL.
-     * Maps to: payment.gateway.endpoint
-     */
-    public String endpoint;
+    @Inject
+    @ConfigProperty(name = "payment.gateway.endpoint")
+    private String endpoint;
+    
+    @Inject
+    @ConfigProperty(name = "payment.gateway.api-key")
+    private String apiKey;
+    
+    @Inject
+    @ConfigProperty(name = "payment.gateway.timeout")
+    private int timeout;
+    
+    @Inject
+    @ConfigProperty(name = "payment.gateway.retry-attempts")
+    private int retryAttempts;
+    
+    @Inject
+    @ConfigProperty(name = "payment.gateway.sandbox-mode")
+    private boolean sandboxMode;
     
     /**
-     * Payment gateway API key for authentication.
-     * Maps to: payment.gateway.apiKey
+     * Gets the payment gateway API endpoint URL.
      */
-    public String apiKey;
-    
-    /**
-     * Connection timeout in milliseconds.
-     * Maps to: payment.gateway.timeout
-     */
-    public int timeout;
-    
-    /**
-     * Number of retry attempts for failed requests.
-     * Maps to: payment.gateway.retryAttempts
-     */
-    public int retryAttempts;
-    
-    /**
-     * Whether to use sandbox/test mode.
-     * Maps to: payment.gateway.sandboxMode
-     */
-    public boolean sandboxMode;
-    
-    // Getters and setters
-    
     public String getEndpoint() {
         return endpoint;
     }
     
-    public void setEndpoint(String endpoint) {
-        this.endpoint = endpoint;
-    }
-    
+    /**
+     * Gets the payment gateway API key for authentication.
+     */
     public String getApiKey() {
         return apiKey;
     }
     
-    public void setApiKey(String apiKey) {
-        this.apiKey = apiKey;
-    }
-    
+    /**
+     * Gets the connection timeout in milliseconds.
+     */
     public int getTimeout() {
         return timeout;
     }
     
-    public void setTimeout(int timeout) {
-        this.timeout = timeout;
-    }
-    
+    /**
+     * Gets the number of retry attempts for failed requests.
+     */
     public int getRetryAttempts() {
         return retryAttempts;
     }
     
-    public void setRetryAttempts(int retryAttempts) {
-        this.retryAttempts = retryAttempts;
-    }
-    
+    /**
+     * Checks if sandbox/test mode is enabled.
+     */
     public boolean isSandboxMode() {
         return sandboxMode;
-    }
-    
-    public void setSandboxMode(boolean sandboxMode) {
-        this.sandboxMode = sandboxMode;
     }
     
     @Override

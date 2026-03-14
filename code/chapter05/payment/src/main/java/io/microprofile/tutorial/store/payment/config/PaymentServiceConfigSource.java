@@ -5,22 +5,34 @@ import org.eclipse.microprofile.config.spi.ConfigSource;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
 
 /**
  * Custom ConfigSource for Payment Service.
  * This config source provides payment-specific configuration with high priority.
+ * Ordinal 600 ensures it overrides system properties (400), environment variables (300),
+ * and microprofile-config.properties (100) for properties it provides.
+ * 
+ * This demonstrates how custom ConfigSources can enforce certain configurations
+ * that cannot be accidentally overridden by typical deployment-time settings.
  */
 public class PaymentServiceConfigSource implements ConfigSource {
 
+    private static final Logger LOGGER = Logger.getLogger(PaymentServiceConfigSource.class.getName());
+    
     private static final Map<String, String> properties = new HashMap<>();
 
     private static final String NAME = "PaymentServiceConfigSource";
-    private static final int ORDINAL = 50; // Higher ordinal means higher priority
+    private static final int ORDINAL = 600; // Higher ordinal means higher priority
     
     public PaymentServiceConfigSource() {
+       LOGGER.info("Initializing PaymentServiceConfigSource with ordinal: " + ORDINAL);
+       
        // Load payment service configurations dynamically
        // This example uses hardcoded values for demonstration
-       properties.put("payment.gateway.endpoint", "https://api.paymentgateway.com");
+       properties.put("payment.gateway.endpoint", "https://api.paymentgateway.com/v1");
+       
+       LOGGER.info("PaymentServiceConfigSource loaded with " + properties.size() + " properties");
    }
 
     @Override

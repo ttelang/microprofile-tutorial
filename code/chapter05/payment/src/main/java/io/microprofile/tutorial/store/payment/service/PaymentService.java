@@ -33,7 +33,7 @@ public class PaymentService {
     @Inject
     private PaymentAuditService auditService;
 
-    // NEW: Inject grouped configuration using @ConfigProperties
+    // NEW: Inject grouped configuration using @ConfigMapping
     @Inject
     private PaymentGatewayConfig gatewayConfig;
 
@@ -62,9 +62,9 @@ public class PaymentService {
         }
         
         // Use grouped configuration from PaymentGatewayConfig
-        System.out.println("Processing payment via gateway: " + gatewayConfig.endpoint);
-        System.out.println("Gateway timeout: " + gatewayConfig.timeout + "ms");
-        System.out.println("Sandbox mode: " + gatewayConfig.sandboxMode);
+        System.out.println("Processing payment via gateway: " + gatewayConfig.getEndpoint());
+        System.out.println("Gateway timeout: " + gatewayConfig.getTimeout() + "ms");
+        System.out.println("Sandbox mode: " + gatewayConfig.isSandboxMode());
         
         // Simulate payment processing
         boolean success = true;
@@ -214,7 +214,7 @@ public class PaymentService {
         }
         
         // Use grouped configuration from PaymentGatewayConfig
-        System.out.println("Processing refund via gateway: " + gatewayConfig.endpoint);
+        System.out.println("Processing refund via gateway: " + gatewayConfig.getEndpoint());
         
         boolean success = true;
         long duration = System.currentTimeMillis() - startTime;
@@ -241,10 +241,10 @@ public class PaymentService {
     public String getGatewayConfiguration() {
         return String.format(
                 "Gateway: %s, Timeout: %dms, Sandbox Mode: %s, Retry Attempts: %d",
-                gatewayConfig.endpoint, 
-                gatewayConfig.timeout, 
-                gatewayConfig.sandboxMode,
-                gatewayConfig.retryAttempts
+                gatewayConfig.getEndpoint(), 
+                gatewayConfig.getTimeout(), 
+                gatewayConfig.isSandboxMode(),
+                gatewayConfig.getRetryAttempts()
         );
     }
 }

@@ -8,6 +8,12 @@
         <feature>mpOpenAPI-4.1</feature>
     </featureManager>
 
+    <!-- 
+    NOTE: The <jvmOptions> element in server.xml doesn't work for setting system properties in dev mode.
+    Use jvm.options file in this directory instead (src/main/liberty/config/jvm.options)
+    See jvm.options for JVM arguments including system property overrides.
+    -->
+
     <!-- Configure logging to show INFO level messages -->
     <!-- Audit logs are captured by the PaymentAudit logger -->
     <logging consoleLogLevel="INFO" 

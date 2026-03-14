@@ -82,6 +82,13 @@
         <version>3.11.2</version>
         <configuration>
             <serverName>mpServer</serverName>
+            <!-- Uncomment to pass JVM options to Liberty server -->
+            <!-- Example: Override configuration properties -->
+            <!--
+            <jvmOptions>
+                <param>-Dpayment.gateway.timeout=7777</param>
+            </jvmOptions>
+            -->
         </configuration>
       </plugin>
 

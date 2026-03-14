@@ -1,0 +1,5 @@
+# JVM Options for Liberty Server
+# These options are applied when the Liberty server starts
+
+# Override MicroProfile Config property for testing (System Properties have ordinal 400)
+-Dpayment.gateway.timeout=7777

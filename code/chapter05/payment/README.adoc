@@ -1,25 +1,20 @@
-= Payment Service - Chapter 5
+= Payment Service
 
 This microservice is part of the Jakarta EE 10 and MicroProfile-based e-commerce application. It handles payment processing, idempotency, audit logging, and demonstrates **advanced MicroProfile Config patterns**.
 
-== Chapter 5 Focus: Advanced MicroProfile Configuration
+== Overview
 
-The Payment Service demonstrates **advanced MicroProfile Config concepts** including:
+The Payment Service showcases advanced MicroProfile Config capabilities:
 
 * **@ConfigProperties** - Grouping related configuration properties into a configuration bean
 * **Custom ConfigSource** - Creating custom configuration sources with specific ordinality
 * **External Integration Configuration** - Managing complex third-party service settings
 * **Security-Sensitive Configuration** - Handling API keys and credentials
-
-== Features
-
-* Payment transaction processing with idempotency support
-* Payment audit trail for compliance and troubleshooting
-* CDI interceptors for automatic logging
-* **Grouped configuration management via @ConfigProperties**
-* **Custom ConfigSource implementation**
-* RESTful API endpoints with comprehensive OpenAPI documentation
-* Integration with external payment gateways
+* **Payment Processing** - Transaction processing with idempotency support
+* **Audit Trail** - Comprehensive audit logging for compliance and troubleshooting
+* **CDI Interceptors** - Automatic logging using interceptor patterns
+* **RESTful API** - Complete OpenAPI-documented endpoints
+* **Gateway Integration** - External payment gateway connectivity
 
 == Configuration Architecture
 
@@ -58,10 +53,10 @@ Defined in `src/main/resources/META-INF/microprofile-config.properties`:
 
 [source,properties]
 ----
-# MicroProfile Config Properties for Payment Service (Chapter 5)
+# MicroProfile Config Properties for Payment Service
 
 # OpenAPI Configuration
-mp.openapi.scan=true
+mp.openapi.scan.disabled=false
 
 # Payment Gateway Configuration
 # These properties are automatically mapped to PaymentGatewayConfig bean
@@ -78,7 +73,7 @@ Instead of injecting individual properties:
 
 [source,java]
 ----
-// OLD APPROACH (not used in Chapter 5):
+// Individual property injection approach:
 @Inject @ConfigProperty(name="payment.gateway.endpoint") String endpoint;
 @Inject @ConfigProperty(name="payment.gateway.timeout") int timeout;
 // ... more individual properties
@@ -88,7 +83,7 @@ The service injects the entire configuration group:
 
 [source,java]
 ----
-// CHAPTER 5 APPROACH:
+// Grouped configuration approach:
 @ApplicationScoped
 public class PaymentService {
     
@@ -117,8 +112,8 @@ public class PaymentService {
 
 === Prerequisites
 
-* JDK 17 or higher
-* Maven 3.6.0 or higher
+* JDK 21 or higher
+* Maven 3.13.0 or higher
 
 === Local Development
 
@@ -143,41 +138,71 @@ The server will start on port 9080 (HTTP) and 9081 (HTTPS).
 
 == Project Structure
 
-* `src/main/java/io/microprofile/tutorial/store/payment/`
-  ** `PaymentRestApplication.java` - Jakarta RESTful Web Services application class
-  ** `config/PaymentGatewayConfig.java` - **@ConfigProperties bean for grouped configuration**
-  ** `config/PaymentServiceConfigSource.java` - **Custom ConfigSource implementation**
-  ** `resource/PaymentResource.java` - REST endpoints for payment processing
-  ** `resource/PaymentAuditResource.java` - REST endpoints for audit trail
-  ** `service/PaymentService.java` - Business logic using grouped configuration
-  ** `service/IdempotencyService.java` - Idempotency management
-  ** `service/PaymentAuditService.java` - Audit logging service
-  ** `entity/` - Data models (PaymentDetails, IdempotencyRecord, PaymentAuditRecord)
-  ** `interceptor/LoggingInterceptor.java` - CDI interceptor for automatic logging
-* `src/main/resources/META-INF/`
-  ** `microprofile-config.properties` - Configuration properties
-  ** `services/org.eclipse.microprofile.config.spi.ConfigSource` - Custom ConfigSource registration
-* `src/main/liberty/config/server.xml` - Liberty server configuration
+[source]
+----
+payment/
+├── src/
+│   └── main/
+│       ├── java/
+│       │   └── io/microprofile/tutorial/store/payment/
+│       │       ├── PaymentRestApplication.java      # Jakarta RESTful Web Services application
+│       │       ├── config/
+│       │       │   ├── PaymentConfig.java           # @ConfigProperties bean for payment config
+│       │       │   ├── PaymentGatewayConfig.java    # @ConfigProperties for gateway settings
+│       │       │   └── PaymentServiceConfigSource.java  # Custom ConfigSource implementation
+│       │       ├── entity/
+│       │       │   ├── IdempotencyRecord.java       # Entity for idempotency tracking
+│       │       │   ├── PaymentAuditRecord.java      # Entity for audit trail
+│       │       │   └── PaymentDetails.java          # Payment transaction model
+│       │       ├── interceptor/
+│       │       │   ├── Logged.java                  # CDI interceptor binding annotation
+│       │       │   └── LoggingInterceptor.java      # Automatic logging interceptor
+│       │       ├── resource/
+│       │       │   ├── PaymentAuditResource.java    # REST API for audit queries
+│       │       │   ├── PaymentConfigResource.java   # REST API to view configuration
+│       │       │   └── PaymentResource.java         # REST API for payment processing
+│       │       └── service/
+│       │           ├── IdempotencyService.java      # Idempotency management service
+│       │           ├── PaymentAuditService.java     # Audit logging service
+│       │           ├── PaymentService.java          # Payment business logic
+│       │           └── payment.http                 # HTTP test file
+│       ├── liberty/
+│       │   └── config/
+│       │       └── server.xml                       # Liberty server configuration
+│       ├── resources/
+│       │   └── META-INF/
+│       │       ├── microprofile-config.properties   # MicroProfile Config properties
+│       │       └── services/
+│       │           └── org.eclipse.microprofile.config.spi.ConfigSource  # ConfigSource registration
+│       └── webapp/
+│           ├── WEB-INF/
+│           │   └── web.xml                          # Web application descriptor
+│           ├── index.html                           # Landing page
+│           └── index.jsp                            # JSP landing page
+├── Dockerfile                                       # Container image definition
+├── pom.xml                                         # Maven build configuration
+├── README.adoc                                     # This file
+├── run-docker.sh                                   # Docker run script
+└── run.sh                                          # Local run script
+----
 
-== Key Learnings - Chapter 5
+== Advanced Configuration Patterns
 
-This Payment Service demonstrates advanced MicroProfile Config patterns:
+This service demonstrates several advanced MicroProfile Config patterns:
 
-1. **@ConfigProperties Grouping** - Group related properties into a configuration bean instead of injecting them individually
-2. **Custom ConfigSource** - Create custom configuration sources with specific priority levels
-3. **Configuration Ordinality** - Understand how MicroProfile Config resolves configuration from multiple sources
-4. **Integration Configuration** - Manage complex external service configurations (payment gateways)
-5. **Security Considerations** - Handle sensitive configuration like API keys appropriately
+* **@ConfigProperties Grouping** - Group related properties into a configuration bean instead of injecting them individually
+* **Custom ConfigSource** - Create custom configuration sources with specific priority levels
+* **Configuration Ordinality** - Understanding how MicroProfile Config resolves configuration from multiple sources
+* **Integration Configuration** - Managing complex external service configurations (payment gateways)
+* **Security Considerations** - Handling sensitive configuration like API keys appropriately
 
 **Comparison with Catalog Service:**
 
-* **Catalog Service** (Basic) - Individual `@ConfigProperty` injection, simple type conversion
-* **Payment Service** (Advanced) - Grouped `@ConfigProperties`, custom ConfigSource, complex integrations
+The Catalog Service demonstrates basic MicroProfile Config patterns (individual `@ConfigProperty` injection, simple type conversion), while the Payment Service showcases advanced patterns (grouped `@ConfigProperties`, custom ConfigSource, complex integrations).
 
 == Related Documentation
 
 * See `code/chapter05/catalog/` for basic MicroProfile Config examples
-* See the main Chapter 5 documentation for complete MicroProfile Config coverage
 * OpenAPI documentation available at `/openapi` and `/openapi/ui` when running
 
 === Custom ConfigSource
@@ -245,7 +270,433 @@ MicroProfile Config uses a prioritized set of configuration sources. The payment
 3. Environment variables - Ordinal: 300
 4. microprofile-config.properties file - Ordinal: 100
 
-The custom ConfigSource provides service-specific defaults while still allowing override via system properties or environment variables.
+**Important:** The custom ConfigSource provides `payment.gateway.endpoint` with ordinal 600, which means it will **override** system properties (400) and environment variables (300) for that specific property. This demonstrates how custom ConfigSources can enforce certain configurations that cannot be accidentally overridden by typical deployment-time settings.
+
+To override a property from the custom ConfigSource, you would need to either:
+- Create another ConfigSource with ordinal > 600
+- Modify the custom ConfigSource itself
+- Use properties that are NOT provided by the custom ConfigSource (e.g., timeout, retryAttempts, sandboxMode)
+
+== Testing MicroProfile Config Features
+
+This section provides step-by-step instructions to verify the advanced MicroProfile Config features in the Payment Service.
+
+[IMPORTANT]
+====
+**Before running any tests, you must start the payment service:**
+
+[source,bash]
+----
+cd /workspaces/microprofile-tutorial/code/chapter05/payment
+mvn clean liberty:dev
+----
+
+Wait for the server to fully start. You should see:
+[source,text]
+----
+[INFO] [AUDIT] CWWKZ0001I: Application payment started
+[INFO] Press the Enter key to run tests on demand.
+----
+
+The service will be available at `http://localhost:9080/payment`
+====
+
+=== Step 1: Verify @ConfigProperties Injection
+
+Test that the grouped configuration properties are being injected correctly into the `PaymentGatewayConfig` bean.
+
+Open a **new terminal** (keep the liberty:dev terminal running) and execute:
+
+[source,bash]
+----
+# View current gateway configuration
+curl http://localhost:9080/payment/api/payment-config
+----
+
+Expected response showing all gateway properties:
+
+[source,json]
+----
+{
+  "endpoint": "https://api.paymentgateway.com/v1",
+  "apiKey": "demo-api-key-12345",
+  "timeout": 5000,
+  "retryAttempts": 3,
+  "sandboxMode": true
+}
+----
+
+This confirms that all properties with the `payment.gateway.*` prefix are grouped and injected via `@ConfigProperties`.
+
+=== Step 2: Verify Custom ConfigSource Loading
+
+Check that the custom `PaymentServiceConfigSource` is loaded and providing configuration values during server startup.
+
+In the terminal where `mvn liberty:dev` is running, look for these startup messages:
+
+[source,text]
+----
+[INFO] Initializing PaymentServiceConfigSource with ordinal: 600
+[INFO] PaymentServiceConfigSource loaded with 1 properties
+----
+
+This confirms that:
+
+* The custom ConfigSource is being discovered via the ServiceLoader mechanism
+* It is initialized with ordinal 600 (higher priority than microprofile-config.properties ordinal 100)
+* It provides the `payment.gateway.endpoint` property
+
+The custom ConfigSource demonstrates how to provide service-specific defaults that can still be overridden by system properties (ordinal 400) or environment variables (ordinal 300).
+
+=== Step 3: Test Configuration Priority (Ordinality)
+
+Test the configuration source priority by overriding values using different sources.
+
+[IMPORTANT]
+====
+**Understanding Configuration Priority:**
+
+The Custom ConfigSource (`PaymentServiceConfigSource`) has ordinal 600 and provides `payment.gateway.endpoint`. Since 600 is higher than environment variables (300) and system properties (400), the custom ConfigSource will **always win** for properties it provides.
+
+To properly test environment variables and system properties, use properties that are **NOT** provided by the custom ConfigSource, such as:
+- `payment.gateway.timeout`
+- `payment.gateway.retry-attempts`  
+- `payment.gateway.sandbox-mode`
+====
+
+**Test 1: Default value from microprofile-config.properties**
+
+[source,bash]
+----
+curl -s http://localhost:9080/payment/api/payment-config | jq .timeout
+----
+
+Current `timeout` value: `5000`
+
+**Test 2: Override with Environment Variable**
+
+Environment variables must be set **before** starting the Java process.
+
+[source,bash]
+----
+# Step 1: Stop the running server (press Ctrl+C in the liberty:dev terminal)
+
+# Step 2: Set the environment variable
+export PAYMENT_GATEWAY_TIMEOUT=9999
+
+# Step 3: Start the server with the environment variable
+mvn liberty:dev
+----
+
+[IMPORTANT]
+====
+MicroProfile Config converts property names to environment variable format:
+
+- Property: `payment.gateway.timeout`
+- Environment Variable: `PAYMENT_GATEWAY_TIMEOUT` (dots → underscores, all uppercase)
+- Property: `payment.gateway.retry-attempts`
+- Environment Variable: `PAYMENT_GATEWAY_RETRY_ATTEMPTS`
+====
+
+After the server starts, open a new terminal and check the configuration:
+
+[source,bash]
+----
+curl -s http://localhost:9080/payment/api/payment-config | jq .timeout
+----
+
+Expected: `timeout` should now be `9999`
+
+[TIP]
+====
+To verify the environment variable is set correctly before starting the server:
+[source,bash]
+----
+echo $PAYMENT_GATEWAY_TIMEOUT
+----
+====
+
+**Test 3: Override with System Property**
+
+System properties (ordinal 400) override environment variables (ordinal 300).
+
+To pass system properties to the Liberty server, you need to configure them in the `pom.xml` or use the `jvmOptions` parameter.
+
+**Option 1: Using pom.xml configuration (Permanent)**
+
+Edit `pom.xml` and add JVM options to the liberty-maven-plugin:
+
+[source,xml]
+----
+<plugin>
+    <groupId>io.openliberty.tools</groupId>
+    <artifactId>liberty-maven-plugin</artifactId>
+    <version>3.11.2</version>
+    <configuration>
+        <serverName>mpServer</serverName>
+        <jvmOptions>
+            <param>-Dpayment.gateway.timeout=7777</param>
+        </jvmOptions>
+    </configuration>
+</plugin>
+----
+
+Then restart the server:
+
+[source,bash]
+----
+# Step 1: Stop the server (press Ctrl+C)
+
+# Step 2: Clear the environment variable from Test 2 (optional)
+unset PAYMENT_GATEWAY_TIMEOUT
+
+# Step 3: Start server with updated pom.xml
+mvn liberty:dev
+----
+
+**Option 2: Using environment variable for JVM options (Temporary)**
+
+[source,bash]
+----
+# Step 1: Stop the server (press Ctrl+C)
+
+# Step 2: Set MAVEN_OPTS or Liberty-specific JVM options
+export MAVEN_OPTS="-Dpayment.gateway.timeout=7777"
+
+# Step 3: Start server
+mvn liberty:dev
+----
+
+**Option 3: Using server.xml configuration**
+
+Edit `src/main/liberty/config/server.xml` and add the `jvmOptions` element:
+
+[source,xml]
+----
+<server description="MicroProfile Payment Service">
+    <featureManager>
+        <!-- existing features -->
+    </featureManager>
+    
+    <!-- JVM Options for system properties -->
+    <jvmOptions>-Dpayment.gateway.timeout=7777</jvmOptions>
+    
+    <!-- rest of configuration -->
+</server>
+----
+
+[TIP]
+====
+You can also set multiple JVM options:
+[source,xml]
+----
+<jvmOptions>-Dpayment.gateway.timeout=7777,-Dpayment.gateway.retry-attempts=10</jvmOptions>
+----
+====
+
+After saving the file, the server will automatically restart if running in `liberty:dev` mode.
+
+Check the configuration in a new terminal:
+
+[source,bash]
+----
+curl -s http://localhost:9080/payment/api/payment-config | jq .timeout
+----
+
+Expected: `timeout` should now be `7777` (system property wins over environment variable)
+
+[IMPORTANT]
+====
+**Note:** Passing `-Dpayment.gateway.timeout=7777` directly to `mvn liberty:dev` sets the property for Maven, not for the Liberty JVM. Use one of the options above to pass properties to the Liberty server.
+====
+
+**Test 4: Why Endpoint Cannot Be Overridden**
+
+Try to override the endpoint with an environment variable:
+
+[source,bash]
+----
+# Stop server
+export PAYMENT_GATEWAY_ENDPOINT=https://env-override.gateway.com
+mvn liberty:dev
+----
+
+Check the endpoint:
+
+[source,bash]
+----
+curl -s http://localhost:9080/payment/api/payment-config | jq .endpoint
+----
+
+Result: `endpoint` will still be `https://api.paymentgateway.com/v1`
+
+**Why?** The Custom ConfigSource provides this property with ordinal 600, which overrides:
+- System properties (400)
+- Environment variables (300)  
+- microprofile-config.properties (100)
+
+To override properties from the custom ConfigSource, you would need a ConfigSource with ordinal > 600 or modify the custom ConfigSource itself.
+
+**Configuration Priority Summary:**
+
+[cols="1,1,1,2", options="header"]
+|===
+| Priority | Source | Ordinal | Can Override
+| 1 (Highest) | Custom ConfigSource | 600 | All sources below
+| 2 | System Properties (-D flags) | 400 | Env vars, config file
+| 3 | Environment Variables | 300 | Config file only
+| 4 (Lowest) | microprofile-config.properties | 100 | None
+|===
+
+Clean up after testing:
+
+[source,bash]
+----
+# Unset environment variables if still set
+unset PAYMENT_GATEWAY_TIMEOUT
+unset PAYMENT_GATEWAY_ENDPOINT
+----
+
+=== Step 4: Verify Type Conversion in @ConfigProperties
+
+The `PaymentGatewayConfig` bean demonstrates automatic type conversion:
+
+* `timeout` - String to int conversion
+* `retryAttempts` - String to int conversion  
+* `sandboxMode` - String to boolean conversion
+
+Modify `src/main/resources/META-INF/microprofile-config.properties`:
+
+[source,properties]
+----
+payment.gateway.timeout=8000
+payment.gateway.retryAttempts=5
+payment.gateway.sandboxMode=false
+----
+
+[NOTE]
+====
+When running in `liberty:dev` mode, configuration changes are automatically detected and the application reloads. You don't need to manually restart the server.
+====
+
+After automatic reload, verify the changes:
+
+[source,bash]
+----
+curl http://localhost:9080/payment/api/payment-config
+----
+
+Expected response with updated values:
+
+[source,json]
+----
+{
+  "timeout": 8000,
+  "retryAttempts": 5,
+  "sandboxMode": false
+}
+----
+
+Restore the original values after testing.
+
+=== Step 5: Test Payment Processing with Configuration
+
+Verify that the configuration is actually being used in payment processing:
+
+[source,bash]
+----
+curl -X POST http://localhost:9080/payment/api/payments \
+  -H "Content-Type: application/json" \
+  -d '{
+    "paymentId": "test-payment-001",
+    "cardNumber": "4111111111111111",
+    "cardHolderName": "John Doe",
+    "expiryDate": "12/25",
+    "securityCode": "123",
+    "amount": 99.99
+  }'
+----
+
+Check the server logs to see the configuration values being used:
+
+[source,text]
+----
+[INFO] Processing payment using gateway: https://api.paymentgateway.com/v1
+[INFO] Timeout configured: 5000ms
+[INFO] Sandbox mode: true
+----
+
+=== Step 6: Verify Idempotency with Configuration
+
+Test idempotency by submitting the same payment twice:
+
+[source,bash]
+----
+# First submission - should succeed
+curl -X POST http://localhost:9080/payment/api/payments \
+  -H "Content-Type: application/json" \
+  -d '{
+    "paymentId": "idempotent-test-001",
+    "cardNumber": "4111111111111111",
+    "cardHolderName": "Jane Smith",
+    "expiryDate": "12/26",
+    "securityCode": "456",
+    "amount": 149.99
+  }'
+
+# Second submission with same paymentId - should return existing result
+curl -X POST http://localhost:9080/payment/api/payments \
+  -H "Content-Type: application/json" \
+  -d '{
+    "paymentId": "idempotent-test-001",
+    "cardNumber": "4111111111111111",
+    "cardHolderName": "Jane Smith",
+    "expiryDate": "12/26",
+    "securityCode": "456",
+    "amount": 149.99
+  }'
+----
+
+Both requests should return the same payment ID and status, demonstrating idempotency.
+
+=== Step 7: View Audit Trail
+
+Check the audit trail to verify payment operations are logged:
+
+[source,bash]
+----
+# Get all audit records
+curl http://localhost:9080/payment/api/payments/audit
+
+# Get audit for specific payment
+curl http://localhost:9080/payment/api/payments/audit/test-payment-001
+----
+
+=== Summary of Configuration Properties Verified
+
+[cols="1,1,1,1", options="header"]
+|===
+| Property Name | Type | Default Value | Verified Feature
+| `payment.gateway.endpoint` | String | https://api.paymentgateway.com/v1 | @ConfigProperties grouping
+| `payment.gateway.apiKey` | String | demo-api-key-12345 | Sensitive config handling
+| `payment.gateway.timeout` | int | 5000 | String to int conversion
+| `payment.gateway.retryAttempts` | int | 3 | String to int conversion
+| `payment.gateway.sandboxMode` | boolean | true | String to boolean conversion
+| `mp.openapi.scan.disabled` | boolean | false | OpenAPI configuration
+|===
+
+=== Advanced Configuration Testing
+
+**Testing Custom ConfigSource Ordinal:**
+
+1. Add a property to `PaymentServiceConfigSource.java` with a test value
+2. Add the same property to `microprofile-config.properties` with a different value
+3. Rebuild and run
+4. Verify that the custom ConfigSource value is used (ordinal 600 > 100)
+
+**Testing Configuration Changes Without Restart:**
+
+In `liberty:dev` mode, modify any property in `microprofile-config.properties`, save the file, and immediately query the config endpoint to see the updated value after automatic reload.
 
 == API Endpoints
 
@@ -355,3 +806,59 @@ If the custom ConfigSource is not loading, check the following:
 
 For CWWKZ0004E deployment errors, check the server logs at:
 `target/liberty/wlp/usr/servers/mpServer/logs/messages.log`
+
+==== Payment Application Not Accessible (Context Root Not Found)
+
+If you see "Context Root Not Found" or the OpenLiberty default page when accessing endpoints:
+
+**Problem:** The payment application is not deployed or Liberty is running without the payment app.
+
+**Solutions:**
+
+1. **Verify the payment service is running:**
++
+[source,bash]
+----
+# Make sure you're in the payment directory
+cd /workspaces/microprofile-tutorial/code/chapter05/payment
+
+# Check if liberty:dev is running
+# You should see an active terminal with Liberty server output
+----
+
+2. **Check if the application is deployed:**
++
+Look for this message in the Liberty server output:
++
+[source,text]
+----
+[INFO] [AUDIT] CWWKZ0001I: Application payment started
+----
+
+3. **If the application is not started:**
++
+[source,bash]
+----
+# Stop any running server (Ctrl+C)
+# Clean and restart
+mvn clean liberty:dev
+----
+
+4. **Verify the correct port:**
++
+The payment service runs on port **9080**, not 5050 (which is used by the catalog service)
+
+5. **Test with the root context:**
++
+[source,bash]
+----
+# This should show the welcome page, not an error
+curl http://localhost:9080/payment/
+
+# This should return JSON config
+curl http://localhost:9080/payment/api/payment-config
+----
+
+6. **Check for port conflicts:**
++
+If port 9080 is in use, you'll see an error. Kill any other processes using that port or change the port in `pom.xml`
