@@ -6,6 +6,8 @@ import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.HealthCheckResponseBuilder;
 import org.eclipse.microprofile.health.Liveness;
 
+import java.util.logging.Logger;
+
 /**
  * Liveness health check for the Product Catalog service.
  * Verifies that the application is running and not in a failed state.
@@ -14,6 +16,8 @@ import org.eclipse.microprofile.health.Liveness;
 @Liveness
 @ApplicationScoped
 public class ProductServiceLivenessCheck implements HealthCheck {
+
+    private static final Logger LOGGER = Logger.getLogger(ProductServiceLivenessCheck.class.getName());
 
    @Override
    public HealthCheckResponse call() {

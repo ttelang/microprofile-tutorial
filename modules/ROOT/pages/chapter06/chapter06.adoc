@@ -192,10 +192,8 @@ package org.eclipse.microprofile.health;
 
 public abstract class HealthCheckResponseBuilder {
 	
-    // Sets the name of the health check response.
-    public abstract HealthCheckResponseBuilder name(String name) {
-        this.name = name;
-    }
+    // Sets the name of the health check response
+    public abstract HealthCheckResponseBuilder name(String name);
 
     // Sets the status of the health check to UP
     public abstract HealthCheckResponseBuilder up();
@@ -203,13 +201,12 @@ public abstract class HealthCheckResponseBuilder {
     // Sets the status of the health check to DOWN
     public abstract HealthCheckResponseBuilder down(); 
 
-    // Adds additional string data to the health check response
-    public HealthCheckResponseBuilder withData(String key, String value); 
-    
-    // Adds additional numeric data to the health check response
-    public HealthCheckResponseBuilder withData(String key, long value);
+    // Adds additional data to the health check response
+    public abstract HealthCheckResponseBuilder withData(String key, String value);
+    public abstract HealthCheckResponseBuilder withData(String key, long value);
+    public abstract HealthCheckResponseBuilder withData(String key, boolean value);
 
-    // Sets the status of the health check response  
+    // Sets the status of the health check response based on boolean  
     public abstract HealthCheckResponseBuilder status(boolean up); 
 
     // Builds and returns the HealthCheckResponse instance
@@ -219,6 +216,116 @@ public abstract class HealthCheckResponseBuilder {
 ----
 
 The above code snippet offers a conceptual and simplified definition of the `HealthCheckResponseBuilder` abstract class to illustrate how health check responses can be structured within the MicroProfile Health framework. For the actual `HealthCheckResponseBuilder` abstract class source code, please visit: https://github.com/eclipse/microprofile-health/blob/main/api/src/main/java/org/eclipse/microprofile/health/HealthCheckResponseBuilder.java
+
+=== Simplified Health Check Response Construction
+
+MicroProfile Health provides convenient static factory methods for creating simple health check responses without using the builder pattern:
+
+[source, java]
+----
+// Simple UP response
+return HealthCheckResponse.up("ProductServiceReadinessCheck");
+
+// Simple DOWN response  
+return HealthCheckResponse.down("ProductServiceReadinessCheck");
+
+// Named response with builder (when you need withData)
+return HealthCheckResponse.named("ProductServiceReadinessCheck")
+    .up()
+    .withData("databaseConnections", 5)
+    .withData("responseTimeMs", 250)
+    .build();
+----
+
+Use the static convenience methods (`up()`, `down()`) for simple checks. Use the builder pattern with `named()` when you need to include diagnostic data via `withData()`.
+
+=== Multiple Health Checks of the Same Type
+
+An application can implement multiple health checks of the same type. For example, you might have several readiness checks:
+
+[source, java]
+----
+@Readiness
+@ApplicationScoped
+public class DatabaseReadinessCheck implements HealthCheck {
+    // Check database connectivity
+}
+
+@Readiness
+@ApplicationScoped
+public class CacheReadinessCheck implements HealthCheck {
+    // Check cache availability
+}
+
+@Readiness
+@ApplicationScoped
+public class ExternalServiceReadinessCheck implements HealthCheck {
+    // Check dependent service connectivity
+}
+----
+
+The overall readiness status returned by `/health/ready` is UP only if ALL readiness checks return UP. If any check returns DOWN, the overall status is DOWN. This logical AND operation ensures the service is truly ready from all perspectives.
+
+== Health Checks vs. Monitoring
+
+It's important to understand the distinction between health checks and monitoring:
+
+*Health checks* answer: "Is this instance healthy enough to receive traffic or should it be restarted?"
+
+* Binary decision (UP/DOWN)
+* Used by orchestrators (Kubernetes) for automated actions
+* Should be fast and lightweight
+* Focus on critical functionality
+
+*Monitoring/Metrics* answer: "How is the system performing over time?"
+
+* Continuous measurements (CPU, memory, request rates, latency)
+* Used by observability tools (Prometheus, Grafana)
+* Can be more detailed and expensive
+* Covered by MicroProfile Metrics (different specification)
+
+Use MicroProfile Health for container orchestration decisions, and MicroProfile Metrics for observability and performance monitoring.
+
+== MicroProfile Health Configuration
+
+MicroProfile Health supports configuration via standard MicroProfile Config properties:
+
+* `mp.health.disable-default-procedures` (boolean): Disables default vendor-provided health check procedures. Default is `false`.
+
+Example in `microprofile-config.properties`:
+
+[source, properties]
+----
+# Disable default runtime health checks (use only custom checks)
+mp.health.disable-default-procedures=true
+----
+
+This is useful when you want complete control over health check behavior and don't want the runtime to contribute its own checks.
+
+=== Runtime-Provided Health Checks
+
+MicroProfile-compatible runtimes may provide default health check procedures automatically. For example, Open Liberty includes built-in readiness checks that verify all applications have started successfully.
+
+When you access `/health/ready`, you may see health checks you didn't explicitly define:
+
+[source, json]
+----
+{
+  "status": "UP",
+  "checks": [
+    {
+      "name": "ProductServiceReadinessCheck",
+      "status": "UP"
+    },
+    {
+      "name": "io.openliberty.health.defaultReadiness",
+      "status": "UP"
+    }
+  ]
+}
+----
+
+To disable default procedures and use only your custom checks, set `mp.health.disable-default-procedures=true` in your configuration.
 
 == Steps for Implementing Health Checks
 
@@ -266,10 +373,14 @@ import io.microprofile.tutorial.store.product.entity.Product;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @Readiness
 @ApplicationScoped
 public class ProductServiceHealthCheck implements HealthCheck {
+
+    private static final Logger LOGGER = Logger.getLogger(ProductServiceHealthCheck.class.getName());
 
     @PersistenceContext
     EntityManager entityManager;
@@ -289,11 +400,13 @@ public class ProductServiceHealthCheck implements HealthCheck {
 
     private boolean isDatabaseConnectionHealthy(){
         try {
-            // Perform a lightweight query to check the database connection
-            entityManager.find(Product.class, 1L);
+            // Lightweight query that doesn't depend on specific data existing
+            entityManager.createNamedQuery("Product.findAll", Product.class)
+                        .setMaxResults(1)
+                        .getResultList();
             return true;
         } catch (Exception e) {
-            System.err.println("Database connection is not healthy: " + e.getMessage());
+            LOGGER.log(Level.WARNING, "Database readiness check failed", e);
             return false;
         }        
     }
@@ -359,25 +472,43 @@ package io.microprofile.tutorial.store.product.health;
 
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
+import org.eclipse.microprofile.health.Startup;
 
-import jakarta.ejb.Startup;
+import io.microprofile.tutorial.store.product.entity.Product;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.persistence.EntityManagerFactory;
-import jakarta.persistence.PersistenceUnit;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @Startup
 @ApplicationScoped
 public class ProductServiceStartupCheck implements HealthCheck{
 
-    @PersistenceUnit
-    private EntityManagerFactory emf;
+    private static final Logger LOGGER = Logger.getLogger(ProductServiceStartupCheck.class.getName());
+
+    @PersistenceContext
+    private EntityManager entityManager;
     
     @Override
     public HealthCheckResponse call() {
-        if (emf != null && emf.isOpen()) {
-            return HealthCheckResponse.up("ProductServiceStartupCheck");
-        } else {
-            return HealthCheckResponse.down("ProductServiceStartupCheck");
+        try {
+            // Verify database schema exists by checking table accessibility
+            entityManager.createNamedQuery("Product.findAll", Product.class)
+                        .setMaxResults(1)
+                        .getResultList();
+            
+            LOGGER.info("Startup check: Database schema verified successfully");
+            return HealthCheckResponse.named("ProductServiceStartupCheck")
+                    .up()
+                    .withData("message", "Database schema initialized")
+                    .build();
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Startup check failed: Database schema not accessible", e);
+            return HealthCheckResponse.named("ProductServiceStartupCheck")
+                    .down()
+                    .withData("error", e.getMessage())
+                    .build();
         }
     }
 }
@@ -393,7 +524,73 @@ MicroProfile Health thus provides a robust and standardized way to implement hea
 Once defined, these health check procedures are automatically discovered and invoked by the MicroProfile Health runtime. They are accessible through standardized HTTP endpoints provided by MicroProfile Health (`/health`, `/health/live`, `/health/ready`, `/health/started`) and can be used by orchestration tools (like Kubernetes) or monitoring systems to manage and monitor the health of your microservices.
 
 This approach allows you to tailor health checks to the operational specifics of each microservice, providing a robust mechanism for observing and managing your application’s health in a cloud-native environment.
+== Testing Health Checks
 
+After implementing health checks, verify they work correctly by accessing the health endpoints.
+
+=== Testing with curl
+
+[source, bash]
+----
+# Test overall health (all checks)
+curl http://localhost:5050/catalog/health
+
+# Test liveness checks only
+curl http://localhost:5050/catalog/health/live
+
+# Test readiness checks only
+curl http://localhost:5050/catalog/health/ready
+
+# Test startup checks only
+curl http://localhost:5050/catalog/health/started
+----
+
+=== Expected Response
+
+A healthy service returns HTTP 200 with:
+
+[source, json]
+----
+{
+  "status": "UP",
+  "checks": [
+    {
+      "name": "ProductServiceReadinessCheck",
+      "status": "UP"
+    },
+    {
+      "name": "systemResourcesLiveness",
+      "status": "UP",
+      "data": {
+        "FreeMemory": 268435456,
+        "MaxMemory": 536870912,
+        "AllocatedMemory": 357913941,
+        "UsedMemory": 89478485,
+        "AvailableMemory": 447392427
+      }
+    },
+    {
+      "name": "ProductServiceStartupCheck",
+      "status": "UP",
+      "data": {
+        "message": "Database schema initialized"
+      }
+    }
+  ]
+}
+----
+
+An unhealthy service returns HTTP 503 (Service Unavailable) with `"status": "DOWN"` and details about failed checks.
+
+=== Simulating Failures
+
+To test failure scenarios:
+
+1. *Database Failure*: Stop the database or corrupt the connection
+2. *Memory Pressure*: Use monitoring tools to observe liveness behavior under low memory
+3. *Startup Issues*: Introduce intentional errors in initialization code
+
+Verify that the appropriate health check endpoint returns HTTP 503 when failures occur.
 == Kubernetes Probe Configuration
 
 Integrating MicroProfile Health checks with Kubernetes probes allows you to leverage Kubernetes' native capabilities to manage the lifecycle of your containers based on their current health status. Specifically, you can map Liveness, Readiness, and Startup probes in Kubernetes to the corresponding health check types defined by the MicroProfile Health specification.
@@ -406,31 +603,90 @@ Here's a basic overview of how each type of MicroProfile Health check maps to Ku
 
 * *Startup Probes:* Determine if a container application has started. These are useful for applications that have a long startup time to prevent them from being killed by Kubernetes before they are up and running.
 
-To configure these probes in your Kubernetes pod, you can use the livenessProbe, readinessProbe, and startupProbe fields in your container specification. Here's an example of how you might define a readiness probe in your Kubernetes pod configuration, that utilizes a MicroProfile Health endpoint: 
+To configure these probes in your Kubernetes pod, you can use the livenessProbe, readinessProbe, and startupProbe fields in your container specification. Here's a comprehensive example that demonstrates all three probe types in a production-ready configuration:
+
+[source, yaml]
+----
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog-service
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: catalog
+  template:
+    metadata:
+      labels:
+        app: catalog
+    spec:
+      containers:
+      - name: catalog
+        image: catalog-service:1.0
+        ports:
+        - containerPort: 5050
+        
+        # Startup probe - checked first, before liveness/readiness
+        startupProbe:
+          httpGet:
+            path: /catalog/health/started
+            port: 5050
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          failureThreshold: 30  # Give up to 150 seconds for startup (30 * 5s)
+          timeoutSeconds: 3
+        
+        # Liveness probe - determines if container should be restarted
+        livenessProbe:
+          httpGet:
+            path: /catalog/health/live
+            port: 5050
+          initialDelaySeconds: 0  # Startup probe runs first
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3  # Restart after 3 consecutive failures (30 seconds)
+        
+        # Readiness probe - determines if container receives traffic
+        readinessProbe:
+          httpGet:
+            path: /catalog/health/ready
+            port: 5050
+          initialDelaySeconds: 0
+          periodSeconds: 5
+          timeoutSeconds: 2
+          failureThreshold: 2  # Remove from load balancer after 2 failures (10 seconds)
+----
+
+In the above example:
+
+* The `startupProbe` is checked first and gives the application up to 150 seconds (30 attempts × 5 seconds) to start. This prevents premature liveness probe failures during slow startup.
+* The `livenessProbe` checks every 10 seconds whether the application is still alive. Three consecutive failures trigger a container restart.
+* The `readinessProbe` checks every 5 seconds whether the application can handle traffic. Two consecutive failures remove the pod from the service load balancer.
+
+For a simpler Pod configuration without a Deployment:
 
 [source, yaml]
 ----
 apiVersion: v1
 kind: Pod
 metadata:
-  name: mp-pod
+  name: catalog-pod
 spec:
   containers:
-  - name: my-mp-app
-    image: myimage:v1
-ports:
-- containerPort: 8080
-readinessProbe:
-  httpGet:
-    path: /health/ready
-    port: 8080
-  initialDelaySeconds: 15
-  timeoutSeconds: 2
-  periodSeconds: 5
-  failureThreshold: 3
+  - name: catalog
+    image: catalog-service:1.0
+    ports:
+    - containerPort: 5050
+    readinessProbe:
+      httpGet:
+        path: /catalog/health/ready
+        port: 5050
+      initialDelaySeconds: 15
+      timeoutSeconds: 2
+      periodSeconds: 5
+      failureThreshold: 3
 ----
-
-In the above example, the readinessProbe is configured to make an HTTP GET request to the `/health/ready` endpoint, which is the default endpoint provided by MicroProfile Health for readiness checks. Similarly, you can configure livenessProbe and startupProbe by specifying `/health/live` and `/health/startup` endpoints respectively.
 
 It's important to adjust the `initialDelaySeconds`, `timeoutSeconds`, `periodSeconds`, and `failureThreshold` according to the specifics of your application to ensure that Kubernetes accurately reflects the state of your containers based on its health checks.
 
@@ -438,19 +694,31 @@ It's important to adjust the `initialDelaySeconds`, `timeoutSeconds`, `periodSec
 
 Here are some best practices for implementing and utilizing health checks effectively:
 
-* *Clearly Define Health Check Types*: Use readiness, liveness, and startup checks appropriately to reflect the state of your microservices. This helps in accurately signaling the service’s ability to handle traffic and its current operational state.
+* *Clearly Define Health Check Types*: Use readiness, liveness, and startup checks appropriately to reflect the state of your microservices. This helps in accurately signaling the service's ability to handle traffic and its current operational state.
 
-* *Implement Meaningful Health Checks*: Ensure that your health checks meaningfully reflect the operational aspects they are intended to monitor. Avoid trivial checks that do not accurately represent the service’s health.
+* *Implement Meaningful Health Checks*: Ensure that your health checks meaningfully reflect the operational aspects they are intended to monitor. Avoid trivial checks that do not accurately represent the service's health.
 
-* *Utilize Health Check Responses*: Make effective use of the health check responses, including the UP/DOWN status and additional metadata. This information can be valuable for logging and reporting on the health state of your services.
+* *Keep Health Checks Lightweight*: Health checks should execute quickly (typically under 1 second). Avoid expensive operations like full table scans, complex calculations, or external API calls with long timeouts. Kubernetes and orchestrators call these endpoints frequently (every few seconds), so slow checks can impact performance.
 
-* *Secure Health Check Endpoints*: Consider the security of your health check endpoints, especially if they expose sensitive details about the application’s state. 
+* *Use Connection Pool Validation*: For database health checks, validate the connection pool rather than executing complex queries. A simple query (like `SELECT 1` or checking the first row) is sufficient. Avoid queries that depend on specific data existing.
 
-* *Monitor Health Check Performance*: Health checks should be lightweight and not introduce significant overhead. Monitor the performance of your health checks and optimize as needed to prevent impacting the application’s performance.
+* *Set Timeouts*: When checking external dependencies, always use timeouts to prevent hanging health checks from blocking orchestration decisions.
 
-* *Logging Health Check Results*: Implementing logging within your health check procedures can provide insights into the health status over time. Log entries can be made when health check statuses change or when significant health-related events occur.
+* *Cache Health Status*: For expensive checks, consider caching the health status and refreshing it asynchronously rather than checking on every request. This prevents health check endpoints from becoming performance bottlenecks.
 
-* *Reporting and Alerting*: Based on logged health check results, implement reporting mechanisms to visualize the health over time and set up alerting for when health checks fail. This could be integrated with existing monitoring and alerting tools.
+* *Utilize Health Check Responses*: Make effective use of the health check responses, including the UP/DOWN status and additional metadata via `.withData()`. This information can be valuable for logging and debugging health state issues.
+
+* *Implement Proper Logging*: Use proper logging frameworks (e.g., `java.util.logging.Logger`) instead of `System.out` or `System.err`. Log health check failures at appropriate levels (WARNING for transient issues, SEVERE for critical failures). Log entries can provide insights into health status trends over time.
+
+* *Avoid False Positives*: Design health checks that accurately reflect actual problems. A check that fails too easily causes unnecessary restarts; a check that rarely fails misses actual issues.
+
+* *Secure Health Check Endpoints*: Consider the security of your health check endpoints, especially if they expose sensitive details about the application's state. In production environments, health endpoints might reveal infrastructure details, so consider restricting access or sanitizing sensitive data.
+
+* *Monitor Health Check Performance*: Track the execution time and success rate of your health checks. If checks consistently take too long or fail frequently, investigate and optimize them.
+
+* *Reporting and Alerting*: Integrate health check results with monitoring and alerting tools. Set up alerts for when health checks fail repeatedly, indicating a genuine problem requiring human intervention.
+
+* *Test Health Check Behavior*: Regularly test your health checks by simulating failure scenarios (database disconnection, out-of-memory conditions, etc.) to ensure they behave correctly under adverse conditions.
 
 By following these best practices, you can effectively implement and expose health checks in your MicroProfile applications, improving observability and reliability, especially in cloud-native environments.
 

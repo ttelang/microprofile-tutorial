@@ -18,16 +18,12 @@
 
     <!-- Derby DataSource Configuration -->
     <dataSource id="DefaultDataSource" jndiName="jdbc/catalogDB" type="javax.sql.DataSource">
-        <jdbcDriver>
-            <library>
-                <fileset dir="${server.config.dir}/derby"/>
-            </library>
-        </jdbcDriver>
+        <jdbcDriver libraryRef="derbyLib"/>
         <properties databaseName="catalogDB" createDatabase="create" 
                    connectionAttributes="upgrade=true"/>
     </dataSource>
 
-    <!-- Derby Embedded Driver -->
+    <!-- Derby Library -->
     <library id="derbyLib">
         <fileset dir="${server.config.dir}/derby" includes="*.jar"/>
     </library>

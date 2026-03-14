@@ -8,6 +8,9 @@ import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.Readiness;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 /**
  * Readiness health check for the Product Catalog service.
  * Provides database connection health checks to monitor service health and availability.
@@ -15,6 +18,8 @@ import org.eclipse.microprofile.health.Readiness;
 @Readiness
 @ApplicationScoped
 public class ProductServiceHealthCheck implements HealthCheck {
+
+    private static final Logger LOGGER = Logger.getLogger(ProductServiceHealthCheck.class.getName());
 
     @PersistenceContext
     EntityManager entityManager;
@@ -34,11 +39,13 @@ public class ProductServiceHealthCheck implements HealthCheck {
 
     private boolean isDatabaseConnectionHealthy(){
         try {
-            // Perform a lightweight query to check the database connection
-            entityManager.find(Product.class, 1L);
+            // Lightweight query that doesn't depend on specific data existing
+            entityManager.createNamedQuery("Product.findAll", Product.class)
+                        .setMaxResults(1)
+                        .getResultList();
             return true;
         } catch (Exception e) {
-            System.err.println("Database connection is not healthy: " + e.getMessage());
+            LOGGER.log(Level.WARNING, "Database readiness check failed", e);
             return false;
         }
     }
