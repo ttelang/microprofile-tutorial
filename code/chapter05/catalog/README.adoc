@@ -43,7 +43,7 @@ public Response getAllProducts() {
 }
 ----
 
-The OpenAPI documentation is available at: `/openapi` (in various formats) and `/openapi/ui` (Swagger UI)
+The OpenAPI documentation is available at: `/openapi` (in JSON and YAML formats) and `/openapi/ui` (Swagger UI)
 
 === In-Memory Persistence Architecture
 
@@ -164,11 +164,11 @@ The service uses the following configuration properties defined in `microprofile
 # MicroProfile Config Properties for Catalog Service (Chapter 5)
 
 # Enable OpenAPI scanning
-mp.openapi.scan=true
+mp.openapi.scan.disabled=false
 
 # Product Catalog Configuration - Basic Examples
 product.maintenanceMode=false
-product.catalog.name=E-Commerce Product Catalog
+product.catalog.name=Product Catalog
 product.resultsPerPage=20
 product.enableNewArrivals=true
 product.discount.percentage=15.0
@@ -219,7 +219,7 @@ MicroProfile Config automatically converts the String value from the configurati
 [source,java]
 ----
 @Inject
-@ConfigProperty(name="product.catalog.name", defaultValue="E-Commerce Catalog")
+@ConfigProperty(name="product.catalog.name", defaultValue="Product Catalog")
 private String catalogName;
 ----
 
@@ -264,17 +264,7 @@ The application follows a layered architecture pattern:
 
 === Persistence Evolution
 
-This application originally used JPA with Derby for persistence, but has been refactored to use an in-memory implementation:
-
-[cols="1,1", options="header"]
-|===
-| Original JPA/Derby | Current In-Memory Implementation
-| Required database configuration | No database configuration needed
-| Persistence across restarts | Data reset on restart
-| Used EntityManager and transactions | Uses ConcurrentHashMap and AtomicLong
-| Required datasource in server.xml | No datasource configuration required
-| Complex error handling | Simplified error handling
-|===
+This application originally used JPA with Derby for persistence, but has been refactored to use an in-memory data store with `ConcurrentHashMap` and `AtomicLong` for ID generation. This change was made to simplify the architecture and focus on MicroProfile features without the overhead of database configuration.
 
 Key architectural benefits of this change:
 
@@ -393,15 +383,240 @@ mvn liberty:run
 
 === Testing the Application
 
-==== Testing MicroProfile Features
+==== Testing MicroProfile Config Features
+
+This section provides comprehensive steps to verify that MicroProfile Config is working correctly in the Catalog Service.
+
+[NOTE]
+====
+The server is configured with `consoleLogLevel="INFO"` in `server.xml` to display INFO level logs in the console. This allows you to observe configuration property injection and application behavior in real-time. When you run `mvn liberty:dev`, you'll see log messages from the application in the console output.
+====
+
+===== Step 1: Verify INFO Level Logs are Displayed in Console
+
+Before testing MicroProfile Config features, first verify that INFO level logs are visible in the console:
 
 [source,bash]
 ----
-# OpenAPI documentation
+# Start the application in dev mode
+mvn clean liberty:dev
+----
+
+Watch the console output during server startup. You should see INFO level log messages like:
+
+[source,text]
+----
+[INFO] [3/14/26, 3:14:35:351 UTC] 0000002b com.ibm.ws.webcontainer.servlet                              I SRVE0242I: [catalog] [/catalog] [io.microprofile.tutorial.store.product.ProductRestApplication]: Initialization successful.
+----
+
+This confirms that:
+
+* The `<logging consoleLogLevel="INFO">` configuration in `server.xml` is working correctly
+* INFO level messages from the Liberty server and your application are visible in the console
+* You will be able to observe MicroProfile Config property injection in subsequent steps
+
+If you don't see INFO logs, verify that the `server.xml` file contains the logging configuration element.
+
+===== Step 2: Verify Configuration Value Injection and Type Conversion
+
+With INFO logging enabled, verify that configuration values are being injected and automatically type-converted:
+
+[source,bash]
+----
+# Make an API call to trigger logging
+curl -X GET http://localhost:5050/catalog/api/products
+----
+
+Watch the server logs for confirmation that configuration values are loaded. You should see log entries showing the discount percentage when products are retrieved:
+
+[source,text]
+----
+[INFO] Service: Finding all products. Discount rate: 15.0%
+----
+
+This confirms:
+
+* The `product.discount.percentage` property (String in config file) has been automatically converted to a `Double` type
+* The property was successfully injected into the `ProductService` class
+* MicroProfile Config's automatic type conversion is working correctly (String → Double)
+
+You can also test changing the value. Edit `src/main/resources/META-INF/microprofile-config.properties` and change:
+
+[source,properties]
+----
+product.discount.percentage=25.5
+----
+
+[NOTE]
+====
+When running in `liberty:dev` mode, configuration changes in `microprofile-config.properties` are automatically detected and the application is reloaded. You don't need to manually restart the server.
+====
+
+After the automatic reload, make another API call and observe the updated value in the logs:
+
+[source,bash]
+----
+curl -X GET http://localhost:5050/catalog/api/products
+----
+
+Log output:
+
+[source,text]
+----
+[INFO] Service: Finding all products. Discount rate: 25.5%
+----
+
+Change it back to 15.0 for the remaining tests.
+
+===== Step 3: Verify Maintenance Mode Feature Toggle
+
+Test the `product.maintenanceMode` boolean property by modifying the configuration:
+
+*Test with Maintenance Mode Disabled (default):*
+
+[source,bash]
+----
+# Current microprofile-config.properties has: product.maintenanceMode=false
+curl -X GET http://localhost:5050/catalog/api/products
+
+# Expected: 200 OK with products
+----
+
+*Test with Maintenance Mode Enabled:*
+
+1. Edit `src/main/resources/META-INF/microprofile-config.properties`:
++
+[source,properties]
+----
+product.maintenanceMode=true
+----
+
+2. Test the API again:
++
+[source,bash]
+----
+curl -X GET http://localhost:5050/catalog/api/products
+
+# Expected: 503 Service Unavailable
+# Response body: "Service is under maintenance"
+----
+
+3. Verify maintenance mode affects all endpoints:
++
+[source,bash]
+----
+# Try to get a specific product
+curl -X GET http://localhost:5050/catalog/api/products/1
+
+# Expected: 503 Service Unavailable
+# Response body: "Service is under maintenance"
+----
+
+4. Restore the original setting:
++
+[source,properties]
+----
+product.maintenanceMode=false
+----
+
+===== Step 4: Verify Type Conversion - String to int
+
+The `product.resultsPerPage` property demonstrates String to int conversion. While this property isn't actively used in the current implementation for pagination, you can verify it's injected correctly:
+
+1. Check the configuration file:
++
+[source,properties]
+----
+product.resultsPerPage=20
+----
+
+2. The property is successfully injected into `ProductResource` as an `int` type
+3. No `ClassCastException` or `NumberFormatException` indicates successful type conversion
+
+===== Step 5: Verify String Property Injection
+
+Test the `product.catalog.name` String property:
+
+1. The property is defined in `microprofile-config.properties`:
++
+[source,properties]
+----
+product.catalog.name=Product Catalog
+----
+
+2. This demonstrates basic String property injection with a custom value overriding the default value (`"Product Catalog"`)
+
+===== Step 6: Test Default Values Fallback
+
+Verify that default values are used when properties are not configured:
+
+1. Comment out a property in `microprofile-config.properties`:
++
+[source,properties]
+----
+# product.discount.percentage=15.0
+----
+
+2. Wait for the automatic reload in `liberty:dev` mode
+
+3. Make an API call and check the logs. It should show the default value (10.0%):
++
+[source,text]
+----
+[INFO] Service: Finding all products. Discount rate: 10.0%
+----
+
+4. Uncomment the property to restore the configured value (automatic reload will apply the change)
+
+===== Step 7: Verify Configuration Priority
+
+MicroProfile Config follows a specific priority order. Test environment variable override:
+
+1. Set an environment variable to override the configuration file:
++
+[source,bash]
+----
+export PRODUCT_DISCOUNT_PERCENTAGE=30.0
+mvn clean liberty:dev
+----
+
+2. The environment variable should override the properties file value
+
+3. Check logs to verify the environment variable value is used:
++
+[source,text]
+----
+[INFO] Service: Finding all products. Discount rate: 30.0%
+----
+
+4. Unset the environment variable to restore file-based configuration:
++
+[source,bash]
+----
+unset PRODUCT_DISCOUNT_PERCENTAGE
+----
+
+===== Summary of Configuration Properties Verified
+
+[cols="1,1,1,1", options="header"]
+|===
+| Property Name | Type | Default Value | Purpose
+| `product.maintenanceMode` | boolean | false | Feature toggle for maintenance mode
+| `product.catalog.name` | String | "E-Commerce Catalog" | Catalog display name
+| `product.resultsPerPage` | int | 10 | Pagination size
+| `product.enableNewArrivals` | boolean | true | Feature toggle for new arrivals
+| `product.discount.percentage` | Double | 10.0 | Discount rate (visible in logs)
+|===
+
+==== Testing OpenAPI Documentation
+
+[source,bash]
+----
+# OpenAPI specification in JSON format
 curl -X GET http://localhost:5050/openapi
 
-# Check if service is in maintenance mode
-curl -X GET http://localhost:5050/api/products
+# OpenAPI specification in YAML format  
+curl -X GET http://localhost:5050/openapi?format=yaml
 ----
 
 To view the Swagger UI, open the following URL in your browser:
@@ -410,29 +625,60 @@ http://localhost:5050/openapi/ui
 To view the landing page with API documentation:
 http://localhost:5050/
 
+If you are running the application locally with the default configuration, you can access it using:
+http://localhost:5050/.
+
 == Server Configuration
 
 The application uses the following Liberty server configuration:
 
 [source,xml]
 ----
-<server description="MicroProfile Tutorial Liberty Server">
+<server description="MicroProfile Catalog Service - Chapter 5: Configuration">
     <featureManager>
         <platform>jakartaEE-10.0</platform>
-        <platform>microProfile-6.1</platform>
         <feature>restfulWS</feature>
-        <feature>jsonp</feature>
         <feature>jsonb</feature>
         <feature>cdi</feature>
-        <feature>mpConfig</feature>
-        <feature>mpOpenAPI</feature>
+        <feature>mpConfig-3.1</feature>
+        <feature>mpOpenAPI-4.1</feature>
     </featureManager>
+
+    <!-- Configure logging to show INFO level messages in console -->
+    <logging consoleLogLevel="INFO" consoleFormat="simple" consoleSource="message,trace,accessLog,ffdc,audit" />
 
     <httpEndpoint httpPort="${default.http.port}" httpsPort="${default.https.port}"
                   id="defaultHttpEndpoint" host="*" />
     <webApplication location="catalog.war" contextRoot="${app.context.root}"/>
 </server>
 ----
+
+=== Logging Configuration
+
+The server is configured to display INFO level logs in the console, which is essential for observing MicroProfile Config property injection and application behavior.
+
+The `<logging>` element attributes:
+
+* `consoleLogLevel="INFO"` - Sets the minimum log level for console output to INFO (shows INFO, WARNING, and SEVERE messages)
+* `consoleFormat="simple"` - Uses a simple, human-readable format for log messages  
+* `consoleSource="message,trace,accessLog,ffdc,audit"` - Specifies which log sources to include in console output
+
+With this configuration, you'll see application logs in the console when running `mvn liberty:dev`, including:
+
+[source,text]
+----
+[INFO] Service: Finding all products. Discount rate: 15.0%
+[INFO] REST: Fetching all products
+[INFO] Service: Creating new product: Product(id=null, name=Laptop, ...)
+----
+
+To change the log level (e.g., for debugging), you can modify `consoleLogLevel` to:
+
+* `FINEST` - Most detailed logging
+* `FINE` - Detailed logging  
+* `INFO` - Informational messages (default in this configuration)
+* `WARNING` - Warning messages only
+* `SEVERE` - Error messages only
 
 == Development
 
@@ -557,8 +803,6 @@ This enables scanning of OpenAPI annotations in the application.
 * *Concurrent modification exceptions*: Ensure proper use of thread-safe collections and operations
 * *Service always in maintenance mode*: Check the `product.maintenanceMode` property in `microprofile-config.properties`
 * *API returning 503 responses*: The service is likely in maintenance mode; set `product.maintenanceMode=false` in configuration
-* *OpenAPI documentation not available*: Make sure `mp.openapi.scan=true` is set in the properties file
-* *Concurrent modification exceptions*: Ensure proper use of thread-safe collections and operations
 
 === Thread Safety Troubleshooting
 

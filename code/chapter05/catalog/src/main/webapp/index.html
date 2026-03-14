@@ -103,12 +103,85 @@
             </ul>
             <div class="card" style="background-color: #f0f7ff; margin-top: 15px;">
                 <h3>MicroProfile Config Implementation</h3>
-                <p>This service implements configurability as per MicroProfile Config standards. Key configuration properties include:</p>
+                <p>This service demonstrates <strong>MicroProfile Config</strong> capabilities, showcasing externalized configuration management and dependency injection of configuration properties.</p>
+                
+                <h4>Key MicroProfile Config Features</h4>
                 <ul>
-                    <li><code>product.maintenanceMode</code> - Controls whether the service is in maintenance mode (returns 503 responses)</li>
-                    <li><code>mp.openapi.scan</code> - Enables automatic OpenAPI documentation generation</li>
+                    <li><strong>Property Injection</strong> - Configuration values injected directly into CDI beans using <code>@ConfigProperty</code></li>
+                    <li><strong>Automatic Type Conversion</strong> - String values from config files automatically converted to Java types (boolean, int, Double)</li>
+                    <li><strong>Default Values</strong> - Fallback values provided when properties are not configured</li>
+                    <li><strong>Feature Flags</strong> - Boolean properties to enable/disable features at runtime</li>
+                    <li><strong>Hot Reload</strong> - Configuration changes detected automatically in <code>liberty:dev</code> mode</li>
                 </ul>
-                <p>MicroProfile Config allows these properties to be changed via environment variables, system properties, or configuration files without requiring application redeployment.</p>
+
+                <h4>Configuration Properties</h4>
+                <table style="font-size: 0.9em;">
+                    <thead>
+                        <tr>
+                            <th>Property Name</th>
+                            <th>Type</th>
+                            <th>Default</th>
+                            <th>Purpose</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>product.maintenanceMode</code></td>
+                            <td>boolean</td>
+                            <td>false</td>
+                            <td>When true, service returns 503 responses for all API calls</td>
+                        </tr>
+                        <tr>
+                            <td><code>product.catalog.name</code></td>
+                            <td>String</td>
+                            <td>E-Commerce Catalog</td>
+                            <td>Display name for the product catalog</td>
+                        </tr>
+                        <tr>
+                            <td><code>product.resultsPerPage</code></td>
+                            <td>int</td>
+                            <td>10</td>
+                            <td>Number of products per page (demonstrates String to int conversion)</td>
+                        </tr>
+                        <tr>
+                            <td><code>product.enableNewArrivals</code></td>
+                            <td>boolean</td>
+                            <td>true</td>
+                            <td>Feature toggle for new arrivals section</td>
+                        </tr>
+                        <tr>
+                            <td><code>product.discount.percentage</code></td>
+                            <td>Double</td>
+                            <td>10.0</td>
+                            <td>Default discount percentage (visible in server logs)</td>
+                        </tr>
+                        <tr>
+                            <td><code>mp.openapi.scan.disabled</code></td>
+                            <td>boolean</td>
+                            <td>false</td>
+                            <td>Enables automatic OpenAPI documentation scanning</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4>Configuration Sources</h4>
+                <p>MicroProfile Config supports multiple configuration sources with priority ordering:</p>
+                <ol>
+                    <li>System properties (highest priority)</li>
+                    <li>Environment variables</li>
+                    <li><code>microprofile-config.properties</code> file</li>
+                    <li>Default values specified in <code>@ConfigProperty</code> annotations (lowest priority)</li>
+                </ol>
+                
+                <h4>Example: Maintenance Mode</h4>
+                <p>The <code>product.maintenanceMode</code> property demonstrates a feature toggle pattern. When enabled, all API endpoints return HTTP 503 (Service Unavailable) responses.</p>
+                <p>To test this feature:</p>
+                <ol>
+                    <li>Edit <code>src/main/resources/META-INF/microprofile-config.properties</code></li>
+                    <li>Set <code>product.maintenanceMode=true</code></li>
+                    <li>The application automatically reloads in <code>liberty:dev</code> mode</li>
+                    <li>Try accessing <code>/api/products</code> - you'll receive a 503 response</li>
+                </ol>
             </div>
         </div>
 
