@@ -1,8 +1,7 @@
 #!/bin/bash
 
 # Test script for Payment Service Bulkhead functionality
-# This script demonstrates the @Bulkhead annotation by sending many concurrent requests
-# and observing how the service handles concurrent load up to its configured limit (5)
+# Tests the @Bulkhead annotation on the sendPaymentNotification method
 
 # Color definitions
 RED='\033[0;31m'
@@ -13,41 +12,174 @@ PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Check if bc is installed and install it if not
+# Check if bc is installed
 if ! command -v bc &> /dev/null; then
-    echo -e "${YELLOW}The 'bc' command is not found. Installing bc...${NC}"
+    echo -e "${YELLOW}Installing bc for duration calculations...${NC}"
     sudo apt-get update && sudo apt-get install -y bc
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}Failed to install bc. Please install it manually.${NC}"
-        exit 1
-    fi
-    echo -e "${GREEN}bc installed successfully.${NC}"
 fi
-
-# Header
-echo -e "${BLUE}==============================================${NC}"
-echo -e "${BLUE}     Payment Service Bulkhead Test     ${NC}"
-echo -e "${BLUE}==============================================${NC}"
-echo ""
 
 # Dynamically determine the base URL
 if [ -n "$CODESPACE_NAME" ] && [ -n "$GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN" ]; then
-    # GitHub Codespaces environment - use localhost for internal testing
     BASE_URL="http://localhost:9080/payment/api"
-    echo -e "${CYAN}Detected GitHub Codespaces environment (using localhost)${NC}"
-    echo -e "${CYAN}Note: External access would be https://$CODESPACE_NAME-9080.$GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN/payment/api${NC}"
+    METRICS_URL="http://localhost:9080/metrics?scope=base"
+    echo -e "${CYAN}Detected GitHub Codespaces environment${NC}"
 elif [ -n "$GITPOD_WORKSPACE_URL" ]; then
-    # Gitpod environment
     GITPOD_HOST=$(echo $GITPOD_WORKSPACE_URL | sed 's|https://||' | sed 's|/||')
     BASE_URL="https://9080-$GITPOD_HOST/payment/api"
+    METRICS_URL="https://9080-$GITPOD_HOST/metrics?scope=base"
     echo -e "${CYAN}Detected Gitpod environment${NC}"
 else
-    # Local or other environment
     BASE_URL="http://localhost:9080/payment/api"
+    METRICS_URL="http://localhost:9080/metrics?scope=base"
     echo -e "${CYAN}Using local environment${NC}"
 fi
 
+echo ""
+echo -e "${BLUE}=== Payment Notification Bulkhead Test ===${NC}"
+echo -e "${CYAN}Endpoint: POST /notify/{paymentId}${NC}"
 echo -e "${CYAN}Base URL: $BASE_URL${NC}"
+echo ""
+
+echo -e "${YELLOW}Bulkhead Configuration:${NC}"
+echo "  • Maximum Concurrent Requests: 3"
+echo "  • Waiting Queue Size: 2"
+echo "  • Total Capacity: 5 (3 concurrent + 2 queued)"
+echo "  • Asynchronous: Yes (@Asynchronous)"
+echo "  • Processing delay: ~2 seconds per notification"
+echo ""
+
+echo -e "${CYAN}🔍 Expected Behavior:${NC}"
+echo "  • First 3 requests: Execute immediately (concurrent slots)"
+echo "  • Next 2 requests: Queue for execution (waiting queue)"
+echo "  • 6th+ requests: ${RED}REJECTED${NC} - Bulkhead full"
+echo ""
+
+read -p "Press Enter to start the bulkhead test..."
+echo ""
+
+# Function to send async notification request
+send_notification() {
+    local id=$1
+    local payment_id="PAY-$(printf "%05d" $id)"
+    
+    start_time=$(date +%s.%N)
+    response=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST "${BASE_URL}/notify/${payment_id}" 2>/dev/null || echo "HTTP_STATUS:000")
+    end_time=$(date +%s.%N)
+    
+    duration=$(echo "$end_time - $start_time" | bc)
+    duration_formatted=$(printf "%.3f" $duration)
+    
+    http_code=$(echo "$response" | grep "HTTP_STATUS:" | cut -d: -f2)
+    body=$(echo "$response" | sed '/HTTP_STATUS:/d')
+    
+    if [ "$http_code" -eq 200 ] || [ "$http_code" -eq 202 ]; then
+        if echo "$body" | grep -q "queued\|sent"; then
+            echo -e "${GREEN}[Request $id] ✓ Accepted (${duration_formatted}s) - Response: $body${NC}"
+        elif echo "$body" | grep -q "fallback"; then
+            echo -e "${PURPLE}[Request $id] ⚡ Fallback (${duration_formatted}s) - Response: $body${NC}"
+        else
+            echo -e "${GREEN}[Request $id] ✓ Success (${duration_formatted}s) - Response: $body${NC}"
+        fi
+    elif echo "$body" | grep -q "BulkheadException\|Bulkhead"; then
+        echo -e "${RED}[Request $id] ✗ REJECTED: Bulkhead full (${duration_formatted}s)${NC}"
+    elif [ "$http_code" -eq 503 ]; then
+        echo -e "${YELLOW}[Request $id] ⚠ Service Unavailable (${duration_formatted}s)${NC}"
+    else
+        echo -e "${PURPLE}[Request $id] ? Unknown (HTTP $http_code, ${duration_formatted}s): $body${NC}"
+    fi
+}
+
+# Phase 1: Single request baseline
+echo -e "${BLUE}=== Phase 1: Single Request (Baseline) ===${NC}"
+echo -e "${CYAN}Establishing baseline performance...${NC}"
+echo ""
+
+send_notification 1
+sleep 3
+
+echo ""
+echo -e "${BLUE}----------------------------------------${NC}"
+echo ""
+
+# Phase 2: Test bulkhead capacity
+echo -e "${BLUE}=== Phase 2: Testing Bulkhead Capacity (10 concurrent requests) ===${NC}"
+echo -e "${CYAN}Sending 10 concurrent requests...${NC}"
+echo -e "${YELLOW}Expected:${NC}"
+echo -e "  • Requests 1-3: ${GREEN}Execute immediately (concurrent slots)${NC}"
+echo -e "  • Requests 4-5: ${CYAN}Queued (waiting queue)${NC}"
+echo -e "  • Requests 6-10: ${RED}REJECTED (bulkhead full)${NC}"
+echo ""
+
+# Send 10 requests concurrently in background
+for i in {1..10}; do
+    send_notification $i &
+    sleep 0.1  # Small delay to stagger requests slightly
+done
+
+# Wait for all background jobs to complete
+wait
+
+echo ""
+echo -e "${BLUE}----------------------------------------${NC}"
+echo ""
+
+# Phase 3: Check metrics
+echo -e "${BLUE}=== Phase 3: Bulkhead Metrics ===${NC}"
+echo -e "${CYAN}Fetching fault tolerance metrics...${NC}"
+echo ""
+
+sleep 1
+metrics=$(curl -s "$METRICS_URL" 2>/dev/null | grep "ft_sendPaymentNotification_bulkhead")
+
+if [ -n "$metrics" ]; then
+    echo "$metrics" | while IFS= read -r line; do
+        if echo "$line" | grep -q "callsAccepted"; then
+            echo -e "${GREEN}$line${NC}"
+        elif echo "$line" | grep -q "callsRejected"; then
+            echo -e "${RED}$line${NC}"
+        elif echo "$line" | grep -q "executionDuration"; then
+            echo -e "${CYAN}$line${NC}"
+        else
+            echo "$line"
+        fi
+    done
+else
+    echo -e "${YELLOW}No bulkhead metrics found${NC}"
+    echo -e "${CYAN}Make sure the service is running and has processed some requests${NC}"
+fi
+
+echo ""
+echo -e "${BLUE}----------------------------------------${NC}"
+echo ""
+
+# Phase 4: Verify recovery after wait
+echo -e "${BLUE}=== Phase 4: Testing Recovery ===${NC}"
+echo -e "${CYAN}Waiting 3 seconds for in-progress notifications to complete...${NC}"
+sleep 3
+
+echo ""
+echo -e "${CYAN}Sending new requests to verify bulkhead has freed up...${NC}"
+echo ""
+
+for i in {11..13}; do
+    send_notification $i
+    sleep 0.5
+done
+
+echo ""
+echo -e "${GREEN}=== Bulkhead Test Complete ===${NC}"
+echo ""
+
+echo -e "${CYAN}Summary:${NC}"
+echo "  • Bulkhead limits concurrent async executions"
+echo "  • Requests beyond capacity are rejected immediately"
+echo "  • Protects system resources from exhaustion"
+echo "  • Works with @Asynchronous for non-blocking behavior"
+echo ""
+
+echo -e "${CYAN}To view all bulkhead metrics:${NC}"
+echo -e  "${BLUE}curl $METRICS_URL | grep bulkhead${NC}"
+echo ""
 echo ""
 
 # Set up log monitoring

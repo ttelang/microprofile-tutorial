@@ -18,6 +18,35 @@ This chapter explains how to enhance your microservices' resilience and reliabil
 - Isolating Resources for Fault Tolerance
 - What's New in MicroProfile Fault Tolerance 4.1
 
+== Building on Previous Chapters
+
+This chapter focuses on MicroProfile Fault Tolerance to make the payment service more resilient. Previous chapters introduced important concepts that work alongside fault tolerance:
+
+**Chapter 3 - Idempotency and Audit Logging:**
+
+- *Idempotency*: Ensures operations can be safely retried without duplicate side effects
+- *Audit Logging*: Tracks all payment operations for compliance and debugging
+
+**Chapter 5 - MicroProfile Config:**
+
+- *Configuration Management*: Externalizes payment gateway settings
+- *Custom ConfigSource*: Provides payment-specific configuration with high priority
+
+**How Fault Tolerance Integrates:**
+
+In a production payment service, fault tolerance patterns enhance these existing capabilities:
+
+- `@Retry` works safely with idempotent operations (Chapter 3's IdempotencyService prevents duplicate charges even if payment is retried)
+- `@Fallback` can be logged to the audit trail (Chapter 3's PaymentAuditService records when fallback logic was used)
+- `@CircuitBreaker` thresholds can be externalized using MicroProfile Config (Chapter 5's configuration patterns)
+- `@Timeout` values can be adjusted per environment without code changes (using Chapter 5's ConfigSource)
+
+For simplicity, this chapter demonstrates fault tolerance in isolation using a simplified payment service. The complete payment service integrating all these features can be found in `code/chapter11`.
+
+**What You'll Learn:**
+
+This chapter teaches you essential fault tolerance strategies that prevent cascading failures and ensure your microservices remain operational even when dependencies fail. You'll learn when and how to apply each pattern for maximum resilience.
+
 == What is Fault Tolerance?
 
 Fault tolerance is a system's ability to continue working correctly even in case of unexpected failures. A fault-tolerant system should be able to detect, isolate, and recover from errors without human intervention. It is critical in applications based on modern microservices architectures where individual component failures are inevitable due to network issues, resource limitations, or transient errors.
@@ -82,6 +111,106 @@ To use the Fault Tolerance API in your project, include the following dependency
 
 The Fault Tolerance API defines a contract for fault tolerance implementations.
 
+=== Creating Custom Exception Classes
+
+Fault tolerance annotations use exceptions to determine behavior. Create specific exception types for different failure scenarios to control which failures trigger retries, fallbacks, or circuit breakers.
+
+==== Recoverable Exceptions
+
+Operations throwing recoverable exceptions can be retried safely:
+
+[source,java]
+----
+package io.microprofile.tutorial.store.payment.exception;
+
+/**
+ * Represents a recoverable payment processing error.
+ * 
+ * These are transient failures that may succeed if retried:
+ * - Temporary network issues
+ * - Gateway timeouts
+ * - Rate limiting (429 responses)
+ * - Service temporarily unavailable (503 responses)
+ * 
+ * Operations throwing this exception will be retried according to @Retry configuration.
+ */
+public class PaymentProcessingException extends RuntimeException {
+    
+    public PaymentProcessingException(String message) {
+        super(message);
+    }
+    
+    public PaymentProcessingException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+----
+
+==== Non-Recoverable Exceptions
+
+Critical exceptions represent permanent failures that should NOT be retried:
+
+[source,java]
+----
+package io.microprofile.tutorial.store.payment.exception;
+
+/**
+ * Represents a critical, non-recoverable payment error.
+ * 
+ * These are permanent failures that will NOT succeed if retried:
+ * - Invalid card number or expiration date
+ * - Insufficient funds
+ * - Card declined by issuer
+ * - Invalid payment amount (negative, zero)
+ * - Fraud detection triggered
+ * 
+ * Operations throwing this exception will NOT be retried.
+ * Use with @Retry(abortOn = CriticalPaymentException.class)
+ */
+public class CriticalPaymentException extends RuntimeException {
+    
+    public CriticalPaymentException(String message) {
+        super(message);
+    }
+    
+    public CriticalPaymentException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+----
+
+==== Using Exception Classes with Fault Tolerance
+
+Configure `@Retry` to handle exceptions differently:
+
+[source,java]
+----
+@Retry(
+    maxRetries = 3,
+    retryOn = PaymentProcessingException.class,  // Retry transient failures
+    abortOn = CriticalPaymentException.class     // Don't retry critical errors
+)
+public String processPayment(PaymentDetails details) {
+    try {
+        return paymentGateway.authorize(details);
+    } catch (NetworkException e) {
+        // Transient network error - will be retried
+        throw new PaymentProcessingException("Network error", e);
+    } catch (InvalidCardException e) {
+        // Permanent validation error - will NOT be retried
+        throw new CriticalPaymentException("Invalid card", e);
+    }
+}
+----
+
+**Design Guidelines:**
+
+- Create exception hierarchies that reflect your business logic
+- Use `retryOn` for transient, recoverable failures
+- Use `abortOn` for permanent, non-recoverable failures
+- Document which exceptions represent which scenarios
+- Consider creating domain-specific exception types (e.g., `GatewayTimeoutException extends PaymentProcessingException`)
+
 == MicroProfile Fault Tolerance Annotations
 
 The MicroProfile Fault Tolerance annotations provide a declarative way to implement fault-tolerant behavior in Java methods, allowing developers to handle failures gracefully with minimal code changes.
@@ -103,18 +232,35 @@ The MicroProfile Fault Tolerance annotations provide a declarative way to implem
 Retries are a fundamental fault tolerance strategy for managing transient failures such as temporary network outages or intermittent service unavailability. The `@Retry` annotation in the MicroProfile Fault Tolerance API provides a simple and effective way to implement retry policies. By customizing parameters such as the number of retries, delay between attempts, and conditions for retries, you can ensure your application responds to failures gracefully and minimizes downtime.
 
 ==== Applying `@Retry` in `PaymentService` class
-Below is an example of applying the `@Retry` annotation in a `processPayment` method within a `PaymentService` class of the MicroProfile e-commerce project:
+Below is an example of applying the `@Retry` annotation in the `authorizePayment` method within the `PaymentService` class of the MicroProfile e-commerce project:
 
 [source,java]
 ----
 package io.microprofile.tutorial.store.payment.service;
 
+import io.microprofile.tutorial.store.payment.exception.PaymentProcessingException;
+import io.microprofile.tutorial.store.payment.exception.CriticalPaymentException;
+import io.microprofile.tutorial.store.payment.entity.PaymentDetails;
 import org.eclipse.microprofile.faulttolerance.Retry;
-import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.MediaType;
+import org.eclipse.microprofile.faulttolerance.Timeout;
+import org.eclipse.microprofile.faulttolerance.Fallback;
 
+import jakarta.enterprise.context.ApplicationScoped;
+import java.util.logging.Logger;
+
+@ApplicationScoped
 public class PaymentService {
 
+    private static final Logger logger = Logger.getLogger(PaymentService.class.getName());
+
+    /**
+     * Authorize a payment transaction with fault tolerance.
+     * 
+     * Fault Tolerance Strategy:
+     * - @Retry: Handles transient network failures (up to 3 retries with jitter)
+     * - @Timeout: Prevents indefinite waits (3 second limit per attempt)
+     * - @Fallback: Provides degraded service when gateway unavailable
+     */
     @Retry(
         maxRetries = 3,
         delay = 2000,
@@ -122,68 +268,38 @@ public class PaymentService {
         retryOn = PaymentProcessingException.class,
         abortOn = CriticalPaymentException.class
     )
-    public Response processPayment(PaymentDetails paymentDetails) throws PaymentProcessingException {
-        System.out.println("Processing payment for amount: " + paymentDetails.getAmount());
+    @Timeout(3000)
+    @Fallback(fallbackMethod = "fallbackAuthorizePayment")
+    public String authorizePayment(PaymentDetails paymentDetails) 
+        throws PaymentProcessingException {
+        
+        logger.info("Processing payment for amount: " + paymentDetails.getAmount());
 
-        // Simulating a transient failure
+        // Simulate transient failures (70% success rate)
         if (Math.random() > 0.7) {
             throw new PaymentProcessingException("Temporary payment processing failure");
         }
 
-        return Response.ok("{\"status\":\"success\"}", MediaType.APPLICATION_JSON).build();
+        return String.format(
+            "{\"status\":\"success\",\"message\":\"Payment authorized\",\"amount\":%s}",
+            paymentDetails.getAmount()
+        );
+    }
+
+    public String fallbackAuthorizePayment(PaymentDetails paymentDetails) {
+        logger.warning("Payment gateway unavailable - using fallback");
+        return String.format(
+            "{\"status\":\"pending\",\"message\":\"Payment queued for processing\",\"amount\":%s}",
+            paymentDetails.getAmount()
+        );
     }
 }
 ----
 
-==== Defining the PaymentDetails Class
-To store the necessary payment information, the following `PaymentDetails` class is used. This class acts as a simple data container for payment-related details.
-
-[source,java]
-----
-
-public class PaymentDetails {
-    private double amount;
-
-    public double getAmount() {
-        return amount;
-    }
-
-    public void setAmount(double amount) {
-        this.amount = amount;
-    }
-}
-----
-==== Creating Custom Exception Classes for Handling Failures
-The `PaymentProcessingException` class represents a recoverable error, which triggers retries when thrown.
-[source,java]
-----
-
-package io.microprofile.tutorial.store.payment.exception;
-
-public class PaymentProcessingException extends Exception {
-   public PaymentProcessingException(String message) {
-       super(message);
-   }
-}
-
-----
-The `CriticalPaymentException` is considered a non-recoverable failure. If this exception occurs, the retry process is aborted.
-
-[source,java]
-----
-package io.microprofile.tutorial.store.payment.exception;
-
-public class CriticalPaymentException extends Exception {
-    public CriticalPaymentException(String message) {
-        super(message);
-    }
-}
-----
-
-In this example, the `processPayment` method attempts to process a payment. If a transient failure occurs (e.g., `PaymentProcessingException`), the method retries up to three times (`maxRetries = 3`), and there is a delay of 2000 milliseconds between retries (`delay = 2000`), with a random variation of up to 500 milliseconds added to the delay (`jitter  = 500`) to avoid synchronized retries (e.g. thundering herd problem). 
+In this example, the `authorizePayment` method attempts to process a payment. If a transient failure occurs (e.g., `PaymentProcessingException`), the method retries up to three times (`maxRetries = 3`), and there is a delay of 2000 milliseconds between retries (`delay = 2000`), with a random variation of up to 500 milliseconds added to the delay (`jitter  = 500`) to avoid synchronized retries (e.g. thundering herd problem). 
 The retries are attempted only for the exception `PaymentProcessingException` (`retryOn = PaymentProcessingException.class`) and are aborted if a `CriticalPaymentException` is encountered (`abortOn = CriticalPaymentException.class`).
 
-This approach helps maintain application resilience while preventing unnecessary retries that could worsen critical failures.
+This approach helps maintain application resilience while preventing unnecessary retries that could worsen critical failures. The `@Fallback` annotation ensures graceful degradation - if all retries fail, the fallback method queues the payment for offline processing rather than returning an error to the user.
 
 ==== Understanding the `@Retry` Parameters
 
@@ -281,6 +397,76 @@ A circuit breaker is a critical fault tolerance mechanism that protects a system
 | `failOn`                  | Specifies the exception(s) considered failures contributing to the failure ratio. Defaults to `Throwable.class`.
 | `skipOn`                  | Specifies the exception(s) that are not considered failures. Takes precedence over `failOn` when both match.
 |===
+
+==== Understanding Circuit Breaker States
+
+A circuit breaker has three states that control how it handles requests:
+
+[cols="1,3", options="header"]
+|===
+| State | Behavior
+
+| *CLOSED*
+| Normal operation - all requests pass through to the protected method. Failures are counted, and if the failure ratio exceeds the threshold (after reaching requestVolumeThreshold), the circuit transitions to OPEN.
+
+| *OPEN*
+| Circuit is broken - all requests fail immediately without invoking the protected method. This prevents hammering a failing service. After the configured delay period, the circuit transitions to HALF_OPEN.
+
+| *HALF_OPEN*
+| Recovery testing - a limited number of requests are allowed through to test if the service has recovered. If successThreshold consecutive requests succeed, the circuit transitions to CLOSED. If any request fails, the circuit returns to OPEN.
+|===
+
+**State Transition Flow:**
+
+[source]
+----
+Initial State: CLOSED
+
+CLOSED → OPEN
+  Trigger: Failure ratio ≥ failureRatio after requestVolumeThreshold requests
+  Example: 5 failures out of 10 requests (50%) when failureRatio=0.5
+
+OPEN → HALF_OPEN
+  Trigger: After delay milliseconds have elapsed
+  Example: After 5000ms delay period
+
+HALF_OPEN → CLOSED
+  Trigger: successThreshold consecutive successful requests
+  Example: 2 consecutive successes when successThreshold=2
+
+HALF_OPEN → OPEN
+  Trigger: Any request fails during testing
+  Example: First test request fails, circuit reopens
+----
+
+**Visual Example:**
+
+Consider a circuit breaker protecting calls to a payment gateway:
+
+[source,java]
+----
+@CircuitBreaker(
+    requestVolumeThreshold = 10,
+    failureRatio = 0.5,
+    delay = 5000,
+    successThreshold = 2
+)
+public String callPaymentGateway() {
+    // Call external gateway
+}
+----
+
+**Timeline:**
+
+1. **T=0s (CLOSED)**: Circuit starts in CLOSED state, all requests pass through
+2. **T=10s (CLOSED)**: Gateway starts failing. After 10 requests with 6 failures (60% > 50%), circuit OPENS
+3. **T=15s (OPEN)**: All requests fail immediately without calling gateway (circuit is open for 5 seconds)
+4. **T=15s (HALF_OPEN)**: Delay expires, circuit transitions to HALF_OPEN
+5. **T=16s (HALF_OPEN)**: First test request succeeds (1 of 2 needed)
+6. **T=17s (HALF_OPEN)**: Second test request succeeds (2 of 2 needed)
+7. **T=17s (CLOSED)**: Circuit CLOSES, normal operation resumes
+
+If the second test request had failed at T=17s, the circuit would have returned to OPEN for another 5-second delay period.
 
 Below is an example of configuring a circuit breaker for a service method using the `@CircuitBreaker` annotation:
 
@@ -417,6 +603,67 @@ io.microprofile.tutorial.store.payment.service.ProductService/fetchData/Timeout/
 
 // Updated for MicroProfile Fault Tolerance 4.1
 - *Use `CompletionStage` rather than `Future`*: Return types like `CompletionStage` allow other fault tolerance annotations (`@Retry`, `@CircuitBreaker`, `@Timeout`, `@Bulkhead`) to react to exceptionally completed stages. With `Future`, only exceptions thrown directly from the method body trigger fault tolerance processing.
+
+==== Choosing Return Types for @Asynchronous Methods
+
+MicroProfile Fault Tolerance supports two return types for asynchronous methods, but they behave very differently with fault tolerance annotations:
+
+[cols="1,2,2", options="header"]
+|===
+| Return Type
+| Fault Tolerance Behavior
+| Recommendation
+
+| `Future<T>`
+| Only exceptions thrown directly from the method body trigger fault tolerance annotations (@Retry, @CircuitBreaker, @Fallback). Exceptions that occur inside the Future's async execution do NOT trigger these annotations.
+| Use only for simple async execution without complex fault tolerance requirements
+
+| `CompletionStage<T>`
+| Exceptionally completed stages trigger ALL fault tolerance mechanisms. When a CompletionStage completes exceptionally, @Retry, @CircuitBreaker, and @Fallback react appropriately. *This is the recommended approach for production.*
+| Use when combining @Asynchronous with @Retry, @CircuitBreaker, or @Fallback
+|===
+
+**Example showing the critical difference:**
+
+[source,java]
+----
+// BAD: Exception occurs inside CompletableFuture.supplyAsync, 
+// but @Retry won't trigger because method returns Future
+@Asynchronous
+@Retry(maxRetries = 3)
+public Future<String> processPaymentWithFuture() {
+    return CompletableFuture.supplyAsync(() -> {
+        if (Math.random() > 0.5) {
+            // Exception here does NOT trigger @Retry!
+            throw new PaymentException("Payment failed");
+        }
+        return "success";
+    });
+}
+
+// GOOD: Exception in the CompletionStage properly triggers @Retry
+@Asynchronous
+@Retry(maxRetries = 3)
+public CompletionStage<String> processPaymentWithCompletionStage() {
+    return CompletableFuture.supplyAsync(() -> {
+        if (Math.random() > 0.5) {
+            // Exception here WILL trigger @Retry as expected!
+            throw new PaymentException("Payment failed");
+        }
+        return "success";
+    });
+}
+----
+
+**Why this matters:**
+
+In the first example (Future), if the payment fails inside the async block, MicroProfile Fault Tolerance cannot see the exception because it's hidden inside the Future. The method technically "succeeded" from the fault tolerance perspective - it returned a Future object without throwing an exception.
+
+In the second example (CompletionStage), when the async block throws an exception, the CompletionStage completes exceptionally. MicroProfile Fault Tolerance detects this and triggers the retry logic as expected.
+
+**Best Practice:**
+
+Always use `CompletionStage<T>` as the return type for `@Asynchronous` methods when you need fault tolerance annotations to react to failures in the async execution.
 
 ==== Asynchronous Execution in Fault Tolerance Strategies
 
@@ -723,9 +970,361 @@ This sets the timeout to 3000 milliseconds (3 seconds) instead of the annotated 
 - **Monitor Fallback Usage:** Use metrics to track the frequency of fallback execution, which can indicate service health and the need for improvements.
 - **Plan for Degraded Functionality:** Ensure the fallback behavior aligns with business priorities and provides the most critical features.
 
+=== Understanding Annotation Ordering and Interaction
+
+When multiple fault tolerance annotations are applied to the same method, they are processed in a specific order. Understanding this order is crucial for designing effective fault tolerance strategies.
+
+==== Processing Order
+
+Fault tolerance annotations are applied in the following order (from outermost to innermost):
+
+[source]
+----
+@Asynchronous (outermost - if present)
+  @Bulkhead
+    @CircuitBreaker
+      @Retry
+        @Timeout
+          @Fallback (innermost - wraps actual method execution)
+            [Method Body Execution]
+----
+
+**Important Implications:**
+
+1. **Timeout applies per retry attempt**, not to the entire retry sequence
+2. **Circuit breaker evaluates all retry attempts** - if all retries fail, that counts as one failure for circuit breaker statistics
+3. **Bulkhead limits apply before any other processing** - if bulkhead rejects, no other annotations are evaluated
+4. **Fallback is the last resort** - it only triggers if all other mechanisms (retry, circuit breaker) have failed
+
+==== Practical Example
+
+Consider this method with multiple annotations:
+
+[source,java]
+----
+@Retry(maxRetries = 3, delay = 1000)
+@Timeout(2000)
+@Fallback(fallbackMethod = "fallbackAuthorize")
+public String authorizePayment(PaymentDetails details) {
+    return paymentGateway.authorize(details); // Potentially slow call
+}
+----
+
+**Execution flow:**
+
+1. **First attempt** (Retry 1 of 3):
+   - Timeout starts (2-second countdown)
+   - Method body executes
+   - If method takes > 2 seconds: TimeoutException thrown
+   - If method throws exception: Retry kicks in
+
+2. **Retry logic triggered** (if first attempt failed):
+   - Wait 1000ms (delay)
+   - **Second attempt** (Retry 2 of 3):
+     - New timeout starts (another 2-second countdown)
+     - Method body executes again
+   - If still fails, wait and retry again
+
+3. **After all retries exhausted**:
+   - If all 3 attempts failed (each with its own 2-second timeout)
+   - Fallback method is invoked: `fallbackAuthorize(details)`
+
+**Total possible execution time**: Up to `(3 attempts × 2 seconds timeout) + (2 delays × 1 second) = 8 seconds`
+
+==== Controlling Total Retry Duration
+
+If you want to limit the TOTAL time spent retrying (not per-attempt timeout), use `maxDuration` on `@Retry`:
+
+[source,java]
+----
+@Retry(
+    maxRetries = 10,        // Allow up to 10 retries
+    delay = 1000,
+    maxDuration = 10000     // But stop after 10 seconds total
+)
+@Timeout(3000)              // Each attempt times out after 3 seconds
+public String callService() {
+    // ...
+}
+----
+
+In this example:
+- Each attempt can take up to 3 seconds before timing out
+- The entire retry sequence will not exceed 10 seconds
+- If 10 seconds elapse after only 2 retries, no more retries will be attempted
+
+==== Combining Asynchronous with Other Annotations
+
+When `@Asynchronous` is present, it wraps all other annotations:
+
+[source,java]
+----
+@Asynchronous
+@Bulkhead(value = 5, waitingTaskQueue = 10)
+@Retry(maxRetries = 2)
+@Timeout(3000)
+public CompletionStage<String> processAsync() {
+    // Thread pool bulkhead - up to 5 concurrent, 10 queued
+    // Each attempt retries up to 2 times
+    // Each attempt times out after 3 seconds
+}
+----
+
+**Execution:**
+1. Request enters thread pool (Asynchronous)
+2. Bulkhead checks if thread available (if not, queue or reject)
+3. Retry/Timeout/Fallback execute in the async thread
+4. CompletionStage is returned immediately to caller
+
+**Without @Asynchronous:**
+
+[source,java]
+----
+@Bulkhead(value = 5)  // Semaphore-style bulkhead
+@Retry(maxRetries = 2)
+@Timeout(3000)
+public String processSync() {
+    // Semaphore bulkhead - up to 5 concurrent in caller's thread
+    // Blocks caller's thread during retry/timeout
+}
+----
+
+==== Best Practices for Annotation Combinations
+
+**DO combine:**
+- `@Retry` + `@Timeout` + `@Fallback` for resilient external service calls
+- `@CircuitBreaker` + `@Timeout` for health checks 
+- `@Asynchronous` + `@Bulkhead` (thread pool style) for resource isolation
+- `@Bulkhead` + `@Timeout` for rate limiting with deadlines
+
+**AVOID combining:**
+- `@Asynchronous` + `@Bulkhead` with small value (use thread pool bulkhead style instead)
+- Too many retries with long timeouts (can block for extended periods)
+- `@CircuitBreaker` on non-idempotent operations without careful design
+
 === Combining Fault Tolerance Strategies
 
 Combining fault tolerance strategies, such as `@Timeout`, `@Fallback`, `@CircuitBreaker`, and `@Retry`, ensures resilience and efficient resource usage. Externalize configurations with MicroProfile Config for flexibility across environments.
+
+=== When NOT to Use Fault Tolerance
+
+Fault tolerance annotations add overhead and complexity. They can also mask underlying problems that should be fixed at the source. Use them judiciously and avoid these anti-patterns:
+
+==== 1. Internal Service Calls (Same JVM)
+
+**Don't** use circuit breakers or retries for calls within the same JVM:
+
+[source,java]
+----
+// BAD: No need for circuit breaker on same-JVM call
+@ApplicationScoped
+public class OrderService {
+    
+    @Inject
+    private InventoryService inventoryService;  // Same JVM, injected CDI bean
+    
+    @CircuitBreaker  // UNNECESSARY - they're in the same process!
+    public void checkInventory(Long productId) {
+        inventoryService.isAvailable(productId);
+    }
+}
+----
+
+**Why:** Calls between CDI beans in the same JVM don't involve network I/O or remote failures. If the InventoryService fails, it's likely a bug or resource issue that affects the entire application, not a transient network problem.
+
+**Do this instead:** Focus on proper exception handling and logging. If the dependency is truly unreliable, consider redesigning your architecture.
+
+==== 2. Non-Idempotent Operations Without Proper Design
+
+**Don't** blindly retry operations that aren't idempotent:
+
+[source,java]
+----
+// DANGEROUS: Retry without idempotency protection
+@Retry(maxRetries = 3)
+public void transferMoney(Account from, Account to, double amount) {
+    accountService.debit(from, amount);
+    accountService.credit(to, amount);
+    // If this succeeds but network fails before response,
+    // retry will transfer money AGAIN!
+}
+----
+
+**Why:** If the operation succeeds but the response is lost due to network issues, retrying will execute the operation multiple times, causing duplicate money transfers.
+
+**Do this instead:** Implement idempotency (Chapter 3) before adding retry:
+
+[source,java]
+----
+// GOOD: Idempotent with unique transaction ID
+@Retry(maxRetries = 3)
+public void transferMoney(String transactionId, Account from, Account to, double amount) {
+    // Check if transaction already processed
+    if (idempotencyService.wasProcessed(transactionId)) {
+        return idempotencyService.getResult(transactionId);
+    }
+    
+    // Process and record with transaction ID
+    accountService.transferWithId(transactionId, from, to, amount);
+    idempotencyService.recordSuccess(transactionId);
+}
+----
+
+==== 3. Hiding Configuration Problems
+
+**Don't** use fault tolerance to paper over misconfiguration:
+
+[source,java]
+----
+// BAD: Circuit breaker hides wrong endpoint configuration
+@Inject
+@ConfigProperty(name = "payment.gateway.url", defaultValue = "http://wrong-host:9999")
+private String gatewayUrl;
+
+@CircuitBreaker
+public String callGateway() {
+    return httpClient.get(gatewayUrl);  // Always fails - wrong URL!
+}
+----
+
+**Why:** The circuit breaker will open, and you'll see fallback responses, but the root cause (wrong configuration) remains hidden. This creates a false sense of resilience.
+
+**Do this instead:** Fix the configuration. Use fault tolerance for genuinely unpredictable failures, not configuration errors that can be resolved.
+
+==== 4. Database Transactions
+
+**Don't** retry operations within active transactions:
+
+[source,java]
+----
+// PROBLEMATIC: Retry during active transaction
+@ApplicationScoped
+public class PaymentService {
+    
+    @PersistenceContext
+    private EntityManager em;
+    
+    @Transactional
+    @Retry(maxRetries = 3)  // DANGEROUS with @Transactional!
+    public void savePayment(Payment payment) {
+        em.persist(payment);
+        em.flush();
+        
+        // If this fails and retries, transaction may be in inconsistent state
+        externalService.notifyPayment(payment.getId());
+    }
+}
+----
+
+**Why:** When a transactional method fails, the transaction is typically marked for rollback. Retrying the same method with a rolled-back transaction will likely fail again. Additionally, partial execution may have caused database locks or constraint violations.
+
+**Do this instead:** Separate transactional persistence from external calls:
+
+[source,java]
+----
+// GOOD: Separate transaction from retry-able external call
+@ApplicationScoped
+public class PaymentService {
+    
+    @PersistenceContext
+    private EntityManager em;
+    
+    @Transactional
+    public Payment savePayment(Payment payment) {
+        em.persist(payment);
+        return payment;
+    }
+    
+    @Retry(maxRetries = 3)  // Safe to retry - no transaction
+    public void notifyExternalService(Long paymentId) {
+        externalService.notifyPayment(paymentId);
+    }
+}
+----
+
+==== 5. Overly Aggressive Timeouts
+
+**Don't** set unrealistically short timeouts:
+
+[source,java]
+----
+// BAD: Timeout too short for legitimate slow operations
+@Timeout(100)  // 100ms - too aggressive!
+public String generateComplexReport(String userId) {
+    // Complex query joins, aggregations, formatting
+    // Legitimately takes 500-1000ms
+    return reportService.generate(userId);
+}
+----
+
+**Why:** Overly short timeouts cause unnecessary failures for operations that legitimately take time. This doesn't improve resilience - it creates false failures.
+
+**Do this instead:** Set timeouts based on actual SLA requirements and real-world performance:
+
+[source,java]
+----
+// GOOD: Timeout based on 99th percentile + buffer
+@Timeout(2000)  // 2 seconds - based on metrics showing p99=1500ms
+public String generateComplexReport(String userId) {
+    return reportService.generate(userId);
+}
+----
+
+Monitor timeout metrics to validate your timeout values are appropriate.
+
+==== 6. Masking Bugs
+
+**Don't** use fallbacks to hide application bugs:
+
+[source,java]
+----
+// BAD: Fallback hides NullPointerException bug
+@Fallback(fallbackMethod = "fallbackGetUser")
+public User getUser(Long id) {
+    User user = userService.findById(id);
+    return user.getName();  // NullPointerException if user is null - BUG!
+}
+
+public User fallbackGetUser(Long id) {
+    return new User("Unknown");  // Hides the bug!
+}
+----
+
+**Why:** The fallback triggers every time a user is not found, hiding the fact that the code doesn't handle null users properly. This is a bug, not a transient failure.
+
+**Do this instead:** Fix the bug:
+
+[source,java]
+----
+// GOOD: Handle null properly
+public User getUser(Long id) {
+    User user = userService.findById(id);
+    if (user == null) {
+        throw new UserNotFoundException("User not found: " + id);
+    }
+    return user;
+}
+----
+
+=== Guidelines for Appropriate Fault Tolerance Use
+
+**DO use fault tolerance for:**
+- Calls to external services over the network
+- Operations prone to transient failures (temporary network issues, rate limiting)
+- Resource-intensive operations that need isolation (bulkheads)
+- Operations with unpredictable latency that need timeouts
+
+**DON'T use fault tolerance for:**
+- Internal method calls within the same JVM
+- Hiding configuration errors or bugs
+- Non-idempotent operations without idempotency design
+- Database operations within transactions (separate external calls from transactions)
+
+**Best Practice:**
+Combine fault tolerance with proper monitoring. If fault tolerance mechanisms activate frequently:
+- Investigate the root cause with metrics (Chapter 7) and logging
+- Fix underlying issues (bugs, configuration, capacity) rather than relying solely on fault tolerance
+- Use fault tolerance as a safety net, not a permanent solution to systemic problems
 
 === Isolating Resources for Fault Tolerance
 
@@ -928,6 +1527,330 @@ There are no breaking changes in this release.
 === Impact on Existing Applications
 
 Applications that use MicroProfile Fault Tolerance 4.0 continue to work unchanged with 4.1. If the deployment also includes MicroProfile Telemetry, fault tolerance metrics are automatically reported through Telemetry in addition to, or instead of, MicroProfile Metrics. Review dashboards and alerting queries to account for the different metric types and units used by MicroProfile Telemetry.
+
+== Fault Tolerance Metrics and Observability
+
+Understanding how your fault tolerance mechanisms behave in production is critical for maintaining system reliability. MicroProfile Fault Tolerance automatically exposes metrics when MicroProfile Metrics or MicroProfile Telemetry is enabled.
+
+=== Available Fault Tolerance Metrics
+
+When MicroProfile Metrics is enabled, fault tolerance automatically exposes these metrics in the `base` scope:
+
+==== Retry Metrics
+
+[cols="2,1,3", options="header"]
+|===
+| Metric Name
+| Type
+| Description
+
+| `ft.<name>.retry.callsSucceededNotRetried.total`
+| Counter
+| Number of calls that succeeded on the first attempt (no retry needed)
+
+| `ft.<name>.retry.callsSucceededRetried.total`
+| Counter
+| Number of calls that succeeded after one or more retries
+
+| `ft.<name>.retry.callsFailed.total`
+| Counter
+| Number of calls that failed after exhausting all retries
+
+| `ft.<name>.retry.retries.total`
+| Counter
+| Total number of retry attempts across all invocations
+|===
+
+==== Timeout Metrics
+
+[cols="2,1,3", options="header"]
+|===
+| Metric Name
+| Type
+| Description
+
+| `ft.<name>.timeout.callsTimedOut.total`
+| Counter
+| Number of calls that exceeded the timeout duration
+
+| `ft.<name>.timeout.callsNotTimedOut.total`
+| Counter
+| Number of calls that completed within the timeout duration
+
+| `ft.<name>.timeout.executionDuration`
+| Histogram
+| Distribution of execution times (in nanoseconds with MicroProfile Metrics)
+|===
+
+==== Circuit Breaker Metrics
+
+[cols="2,1,3", options="header"]
+|===
+| Metric Name
+| Type
+| Description
+
+| `ft.<name>.circuitbreaker.callsSucceeded.total`
+| Counter
+| Number of successful calls when circuit was closed/half-open
+
+| `ft.<name>.circuitbreaker.callsFailed.total`
+| Counter
+| Number of failed calls that contributed to opening the circuit
+
+| `ft.<name>.circuitbreaker.callsPrevented.total`
+| Counter
+| Number of calls prevented because circuit was open
+
+| `ft.<name>.circuitbreaker.opened.total`
+| Counter
+| Number of times the circuit transitioned to open state
+
+| `ft.<name>.circuitbreaker.state.total`
+| Gauge
+| Current circuit state: 0=closed, 1=open, 2=half-open
+|===
+
+==== Bulkhead Metrics
+
+[cols="2,1,3", options="header"]
+|===
+| Metric Name
+| Type
+| Description
+
+| `ft.<name>.bulkhead.callsAccepted.total`
+| Counter
+| Number of calls accepted by the bulkhead
+
+| `ft.<name>.bulkhead.callsRejected.total`
+| Counter
+| Number of calls rejected (bulkhead full or queue full)
+
+| `ft.<name>.bulkhead.executionDuration`
+| Histogram
+| Time spent executing within the bulkhead
+
+| `ft.<name>.bulkhead.runningDuration`
+| Histogram
+| Time spent in the bulkhead (including queue wait time)
+
+| `ft.<name>.bulkhead.waitingDuration`
+| Histogram
+| Time spent waiting in the queue (thread pool bulkheads only)
+
+| `ft.<name>.bulkhead.concurrentExecutions`
+| Gauge
+| Current number of concurrent executions
+|===
+
+==== Fallback Metrics
+
+[cols="2,1,3", options="header"]
+|===
+| Metric Name
+| Type
+| Description
+
+| `ft.<name>.fallback.calls.total`
+| Counter
+| Number of times the fallback logic was invoked
+|===
+
+**Note:** `<name>` is the fully qualified method name, e.g., `io.microprofile.tutorial.store.payment.service.PaymentService.authorizePayment`
+
+=== Accessing Fault Tolerance Metrics
+
+Fault tolerance metrics are exposed through the MicroProfile Metrics endpoint:
+
+[source,bash]
+----
+# Get all base scope metrics (includes fault tolerance)
+curl http://localhost:9080/metrics?scope=base
+
+# Filter for specific method's fault tolerance metrics
+curl http://localhost:9080/metrics?scope=base | grep "PaymentService.authorizePayment"
+----
+
+**Example output:**
+
+[source]
+----
+# TYPE base_ft_PaymentService_authorizePayment_retry_callsSucceededNotRetried_total counter
+base_ft_PaymentService_authorizePayment_retry_callsSucceededNotRetried_total 45
+
+# TYPE base_ft_PaymentService_authorizePayment_retry_callsSucceededRetried_total counter
+base_ft_PaymentService_authorizePayment_retry_callsSucceededRetried_total 12
+
+# TYPE base_ft_PaymentService_authorizePayment_retry_callsFailed_total counter
+base_ft_PaymentService_authorizePayment_retry_callsFailed_total 3
+
+# TYPE base_ft_PaymentService_authorizePayment_fallback_calls_total counter
+base_ft_PaymentService_authorizePayment_fallback_calls_total 3
+
+# TYPE base_ft_PaymentService_checkGatewayHealth_circuitbreaker_state_total gauge
+base_ft_PaymentService_checkGatewayHealth_circuitbreaker_state_total 0
+----
+
+=== Monitoring Fault Tolerance in Production
+
+==== Key Metrics to Alert On
+
+**1. High Retry Rate**
+
+Alert when a high percentage of calls require retries - indicates service instability:
+
+[source,promql]
+----
+# Alert if >10% of calls need retries over 5 minutes
+rate(ft_PaymentService_authorizePayment_retry_callsSucceededRetried_total[5m])
+/
+(
+  rate(ft_PaymentService_authorizePayment_retry_callsSucceededRetried_total[5m])
+  +
+  rate(ft_PaymentService_authorizePayment_retry_callsSucceededNotRetried_total[5m])
+)
+> 0.1
+----
+
+**2. Circuit Breaker Opens**
+
+Alert immediately when a circuit breaker opens - indicates downstream service is failing:
+
+[source,promql]
+----
+# Alert when circuit breaker is in OPEN state (value=1)
+ft_PaymentService_checkGatewayHealth_circuitbreaker_state_total == 1
+----
+
+**3. Fallback Usage**
+
+Alert when fallback is frequently invoked - primary logic is failing:
+
+[source,promql]
+----
+# Alert if fallback is invoked more than 5 times per minute
+rate(ft_PaymentService_authorizePayment_fallback_calls_total[1m]) > 5
+----
+
+**4. Bulkhead Rejections**
+
+Alert when bulkhead rejects requests - system is overloaded:
+
+[source,promql]
+----
+# Alert if >5% of requests are rejected by bulkhead
+rate(ft_PaymentService_sendPaymentNotification_bulkhead_callsRejected_total[5m])
+/
+(
+  rate(ft_PaymentService_sendPaymentNotification_bulkhead_callsAccepted_total[5m])
+  +
+  rate(ft_PaymentService_sendPaymentNotification_bulkhead_callsRejected_total[5m])
+)
+> 0.05
+----
+
+**5. Timeout Rate**
+
+Alert when many calls are timing out - operations are too slow:
+
+[source,promql]
+----
+# Alert if >10% of calls timeout
+rate(ft_PaymentService_authorizePayment_timeout_callsTimedOut_total[5m])
+/
+(
+  rate(ft_PaymentService_authorizePayment_timeout_callsTimedOut_total[5m])
+  +
+  rate(ft_PaymentService_authorizePayment_timeout_callsNotTimedOut_total[5m])
+)
+> 0.1
+----
+
+=== Grafana Dashboard Queries
+
+**Circuit Breaker State Over Time:**
+
+Track circuit state transitions:
+
+[source,promql]
+----
+ft_PaymentService_checkGatewayHealth_circuitbreaker_state_total
+----
+
+Creates a gauge showing: 0 (CLOSED/healthy), 1 (OPEN/failing), 2 (HALF_OPEN/testing)
+
+**Retry Success Rate:**
+
+Visualize what percentage of calls succeed after retrying:
+
+[source,promql]
+----
+sum(rate(ft_PaymentService_authorizePayment_retry_callsSucceededRetried_total[5m]))
+/
+sum(rate(ft_PaymentService_authorizePayment_retry_retries_total[5m]))
+----
+
+**P99 Execution Duration:**
+
+[source,promql]
+----
+histogram_quantile(0.99,
+  rate(ft_PaymentService_authorizePayment_timeout_executionDuration_bucket[5m])
+)
+----
+
+Shows the 99th percentile execution time - useful for setting appropriate timeout values.
+
+**Bulkhead Utilization:**
+
+[source,promql]
+----
+ft_PaymentService_sendPaymentNotification_bulkhead_concurrentExecutions
+/
+10  # max bulkhead value
+----
+
+Shows what percentage of bulkhead capacity is in use.
+
+=== Configuration Validation
+
+MicroProfile Fault Tolerance validates annotations at deployment time. Invalid configurations throw `FaultToleranceDefinitionException` and prevent application startup.
+
+**Common validation errors:**
+
+[cols="2,3", options="header"]
+|===
+| Configuration Error
+| Validation Result
+
+| `@Asynchronous` method returns `void` or non-Future/CompletionStage
+| `FaultToleranceDefinitionException` at deployment time
+
+| `@Timeout` value is negative
+| `FaultToleranceDefinitionException` at deployment time
+
+| `@Retry` maxRetries or delay is negative
+| `FaultToleranceDefinitionException` at deployment time
+
+| `@CircuitBreaker` failureRatio not between 0.0 and 1.0
+| `FaultToleranceDefinitionException` at deployment time
+
+| Fallback method has incompatible signature
+| `FaultToleranceDefinitionException` at deployment time
+
+| `@Bulkhead` value or waitingTaskQueue is negative
+| `FaultToleranceDefinitionException` at deployment time
+|===
+
+These errors appear in server logs at startup:
+
+[source]
+----
+[ERROR] CWMFT5000E: FaultToleranceDefinitionException: @Asynchronous method must return Future or CompletionStage: PaymentService.processPayment()
+----
+
+This early validation ensures fault tolerance is correctly configured before the application receives traffic.
 
 == Summary
 
