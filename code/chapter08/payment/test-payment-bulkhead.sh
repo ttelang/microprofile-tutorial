@@ -21,16 +21,16 @@ fi
 # Dynamically determine the base URL
 if [ -n "$CODESPACE_NAME" ] && [ -n "$GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN" ]; then
     BASE_URL="http://localhost:9080/payment/api"
-    METRICS_URL="http://localhost:9080/metrics?scope=base"
+    METRICS_URL="http://localhost:9080/metrics"
     echo -e "${CYAN}Detected GitHub Codespaces environment${NC}"
 elif [ -n "$GITPOD_WORKSPACE_URL" ]; then
     GITPOD_HOST=$(echo $GITPOD_WORKSPACE_URL | sed 's|https://||' | sed 's|/||')
     BASE_URL="https://9080-$GITPOD_HOST/payment/api"
-    METRICS_URL="https://9080-$GITPOD_HOST/metrics?scope=base"
+    METRICS_URL="https://9080-$GITPOD_HOST/metrics"
     echo -e "${CYAN}Detected Gitpod environment${NC}"
 else
     BASE_URL="http://localhost:9080/payment/api"
-    METRICS_URL="http://localhost:9080/metrics?scope=base"
+    METRICS_URL="http://localhost:9080/metrics"
     echo -e "${CYAN}Using local environment${NC}"
 fi
 
@@ -129,15 +129,15 @@ echo -e "${CYAN}Fetching fault tolerance metrics...${NC}"
 echo ""
 
 sleep 1
-metrics=$(curl -s "$METRICS_URL" 2>/dev/null | grep "ft_sendPaymentNotification_bulkhead")
+metrics=$(curl -s "$METRICS_URL" 2>/dev/null | grep -i "bulkhead.*sendPaymentNotification")
 
 if [ -n "$metrics" ]; then
     echo "$metrics" | while IFS= read -r line; do
-        if echo "$line" | grep -q "callsAccepted"; then
+        if echo "$line" | grep -q "callsAccepted\|accepted"; then
             echo -e "${GREEN}$line${NC}"
-        elif echo "$line" | grep -q "callsRejected"; then
+        elif echo "$line" | grep -q "callsRejected\|rejected"; then
             echo -e "${RED}$line${NC}"
-        elif echo "$line" | grep -q "executionDuration"; then
+        elif echo "$line" | grep -q "executionDuration\|duration\|running"; then
             echo -e "${CYAN}$line${NC}"
         else
             echo "$line"
@@ -146,6 +146,15 @@ if [ -n "$metrics" ]; then
 else
     echo -e "${YELLOW}No bulkhead metrics found${NC}"
     echo -e "${CYAN}Make sure the service is running and has processed some requests${NC}"
+    echo -e "${CYAN}Checking all available fault tolerance metrics...${NC}"
+    echo ""
+    all_ft_metrics=$(curl -s "$METRICS_URL" 2>/dev/null | grep -i "ft.*bulkhead" | head -20)
+    if [ -n "$all_ft_metrics" ]; then
+        echo -e "${BLUE}Available bulkhead metrics:${NC}"
+        echo "$all_ft_metrics"
+    else
+        echo -e "${YELLOW}No fault tolerance bulkhead metrics found at all${NC}"
+    fi
 fi
 
 echo ""
@@ -178,12 +187,13 @@ echo "  • Works with @Asynchronous for non-blocking behavior"
 echo ""
 
 echo -e "${CYAN}To view all bulkhead metrics:${NC}"
-echo -e  "${BLUE}curl $METRICS_URL | grep bulkhead${NC}"
+echo -e  "${BLUE}curl $METRICS_URL | grep -i bulkhead${NC}"
 echo ""
 echo ""
 
-# Set up log monitoring
-LOG_FILE="/workspaces/liberty-rest-app/payment/target/liberty/wlp/usr/servers/mpServer/logs/messages.log"
+# Set up log monitoring - use relative path from script location
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG_FILE="$SCRIPT_DIR/target/liberty/wlp/usr/servers/mpServer/logs/messages.log"
 
 # Get initial log position for later analysis
 if [ -f "$LOG_FILE" ]; then

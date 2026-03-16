@@ -21,16 +21,16 @@ fi
 # Dynamically determine the base URL
 if [ -n "$CODESPACE_NAME" ] && [ -n "$GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN" ]; then
     BASE_URL="http://localhost:9080/payment/api"
-    METRICS_URL="http://localhost:9080/metrics?scope=base"
+    METRICS_URL="http://localhost:9080/metrics"
     echo -e "${CYAN}Detected GitHub Codespaces environment${NC}"
 elif [ -n "$GITPOD_WORKSPACE_URL" ]; then
     GITPOD_HOST=$(echo $GITPOD_WORKSPACE_URL | sed 's|https://||' | sed 's|/||')
     BASE_URL="https://9080-$GITPOD_HOST/payment/api"
-    METRICS_URL="https://9080-$GITPOD_HOST/metrics?scope=base"
+    METRICS_URL="https://9080-$GITPOD_HOST/metrics"
     echo -e "${CYAN}Detected Gitpod environment${NC}"
 else
     BASE_URL="http://localhost:9080/payment/api"
-    METRICS_URL="http://localhost:9080/metrics?scope=base"
+    METRICS_URL="http://localhost:9080/metrics"
     echo -e "${CYAN}Using local environment${NC}"
 fi
 
@@ -53,6 +53,11 @@ echo "  • Authorization requests (Retry): $NUM_AUTHORIZE_REQUESTS"
 echo "  • Health check requests (Circuit Breaker): $NUM_HEALTH_REQUESTS"
 echo "  • Notification requests (Async + Bulkhead): $NUM_NOTIFY_REQUESTS"
 echo ""
+echo -e "${CYAN}Expected Behavior:${NC}"
+echo -e "${CYAN}  Phase 1 (Retry): Some failures will be retried and eventually succeed${NC}"
+echo -e "${CYAN}  Phase 2 (Circuit Breaker): Circuit will OPEN after 50% failures, then recover${NC}"
+echo -e "${CYAN}  Phase 3 (Bulkhead): Requests queued up to limit, excess rejected${NC}"
+echo ""
 
 read -p "Press Enter to start the load test..."
 echo ""
@@ -74,16 +79,16 @@ send_authorize_request() {
     body=$(echo "$response" | sed '/HTTP_STATUS:/d')
     
     if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
-        if echo "$body" | grep -q "fallback"; then
+        if echo "$body" | grep -q "fallback\|pending"; then
             echo -e "${YELLOW}[AUTH-$id] ⚡ Fallback${NC}"
-            ((fallback_count["authorize"]++))
+            echo "fallback" > /tmp/auth_result_$id.txt
         else
             echo -e "${GREEN}[AUTH-$id] ✓ Success${NC}"
-            ((success_count["authorize"]++))
+            echo "success" > /tmp/auth_result_$id.txt
         fi
     else
         echo -e "${RED}[AUTH-$id] ✗ Failed${NC}"
-        ((failure_count["authorize"]++))
+        echo "failed" > /tmp/auth_result_$id.txt
     fi
 }
 
@@ -100,14 +105,25 @@ send_health_request() {
     if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
         if echo "$body" | grep -q "healthy"; then
             echo -e "${GREEN}[HEALTH-$id] ✓ Healthy${NC}"
-            ((success_count["health"]++))
+            echo "success" > /tmp/health_result_$id.txt
         else
             echo -e "${YELLOW}[HEALTH-$id] ⚠ Degraded${NC}"
-            ((fallback_count["health"]++))
+            echo "fallback" > /tmp/health_result_$id.txt
+        fi
+    elif [ "$http_code" -eq 503 ]; then
+        if echo "$body" | grep -q "circuit_open"; then
+            echo -e "${PURPLE}[HEALTH-$id] ⚡ Circuit Breaker OPEN${NC}"
+            echo "failed" > /tmp/health_result_$id.txt
+        elif echo "$body" | grep -q "unhealthy"; then
+            echo -e "${YELLOW}[HEALTH-$id] ⚠ Gateway Unhealthy${NC}"
+            echo "fallback" > /tmp/health_result_$id.txt
+        else
+            echo -e "${RED}[HEALTH-$id] ✗ Service Unavailable${NC}"
+            echo "failed" > /tmp/health_result_$id.txt
         fi
     else
-        echo -e "${RED}[HEALTH-$id] ✗ Failed${NC}"
-        ((failure_count["health"]++))
+        echo -e "${RED}[HEALTH-$id] ✗ Failed (HTTP $http_code)${NC}"
+        echo "failed" > /tmp/health_result_$id.txt
     fi
 }
 
@@ -125,10 +141,10 @@ send_notify_request() {
     if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
         if echo "$body" | grep -q "fallback"; then
             echo -e "${YELLOW}[NOTIFY-$id] ⚡ Fallback${NC}"
-            ((fallback_count["notify"]++))
+            echo "fallback" > /tmp/notify_result_$id.txt
         else
             echo -e "${GREEN}[NOTIFY-$id] ✓ Queued${NC}"
-            ((success_count["notify"]++))
+            echo "success" > /tmp/notify_result_$id.txt
         fi
     else
         if echo "$body" | grep -q "Bulkhead"; then
@@ -136,7 +152,7 @@ send_notify_request() {
         else
             echo -e "${RED}[NOTIFY-$id] ✗ Failed${NC}"
         fi
-        ((failure_count["notify"]++))
+        echo "failed" > /tmp/notify_result_$id.txt
     fi
 }
 
@@ -158,6 +174,19 @@ end_time=$(date +%s.%N)
 duration=$(echo "$end_time - $start_time" | bc)
 duration_formatted=$(printf "%.2f" $duration)
 
+# Collect results from temp files
+for i in $(seq 1 $NUM_AUTHORIZE_REQUESTS); do
+    if [ -f "/tmp/auth_result_$i.txt" ]; then
+        result=$(cat /tmp/auth_result_$i.txt)
+        case $result in
+            success) ((success_count["authorize"]++)) ;;
+            fallback) ((fallback_count["authorize"]++)) ;;
+            failed) ((failure_count["authorize"]++)) ;;
+        esac
+        rm /tmp/auth_result_$i.txt
+    fi
+done
+
 echo ""
 echo -e "${PURPLE}Authorization Phase Complete: ${duration_formatted}s${NC}"
 echo -e "${GREEN}✓ Success: ${success_count["authorize"]}${NC}"
@@ -171,27 +200,45 @@ sleep 2
 
 # Phase 2: Health check requests (circuit breaker)
 echo -e "${BLUE}=== Phase 2: Health Check Load Test (Circuit Breaker) ===${NC}"
-echo -e "${CYAN}Sending $NUM_HEALTH_REQUESTS health check requests...${NC}"
+echo -e "${CYAN}Sending $NUM_HEALTH_REQUESTS health check requests (sequential to observe circuit breaker)...${NC}"
+echo -e "${CYAN}Watch for circuit breaker to OPEN after failures, then potentially CLOSE after recovery${NC}"
 echo ""
 
 start_time=$(date +%s.%N)
 
+# Send requests sequentially to better observe circuit breaker behavior
 for i in $(seq 1 $NUM_HEALTH_REQUESTS); do
-    send_health_request $i &
-    sleep 0.1
+    send_health_request $i
+    sleep 0.5  # Small delay to observe circuit breaker state changes
 done
-
-wait
 
 end_time=$(date +%s.%N)
 duration=$(echo "$end_time - $start_time" | bc)
 duration_formatted=$(printf "%.2f" $duration)
 
+# Collect results from temp files
+for i in $(seq 1 $NUM_HEALTH_REQUESTS); do
+    if [ -f "/tmp/health_result_$i.txt" ]; then
+        result=$(cat /tmp/health_result_$i.txt)
+        case $result in
+            success) ((success_count["health"]++)) ;;
+            fallback) ((fallback_count["health"]++)) ;;
+            failed) ((failure_count["health"]++)) ;;
+        esac
+        rm /tmp/health_result_$i.txt
+    fi
+done
+
 echo ""
 echo -e "${PURPLE}Health Check Phase Complete: ${duration_formatted}s${NC}"
 echo -e "${GREEN}✓ Healthy: ${success_count["health"]}${NC}"
-echo -e "${YELLOW}⚠ Degraded: ${fallback_count["health"]}${NC}"
-echo -e "${RED}✗ Failed: ${failure_count["health"]}${NC}"
+echo -e "${YELLOW}⚠ Degraded/Unhealthy: ${fallback_count["health"]}${NC}"
+echo -e "${RED}✗ Failed/Circuit Open: ${failure_count["health"]}${NC}"
+echo ""
+echo -e "${CYAN}Circuit Breaker Behavior:${NC}"
+echo -e "${CYAN}• Opens at 50% failure rate (after 4 requests)${NC}"
+echo -e "${CYAN}• Simulated gateway has 60% failure rate${NC}"
+echo -e "${CYAN}• Circuit stays open for 5 seconds, then tries to recover${NC}"
 echo ""
 echo -e "${BLUE}----------------------------------------${NC}"
 echo ""
@@ -215,6 +262,19 @@ wait
 end_time=$(date +%s.%N)
 duration=$(echo "$end_time - $start_time" | bc)
 duration_formatted=$(printf "%.2f" $duration)
+
+# Collect results from temp files
+for i in $(seq 1 $NUM_NOTIFY_REQUESTS); do
+    if [ -f "/tmp/notify_result_$i.txt" ]; then
+        result=$(cat /tmp/notify_result_$i.txt)
+        case $result in
+            success) ((success_count["notify"]++)) ;;
+            fallback) ((fallback_count["notify"]++)) ;;
+            failed) ((failure_count["notify"]++)) ;;
+        esac
+        rm /tmp/notify_result_$i.txt
+    fi
+done
 
 echo ""
 echo -e "${PURPLE}Notification Phase Complete: ${duration_formatted}s${NC}"
@@ -249,94 +309,38 @@ echo ""
 echo -e "${BLUE}=== Fault Tolerance Metrics Summary ===${NC}"
 echo ""
 
-echo -e "${YELLOW}Retry Metrics:${NC}"
-curl -s "$METRICS_URL" 2>/dev/null | grep "ft_authorizePayment_retry" | head -5
+echo -e "${YELLOW}Retry Metrics (authorizePayment):${NC}"
+retry_metrics=$(curl -s "$METRICS_URL" 2>/dev/null | grep -i "retry.*authorizePayment\|authorizePayment.*retry")
+if [ -n "$retry_metrics" ]; then
+    echo "$retry_metrics" | head -10
+else
+    echo -e "${CYAN}No retry metrics found. Checking alternative patterns...${NC}"
+    curl -s "$METRICS_URL" 2>/dev/null | grep -iE "ft.*retry|retry.*total|retry.*calls" | head -5
+fi
 
 echo ""
-echo -e "${YELLOW}Circuit Breaker Metrics:${NC}"
-curl -s "$METRICS_URL" 2>/dev/null | grep "ft_checkGatewayHealth_circuitbreaker" | head -5
+echo -e "${YELLOW}Circuit Breaker Metrics (checkGatewayHealth):${NC}"
+cb_metrics=$(curl -s "$METRICS_URL" 2>/dev/null | grep -i "circuitbreaker.*checkGatewayHealth\|checkGatewayHealth.*circuit")
+if [ -n "$cb_metrics" ]; then
+    echo "$cb_metrics" | head -10
+else
+    echo -e "${CYAN}No circuit breaker metrics found. Checking alternative patterns...${NC}"
+    curl -s "$METRICS_URL" 2>/dev/null | grep -iE "ft.*circuit|circuit.*state|circuit.*calls" | head -5
+fi
 
 echo ""
-echo -e "${YELLOW}Bulkhead Metrics:${NC}"
-curl -s "$METRICS_URL" 2>/dev/null | grep "ft_sendPaymentNotification_bulkhead" | head -5
+echo -e "${YELLOW}Bulkhead Metrics (sendPaymentNotification):${NC}"
+bulkhead_metrics=$(curl -s "$METRICS_URL" 2>/dev/null | grep -i "bulkhead.*sendPaymentNotification\|sendPaymentNotification.*bulkhead")
+if [ -n "$bulkhead_metrics" ]; then
+    echo "$bulkhead_metrics" | head -10
+else
+    echo -e "${CYAN}No bulkhead metrics found. Checking alternative patterns...${NC}"
+    curl -s "$METRICS_URL" 2>/dev/null | grep -iE "ft.*bulkhead|bulkhead.*accept|bulkhead.*reject" | head -5
+fi
 
 echo ""
 echo -e "${GREEN}=== Load Test Complete ===${NC}"
 echo ""
-echo -e "${CYAN}To view all metrics:${NC}"
-echo -e "${BLUE}curl $METRICS_URL | grep \"ft_\"${NC}"
+echo -e "${CYAN}To view all fault tolerance metrics:${NC}"
+echo -e "${BLUE}curl $METRICS_URL | grep -i ft${NC}"
 echo ""
-    
-    echo -e "${YELLOW}[Request $id] Sending payment request for \$$amount...${NC}"
-    
-    # Send request and capture response
-    response=$(curl -s -X POST "${PAYMENT_URL}?amount=${amount}")
-    
-    local end_time=$(date +%s)
-    local duration=$((end_time - start_time))
-    
-    # Check if response contains "success" or "failed"
-    if echo "$response" | grep -q "success"; then
-        echo -e "${GREEN}[Request $id] SUCCESS: Payment processed in ${duration}s${NC}"
-        echo -e "${GREEN}[Request $id] Response: $response${NC}"
-    elif echo "$response" | grep -q "failed"; then
-        echo -e "${RED}[Request $id] FALLBACK: Service unavailable (took ${duration}s)${NC}"
-        echo -e "${RED}[Request $id] Response: $response${NC}"
-    else
-        echo -e "${RED}[Request $id] ERROR: Unexpected response (took ${duration}s)${NC}"
-        echo -e "${RED}[Request $id] Response: $response${NC}"
-    fi
-    
-    # Return the duration for analysis
-    echo "$duration"
-}
-
-# Run concurrent requests using GNU Parallel if available, or background processes if not
-if command -v parallel > /dev/null; then
-    echo -e "${PURPLE}Using GNU Parallel for concurrent requests${NC}"
-    export -f send_request
-    export PAYMENT_URL RED GREEN YELLOW BLUE PURPLE CYAN NC
-    
-    # Use predefined amounts instead of bc calculation
-    amounts=("15.99" "24.50" "19.95" "32.75" "12.99" "22.50" "18.75" "29.99" "14.50" "27.25")
-    for i in $(seq 1 $NUM_REQUESTS); do
-        amount_index=$((i-1 % 10))
-        amount=${amounts[$amount_index]}
-        send_request $i $amount &
-    done
-else
-    echo -e "${PURPLE}Running concurrent requests using background processes${NC}"
-    # Store PIDs
-    pids=()
-    
-    # Predefined amounts
-    amounts=("15.99" "24.50" "19.95" "32.75" "12.99" "22.50" "18.75" "29.99" "14.50" "27.25")
-    
-    # Launch requests in background
-    for i in $(seq 1 $NUM_REQUESTS); do
-        # Get amount from predefined list
-        amount_index=$((i-1 % 10))
-        amount=${amounts[$amount_index]}
-        send_request $i $amount &
-        pids+=($!)
-        
-        # Control concurrency
-        if [ ${#pids[@]} -ge $CONCURRENCY ]; then
-            # Wait for one process to finish before starting more
-            wait "${pids[0]}"
-            pids=("${pids[@]:1}")
-        fi
-    done
-    
-    # Wait for remaining processes
-    for pid in "${pids[@]}"; do
-        wait $pid
-    done
-fi
-
-echo ""
-echo -e "${BLUE}=== Test Complete ===${NC}"
-echo -e "${CYAN}Analyze the responses to verify:${NC}"
-echo -e "${CYAN}1. Asynchronous processing (@Asynchronous)${NC}"
-echo -e "${CYAN}2. Resource isolation (@Bulkhead)${NC}"
-echo -e "${CYAN}3. Retry behavior on failures (@Retry)${NC}"

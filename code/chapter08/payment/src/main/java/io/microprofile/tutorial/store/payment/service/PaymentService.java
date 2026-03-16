@@ -66,8 +66,8 @@ public class PaymentService {
         // Simulate network latency
         simulateDelay(1500);
 
-        // Simulate transient failures (70% success rate)
-        if (Math.random() > 0.7) {
+        // Simulate transient failures (60% failure rate to demonstrate retries)
+        if (Math.random() > 0.4) {
             throw new PaymentProcessingException(
                 "Temporary payment gateway failure - will retry"
             );

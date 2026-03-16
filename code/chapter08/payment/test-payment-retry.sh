@@ -35,7 +35,7 @@ echo "  • Delay: 2000ms"
 echo "  • Jitter: 500ms"
 echo "  • Retry on: PaymentProcessingException"
 echo "  • Abort on: CriticalPaymentException"
-echo "  • Simulated failure rate: 30%"
+echo "  • Simulated failure rate: 60%"
 echo "  • Processing delay: 1500ms per attempt"
 echo ""
 
@@ -93,11 +93,11 @@ make_request() {
 }
 
 # Run multiple tests
-echo -e "${BLUE}=== Test 1: Valid Payment (May Trigger Retries) ===${NC}"
-make_request "100.50" "Valid payment - may retry due to 30% simulated failure"
+echo -e "${BLUE}=== Test 1: Valid Payment (Will Likely Trigger Retries) ===${NC}"
+make_request "100.50" "Valid payment - 60% failure rate per attempt"
 
 echo -e "${BLUE}=== Test 2: Another Valid Payment ===${NC}"
-make_request "250.00" "Valid payment - testing retry variability"
+make_request "250.00" "Valid payment - observe retry behavior"
 
 echo -e "${BLUE}=== Test 3: Large Payment ===${NC}"
 make_request "999.99" "Large payment - testing retry behavior"
