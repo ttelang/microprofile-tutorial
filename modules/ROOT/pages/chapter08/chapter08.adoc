@@ -406,7 +406,7 @@ HALF_OPEN → OPEN
   Example: First test request fails, circuit reopens
 ----
 
-**Visual Example:**
+** Example:**
 
 Consider a circuit breaker protecting calls to a payment gateway:
 
