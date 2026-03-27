@@ -102,7 +102,6 @@ MicroProfile Telemetry simplifies instrumentation by integrating OpenTelemetry f
 
 To enable tracing and exporting of telemetry data, include the MicroProfile Telemetry API dependency in your `pom.xml` file.
 
-// Updated for MicroProfile Telemetry 2.1
 [source, xml]
 ----
 <!-- Adding MicroProfile Telemetry dependency -->
@@ -236,7 +235,6 @@ One of Zipkin’s core strengths is its tag-based searching, which allows develo
 https://grafana.com/oss/tempo/[Grafana Tempo] is a distributed tracing backend. Unlike Jaeger and Zipkin, Tempo does not require indexing as it only requires object storage, making it highly scalable and cost-efficient for handling large volumes of trace data. This unique approach allows Tempo to store traces efficiently without increasing storage and query overhead, making it an ideal choice for high-performance microservices environments.
 One of Tempo’s key advantages is its tight integration with Grafana dashboards, enabling developers to correlate logs, metrics, and traces within a unified observability platform. Additionally, Tempo offers multi-backend support, meaning it can ingest and process trace data from OpenTelemetry, Jaeger, and Zipkin sources, ensuring compatibility with existing tracing setups. Its scalability makes it well-suited for large-scale microservices architectures, where efficiently managing distributed tracing data is crucial.
 
-// Updated for MicroProfile Telemetry 2.1
 == Exporting Telemetry Data
 
 To export telemetry data, configure the exporter type and endpoint in `src/main/resources/META-INF/microprofile-config.properties`.
@@ -249,7 +247,7 @@ For OTLP (OpenTelemetry Protocol) export, add the following configuration:
 otel.sdk.disabled=false
 
 # Set the OTLP exporter endpoint (gRPC default: port 4317)
-otel.exporter.otlp.endpoint=http://localhost:4317
+otel.exporter.otlp.endpoint=http://<hostname>:4317
 
 # Define the service name
 otel.service.name=payment-service
@@ -295,7 +293,7 @@ docker run -d --name jaeger \
 
 The above command runs the *all-in-one* Jaeger container, which includes the collector, query service, and UI, with native OTLP support on ports 4317 (gRPC) and 4318 (HTTP/protobuf).
 
-Access the Jaeger UI at `http://localhost:16686`.
+Access the Jaeger UI at `http://<hostname>:16686`.
 
 Ensure all the services of the MicroProfile E-commerce application are running.
 
@@ -512,7 +510,6 @@ Runtimes MUST provide the following metrics, as defined in the OpenTelemetry Sem
 
 Metrics are activated whenever MicroProfile Telemetry is enabled with `otel.sdk.disabled=false`.
 
-// Updated for MicroProfile Telemetry 2.1
 == Logs
 
 The OpenTelemetry Logs bridge API enables existing log frameworks (such as SLF4J, Log4j, JUL, and Logback) to emit logs through OpenTelemetry. This specification does not define new Log APIs. The Logs bridge API is used by runtimes, not directly by application code. Therefore, this specification does not expose any Log APIs to applications.
@@ -523,7 +520,7 @@ Log output from an application is automatically bridged to the configured OpenTe
 ----
 otel.sdk.disabled=false
 otel.logs.exporter=otlp
-otel.exporter.otlp.endpoint=http://localhost:4317
+otel.exporter.otlp.endpoint=http://<hostname>:4317
 ----
 
 When a log record is emitted from an application, the runtime bridges it to the configured OpenTelemetry SDK instance, which then exports it using the configured log exporter (for example, via OTLP). When an active trace context exists, the log record automatically includes the `traceId` and `spanId`, enabling correlation between logs and traces.
@@ -713,7 +710,6 @@ In this chapter, we explored the critical security considerations surrounding tr
 
 As microservices architectures continue to evolve, the ability to observe and trace system interactions will remain a critical factor in maintaining resilient and efficient applications. MicroProfile Telemetry stands as a valuable tool in achieving these goals, providing developers with the observability they need to deliver reliable, high-performance microservices in modern cloud-native environments.
 
-// Updated for MicroProfile Telemetry 2.1
 == What's New in MicroProfile Telemetry 2.1
 
 MicroProfile Telemetry 2.1 is aligned with MicroProfile 7.1. The following changes are delivered in this release.
