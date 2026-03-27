@@ -523,29 +523,6 @@ OpenAPI v3.1 uses JSON Schema's standard type arrays for nullable fields. Use `@
 private String description;
 ----
 
-=== Support for Java records
-
-MicroProfile OpenAPI 4.1 supports Java records and automatically generates schema definitions from record components:
-
-[source, java]
-----
-@Schema(name = "Product", description = "Product information")
-public record Product(
-    @NotNull
-    @Schema(description = "Product ID")
-    Long id,
-    
-    @NotNull
-    @Schema(description = "Product name")
-    String name,
-    
-    @Schema(description = "Optional description", nullable = true)
-    String description
-) {}
-----
-
-Use `@NotNull` validation annotations to mark required fields. The generated schema includes proper type definitions, required fields, and descriptions from your record components.
-
 == Jakarta Bean Validation integration
 
 MicroProfile OpenAPI automatically processes Jakarta Bean Validation annotations and uses them to enhance the generated OpenAPI schemas. Common validation annotations include:
@@ -710,10 +687,6 @@ You learned to document your RESTful endpoints using core OpenAPI annotations in
 *Convenience annotations*
 
 You explored MicroProfile OpenAPI's convenience annotations that simplify common documentation tasks. You learned to use `@RequestBodySchema` to document request bodies concisely, `@APIResponseSchema` to document response types efficiently, and `@SchemaProperty` to define inline schema properties without creating separate classes.
-
-*Java records support*
-
-You explored how MicroProfile OpenAPI 4.1 provides native support for Java records, allowing you to use modern, immutable data carriers with automatic schema generation. You learned to combine `@Schema` annotations with `@NotNull` validation to create well-documented, type-safe data models.
 
 *Nullable type handling*
 
