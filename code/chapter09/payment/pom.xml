@@ -54,12 +54,21 @@
       <scope>provided</scope>
     </dependency>
 
+    <!-- MicroProfile Telemetry 2.1 API BOM -->
+    <dependency>
+      <groupId>org.eclipse.microprofile.telemetry</groupId>
+      <artifactId>microprofile-telemetry-api</artifactId>
+      <type>pom</type>
+      <version>2.1</version>
+      <scope>provided</scope>
+    </dependency>
+
     <!-- OpenTelemetry API for manual instrumentation -->
     <dependency>
       <groupId>io.opentelemetry</groupId>
       <artifactId>opentelemetry-api</artifactId>
-      <version>1.32.0</version>
-      <scope>compile</scope>
+      <version>1.48.0</version>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>

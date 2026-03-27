@@ -1,20 +1,26 @@
 package io.microprofile.tutorial.store.payment.service;
 
 import io.microprofile.tutorial.store.payment.exception.PaymentProcessingException;
-import io.opentelemetry.api.GlobalOpenTelemetry;
-import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
 import io.microprofile.tutorial.store.payment.entity.PaymentDetails;
 import io.microprofile.tutorial.store.payment.exception.CriticalPaymentException;
 
 import org.eclipse.microprofile.faulttolerance.Asynchronous;
 import org.eclipse.microprofile.faulttolerance.Bulkhead;
+import org.eclipse.microprofile.faulttolerance.CircuitBreaker;
 import org.eclipse.microprofile.faulttolerance.Fallback;
 import org.eclipse.microprofile.faulttolerance.Retry;
 import org.eclipse.microprofile.faulttolerance.Timeout;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.annotation.PostConstruct;
+import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 
 import java.util.concurrent.CompletableFuture;
@@ -25,14 +31,29 @@ import java.util.logging.Logger;
 public class PaymentService {
 
     private static final Logger logger = Logger.getLogger(PaymentService.class.getName());
+    private static final AttributeKey<String> PAYMENT_METHOD_KEY = AttributeKey.stringKey("payment.method");
+    private static final AttributeKey<String> PAYMENT_RESULT_KEY = AttributeKey.stringKey("payment.result");
 
-    private Tracer tracer;   // Injected tracer for OpenTelemetry
+    @Inject
+    Tracer tracer;
+
+    @Inject
+    Meter meter;
+
+    @Inject
+    @ConfigProperty(name = "payment.gateway.endpoint", defaultValue = "https://api.paymentgateway.com")
+    String endpoint;
+
+    private LongCounter paymentAttemptsCounter;
 
     @PostConstruct
     public void init() {
-        // Programmatic tracer access - the correct approach
-        this.tracer = GlobalOpenTelemetry.getTracer("payment-service", "1.0.0");
-        logger.info("Tracer initialized successfully");
+        paymentAttemptsCounter = meter
+                .counterBuilder("payment.attempts")
+                .setDescription("Number of payment attempts by result")
+                .setUnit("1")
+                .build();
+        logger.info("Telemetry instruments initialized successfully");
     }
 
     /**
@@ -49,15 +70,18 @@ public class PaymentService {
     @Fallback(fallbackMethod = "fallbackProcessPayment")
     @Bulkhead(value=5)
     public CompletionStage<String> processPayment(PaymentDetails paymentDetails) throws PaymentProcessingException {
-        // Create explicit span for payment processing to help with debugging
+        paymentAttemptsCounter.add(1, Attributes.of(PAYMENT_METHOD_KEY, "credit_card", PAYMENT_RESULT_KEY, "attempt"));
+
+        // Create explicit span for payment processing to enrich business context.
         Span span = tracer.spanBuilder("payment.process")
-            .setAttribute("payment.amount", paymentDetails.getAmount().toString())
+            .setAttribute("order.id", "unknown")
+            .setAttribute("payment.amount", paymentDetails.getAmount().doubleValue())
             .setAttribute("payment.method", "credit_card")
-            .setAttribute("payment.service", "payment-service") 
+            .setAttribute("payment.service", "payment-service")
+            .setAttribute("payment.status", "IN_PROGRESS")
             .startSpan();
         
         try (io.opentelemetry.context.Scope scope = span.makeCurrent()) {
-            // MicroProfile Telemetry automatically traces this method
             String maskedCardNumber = maskCardNumber(paymentDetails.getCardNumber());
             
             logger.info(String.format("Processing payment - Amount: %s, Card: %s", 
@@ -70,13 +94,17 @@ public class PaymentService {
             if (Math.random() > 0.7) {
                 span.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, "Payment processing failed");
                 span.addEvent("Payment processing failed due to transient error");
+                span.setAttribute("payment.status", "FAILED");
+                paymentAttemptsCounter.add(1, Attributes.of(PAYMENT_METHOD_KEY, "credit_card", PAYMENT_RESULT_KEY, "failed"));
                 logger.warning("Payment processing failed due to transient error");
                 throw new PaymentProcessingException("Temporary payment processing failure");
             }
 
             // Simulating successful processing
             span.setStatus(io.opentelemetry.api.trace.StatusCode.OK);
+            span.setAttribute("payment.status", "SUCCESS");
             span.addEvent("Payment processed successfully");
+            paymentAttemptsCounter.add(1, Attributes.of(PAYMENT_METHOD_KEY, "credit_card", PAYMENT_RESULT_KEY, "success"));
             logger.info("Payment processed successfully");
             return CompletableFuture.completedFuture("{\"status\":\"success\", \"message\":\"Payment processed successfully.\"}");
         } finally {
@@ -96,6 +124,61 @@ public class PaymentService {
                 paymentDetails.getAmount()));
         
         return CompletableFuture.completedFuture("{\"status\":\"failed\", \"message\":\"Payment service is currently unavailable.\"}");
+    }
+
+    /**
+     * Check payment gateway health with circuit breaker protection.
+     */
+    @CircuitBreaker(
+        failureRatio = 0.5,
+        requestVolumeThreshold = 4,
+        delay = 5000,
+        successThreshold = 2
+    )
+    @Timeout(2000)
+    public boolean checkGatewayHealth() {
+        logger.info("Checking payment gateway health at: " + endpoint);
+
+        simulateDelay(500);
+
+        if (Math.random() > 0.6) {
+            throw new RuntimeException("Gateway health check failed");
+        }
+
+        return true;
+    }
+
+    /**
+     * Send payment notification asynchronously with bulkhead isolation.
+     */
+    @Asynchronous
+    @Bulkhead(value = 10, waitingTaskQueue = 20)
+    @Timeout(5000)
+    @Fallback(fallbackMethod = "fallbackSendNotification")
+    public CompletionStage<String> sendPaymentNotification(String paymentId, String recipient) {
+        logger.info("Notification queued for payment: " + paymentId + " to " + recipient);
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                simulateDelay(2000);
+
+                if (Math.random() > 0.8) {
+                    logger.warning("Notification service unavailable for payment: " + paymentId);
+                    throw new RuntimeException("Notification service unavailable");
+                }
+
+                logger.info("Notification sent successfully for payment: " + paymentId);
+            } catch (Exception e) {
+                logger.severe("Failed to send notification for payment: " + paymentId + " - " + e.getMessage());
+            }
+        });
+
+        return CompletableFuture.completedFuture("Notification queued for processing");
+    }
+
+    public CompletionStage<String> fallbackSendNotification(String paymentId, String recipient) {
+        logger.warning("Failed to send notification for payment: " + paymentId);
+        return CompletableFuture.completedFuture("Notification queued for retry");
     }
 
     /**
@@ -149,10 +232,20 @@ public class PaymentService {
     @Asynchronous
     public CompletionStage<String> verifyPaymentWithTelemetry(PaymentDetails paymentDetails, String transactionId) 
             throws PaymentProcessingException {
-        
         logger.info(() -> String.format("Starting payment verification - Transaction ID: %s", transactionId));
-        
-        try {
+
+        Span span = tracer.spanBuilder("payment.verify")
+            .setAttribute("payment.method", "credit_card")
+            .setAttribute("payment.status", "IN_PROGRESS")
+            .setAttribute("payment.service", "payment-service")
+            .setAttribute("payment.transaction_id", transactionId)
+            .startSpan();
+
+        if (paymentDetails != null && paymentDetails.getAmount() != null) {
+            span.setAttribute("payment.amount", paymentDetails.getAmount().doubleValue());
+        }
+
+        try (io.opentelemetry.context.Scope scope = span.makeCurrent()) {
             // Step 1: Validate payment details
             validatePaymentDetails(paymentDetails);
             
@@ -164,14 +257,21 @@ public class PaymentService {
             
             // Step 4: Record transaction
             recordTransaction(paymentDetails, transactionId);
-            
+
+            span.setStatus(io.opentelemetry.api.trace.StatusCode.OK);
+            span.setAttribute("payment.status", "SUCCESS");
             logger.info("Payment verification completed successfully");
             return CompletableFuture.completedFuture(
                     String.format("{\"status\":\"verified\", \"transaction_id\":\"%s\", \"message\":\"Payment verification complete.\"}", 
                             transactionId));
         } catch (Exception e) {
+            span.recordException(e);
+            span.setAttribute("payment.status", "FAILED");
+            span.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, e.getMessage());
             logger.severe(() -> String.format("Payment verification failed: %s", e.getMessage()));
             throw e;
+        } finally {
+            span.end();
         }
     }
     
@@ -258,6 +358,15 @@ public class PaymentService {
             Thread.currentThread().interrupt();
             logger.severe("Network call interrupted");
             throw new RuntimeException("Network call interrupted");
+        }
+    }
+
+    private void simulateDelay(long milliseconds) {
+        try {
+            Thread.sleep(milliseconds);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Processing interrupted", e);
         }
     }
 }

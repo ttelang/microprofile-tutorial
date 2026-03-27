@@ -7,7 +7,7 @@
 
 toc::[]
 
-This microservice is part of the Jakarta EE 10 and MicroProfile 6.1-based e-commerce application. It handles payment processing and transaction management.
+This microservice is part of the Jakarta EE 10 and MicroProfile 7.1-based e-commerce application. It handles payment processing and transaction management.
 
 == Features
 
@@ -32,32 +32,33 @@ The service implements different retry strategies based on operation criticality
 
 ==== Payment Authorization Retry (@Retry)
 * **Max Retries**: 3 attempts
-* **Delay**: 1000ms with 500ms jitter
-* **Max Duration**: 10 seconds
-* **Retry On**: RuntimeException, WebApplicationException
-* **Use Case**: Standard payment authorization with exponential backoff
+* **Delay**: 2000ms with 500ms jitter
+* **Retry On**: PaymentProcessingException
+* **Abort On**: CriticalPaymentException
+* **Use Case**: Payment processing with transient failure handling
 
 [source,java]
 ----
 @Retry(
     maxRetries = 3,
     delay = 2000,
-    maxDuration = 10000
     jitter = 500,
-    retryOn = {RuntimeException.class, WebApplicationException.class}
+  retryOn = PaymentProcessingException.class,
+  abortOn = CriticalPaymentException.class
 )
 ----
 
 === Circuit Breaker Protection
 
-Payment capture operations use circuit breaker pattern:
+Gateway health checks use the circuit breaker pattern:
 
 [source,java]
 ----
 @CircuitBreaker(
     failureRatio = 0.5,
     requestVolumeThreshold = 4,
-    delay = 5000
+  delay = 5000,
+  successThreshold = 2
 )
 ----
 
@@ -71,7 +72,9 @@ Operations with potential long delays are protected with timeouts:
 
 [source,java]
 ----
-@Timeout(value = 3000)
+@Timeout(3000) // processPayment
+@Timeout(2000) // checkGatewayHealth
+@Timeout(5000) // sendPaymentNotification
 ----
 
 === Bulkhead Pattern
@@ -80,18 +83,21 @@ The bulkhead pattern limits concurrent requests to prevent system overload:
 
 [source,java]
 ----
-@Bulkhead(value = 5)
+@Bulkhead(value = 5) // processPayment
+@Bulkhead(value = 10, waitingTaskQueue = 20) // sendPaymentNotification
 ----
 
-* **Concurrent Requests**: Limited to 5 concurrent requests
-* **Excess Requests**: Rejected immediately instead of queuing
+* **Concurrent Requests**: Payment processing limited to 5 concurrent requests
+* **Notification Isolation**: Notification pipeline allows 10 concurrent requests with queue size 20
+* **Excess Requests**: Rejected when bulkhead and queue are full
 * **Use Case**: Protect service from traffic spikes and cascading failures
 
 === Fallback Mechanisms
 
 All critical operations have fallback methods that provide graceful degradation:
 
-* **Payment Authorization Fallback**: Returns service unavailable with retry instructions
+* **Payment Processing Fallback**: `fallbackProcessPayment` returns service unavailable response
+* **Notification Fallback**: `fallbackSendNotification` queues notification for retry
 
 == Endpoints
 
@@ -108,12 +114,40 @@ All critical operations have fallback methods that provide graceful degradation:
 
 === POST /payment/api/authorize
 * Processes a payment authorization with retry policy
-* **Retry Configuration**: 3 attempts, 1s delay, 500ms jitter
+* **Retry Configuration**: 3 retries, 2s delay, 500ms jitter
 * **Fallback**: Service unavailable response
-* Example: `POST http://localhost:9080/payment/api/authorize`
+* Example: `POST http://localhost:9080/payment/api/authorize?amount=100`
+* Response: `{"status":"success", "message":"Payment processed successfully."}`
+* Fallback Response: `{"status":"failed", "message":"Payment service is currently unavailable."}`
+
+=== POST /payment/api/payments
+* Processes a payment request from JSON payload
+* **Fault Tolerance**: Retry + Timeout + Bulkhead + Fallback
+* **Telemetry**: Manual span enrichment for `payment.process`
+* Example: `POST http://localhost:9080/payment/api/payments`
 * Request body: `{"cardNumber":"4111111111111111", "cardHolderName":"Test User", "expiryDate":"12/25", "securityCode":"123", "amount":100.00}`
-* Response: `{"status":"success", "message":"Payment authorized successfully", "transactionId":"TXN1234567890", "amount":100.00}`
-* Fallback Response: `{"status":"failed", "message":"Payment gateway unavailable. Please try again later.", "fallback":true}`
+* Response: `{"status":"success", "message":"Payment processed successfully."}`
+
+=== POST /payment/api/verify
+* Runs multi-step verification flow with telemetry correlation
+* Includes validation, fraud check, funds check, and transaction recording
+* Example: `POST http://localhost:9080/payment/api/verify`
+* Request body: `{"cardNumber":"4111111111111111", "cardHolderName":"Test User", "expiryDate":"12/25", "securityCode":"123", "amount":100.00}`
+* Response: `{"status":"verified", "transaction_id":"TXN-1A2B3C4D", "message":"Payment verification complete."}`
+
+=== GET /payment/api/health/gateway
+* Checks gateway health with circuit breaker protection
+* **Circuit Breaker**: failureRatio 0.5, requestVolumeThreshold 4, delay 5s
+* Example: `GET http://localhost:9080/payment/api/health/gateway`
+* Healthy response: `{"status":"healthy","message":"Payment gateway is operational"}`
+* Open-circuit response: `{"status":"circuit_open","message":"Circuit breaker is open - gateway appears to be down"}`
+
+=== POST /payment/api/notify/{paymentId}
+* Sends asynchronous payment notification with bulkhead isolation
+* Optional query parameter: `recipient`
+* **Bulkhead**: 10 concurrent + queue 20
+* Example: `POST http://localhost:9080/payment/api/notify/PAY-12345?recipient=ops@example.com`
+* Response: `{"status":"success","message":"Notification queued for processing"}`
 
 === POST /payment/api/payment-config/process-example
 * Example endpoint demonstrating payment processing with configuration
@@ -308,8 +342,8 @@ curl http://localhost:9080/payment/api/payment-config
 
 The payment service automatically generates OpenAPI documentation using MicroProfile OpenAPI annotations.
 
-* OpenAPI UI: `http://localhost:9080/payment/api/openapi-ui/`
-* OpenAPI JSON: `http://localhost:9080/payment/api/openapi`
+* OpenAPI UI: `http://localhost:9080/api/openapi-ui/`
+* OpenAPI JSON: `http://localhost:9080/api/openapi`
 
 === MicroProfile Config Specification
 
@@ -362,9 +396,9 @@ The Payment Service includes several test scripts to demonstrate and validate fa
 
 Basic functionality test to verify core payment operations:
 
-* Configuration retrieval
-* Simple payment processing
-* Error handling
+* Authorization endpoint (`/authorize`)
+* Gateway circuit-breaker endpoint (`/health/gateway`)
+* Async notification endpoint (`/notify/{paymentId}`)
 
 [source,bash]
 ----
@@ -376,10 +410,9 @@ chmod +x test-payment-basic.sh
 ==== test-payment-retry.sh
 Tests various retry scenarios with different triggers:
 
-* Normal payment processing (successful)
-* Failed payment with retry (card ending in "0000")
-* Verification with random failures
-* Invalid input handling
+* Authorization retries and timing behavior
+* Retry delay and jitter observation
+* Abort conditions for invalid input
 
 [source,bash]
 ----
@@ -392,9 +425,9 @@ chmod +x test-payment-retry.sh
 
 Tests the service under concurrent load:
 
-* Multiple simultaneous requests
-* Observing thread handling
-* Response time analysis
+* Authorization load (`/authorize`)
+* Circuit breaker behavior under repeated health checks
+* Bulkhead pressure and rejection behavior for notifications
 
 [source,bash]
 ----
@@ -407,9 +440,9 @@ chmod +x test-payment-concurrent-load.sh
 
 Analyzes asynchronous processing behavior:
 
-* Response time measurement
-* Thread utilization
-* Future completion patterns
+* Fast response return for async endpoint
+* Concurrent notification calls
+* CompletionStage behavior of notification pipeline
 
 [source,bash]
 ----
@@ -422,7 +455,7 @@ chmod +x test-payment-async.sh
 Demonstrates the bulkhead pattern by sending concurrent requests:
 
 * Concurrent request handling
-* Bulkhead limit verification (5 requests)
+* Bulkhead limit verification for notifications (`value=10`, `waitingTaskQueue=20`)
 * Rejection of excess requests
 * Service recovery after load reduction
 
@@ -433,19 +466,35 @@ chmod +x test-payment-bulkhead.sh
 ./test-payment-bulkhead.sh
 ----
 
-==== test-payment-async-analysis.sh
+==== test-payment-circuit-breaker.sh
 
-Analyzes asynchronous processing behavior:
+Exercises gateway health checks to visualize circuit breaker transitions:
 
-* Response time measurement
-* Thread utilization
-* Future completion patterns
+* CLOSED to OPEN state transition
+* OPEN to HALF_OPEN recovery delay
+* Return to CLOSED on successful probes
 
 [source,bash]
 ----
-# Analyze asynchronous processing
-chmod +x test-payment-async-analysis.sh
-./test-payment-async-analysis.sh
+# Analyze circuit breaker behavior
+chmod +x test-payment-circuit-breaker.sh
+./test-payment-circuit-breaker.sh
+----
+
+==== verify-payment-ci.sh
+
+Runs a single non-interactive verification flow and prints a PASS/FAIL matrix suitable for CI logs.
+
+Checks include build, server readiness, endpoints, fault tolerance metrics, OpenAPI availability, and optional Jaeger ingestion.
+
+[source,bash]
+----
+# Full verification (auto-start server and Jaeger if needed)
+chmod +x verify-payment-ci.sh
+./verify-payment-ci.sh
+
+# Fast local run when server is already up
+SKIP_JAEGER_CHECK=true START_SERVER=never ./verify-payment-ci.sh
 ----
 
 === Running the Tests
@@ -491,29 +540,17 @@ The following properties can be configured via MicroProfile Config:
 |Payment gateway endpoint URL
 |https://api.paymentgateway.com
 
-|payment.retry.maxRetries
-|Maximum retry attempts for payment operations
+|io.microprofile.tutorial.store.payment.service.PaymentService/processPayment/Retry/maxRetries
+|Maximum retry attempts for processPayment
 |3
 
-|payment.retry.delay
-|Delay between retry attempts (milliseconds)
-|1000
+|io.microprofile.tutorial.store.payment.service.PaymentService/processPayment/Retry/delay
+|Delay between retry attempts for processPayment (milliseconds)
+|2000
 
-|payment.circuitbreaker.failureRatio
-|Circuit breaker failure ratio threshold
-|0.5
-
-|payment.circuitbreaker.requestVolumeThreshold
-|Minimum requests for circuit breaker evaluation
-|4
-
-|payment.timeout.duration
-|Timeout duration for payment operations (milliseconds)
-|3000
-
-|payment.bulkhead.value
-|Maximum concurrent requests for bulkhead
-|5
+|io.microprofile.tutorial.store.payment.service.PaymentService/processPayment/Retry/jitter
+|Retry jitter for processPayment (milliseconds)
+|500
 |===
 
 == Fault Tolerance Implementation Details
@@ -545,21 +582,25 @@ public class PaymentService {
 
 [source,java]
 ----
+@Asynchronous
+@Timeout(3000)
 @Retry(
     maxRetries = 3,
-    delay = 1000,
+  delay = 2000,
     jitter = 500,
-    maxDuration = 10000,
-    retryOn = {RuntimeException.class, WebApplicationException.class}
+  retryOn = PaymentProcessingException.class,
+  abortOn = CriticalPaymentException.class
 )
-@Fallback(fallbackMethod = "fallbackPaymentAuthorization")
-public PaymentResponse processPayment(PaymentRequest request) {
+@Fallback(fallbackMethod = "fallbackProcessPayment")
+@Bulkhead(value = 5)
+public CompletionStage<String> processPayment(PaymentDetails paymentDetails)
+    throws PaymentProcessingException {
     // Payment processing logic
 }
 
-public PaymentResponse fallbackPaymentAuthorization(PaymentRequest request) {
-    // Fallback logic for payment authorization
-    return new PaymentResponse("failed", "Payment gateway unavailable. Please try again later.", true);
+public CompletionStage<String> fallbackProcessPayment(PaymentDetails paymentDetails) {
+  return CompletableFuture.completedFuture(
+      "{\"status\":\"failed\", \"message\":\"Payment service is currently unavailable.\"}");
 }
 ----
 
@@ -592,7 +633,7 @@ public PaymentResponse fallbackPaymentAuthorization(PaymentRequest request) {
 The retry pattern allows the service to automatically retry failed operations:
 
 * **@Retry**: Automatically retries failed operations
-* **Parameters**: maxRetries, delay, jitter, maxDuration, retryOn, abortOn
+* **Parameters**: maxRetries, delay, jitter, retryOn, abortOn
 * **Use Case**: Transient failures in external service calls
 
 === Circuit Breaker Pattern
@@ -688,7 +729,7 @@ When combining multiple fault tolerance annotations:
 **Solutions**:
 * Verify exceptions match retryOn parameter
 * Check that delay and jitter are appropriate
-* Ensure maxDuration allows sufficient time for retries
+* Ensure timeout and retry settings are balanced for expected latency
 
 ==== 2. Circuit Breaker Problems
 
@@ -794,7 +835,7 @@ For detailed information about MicroProfile Fault Tolerance, refer to:
 
 == MicroProfile Telemetry Implementation
 
-The Payment Service implements distributed tracing using MicroProfile Telemetry 1.1, which is based on OpenTelemetry standards. This enables end-to-end visibility of payment transactions across microservices and external dependencies.
+The Payment Service implements distributed tracing, metrics, and logs export using MicroProfile Telemetry 2.1. This provides end-to-end visibility of payment transactions across microservices and external dependencies.
 
 === Telemetry Configuration
 
@@ -807,8 +848,11 @@ The service is configured to send telemetry data to Jaeger, enabling comprehensi
 # MicroProfile Telemetry Configuration
 otel.service.name=payment-service
 otel.sdk.disabled=false
-otel.metrics.exporter=none
+otel.exporter.otlp.endpoint=http://localhost:4317
+otel.traces.exporter=otlp
+otel.metrics.exporter=otlp
 otel.logs.exporter=none
+otel.traces.sampler=parentbased_always_on
 ----
 
 === Automatic Instrumentation
@@ -831,20 +875,24 @@ For enhanced visibility, the Payment Service also implements manual instrumentat
 
 [source,java]
 ----
-private Tracer tracer;   // Injected tracer for OpenTelemetry
+@Inject
+Tracer tracer;
 
 @PostConstruct
 public void init() {
-    // Programmatic tracer access - the correct approach
-    this.tracer = GlobalOpenTelemetry.getTracer("payment-service", "1.0.0");
-    logger.info("Tracer initialized successfully");
+  paymentAttemptsCounter = meter
+      .counterBuilder("payment.attempts")
+      .setDescription("Number of payment attempts by result")
+      .setUnit("1")
+      .build();
 }
 
 // Create explicit span with business context
 Span span = tracer.spanBuilder("payment.process")
-    .setAttribute("payment.amount", paymentDetails.getAmount().toString())
+  .setAttribute("payment.amount", paymentDetails.getAmount().doubleValue())
     .setAttribute("payment.method", "credit_card")
     .setAttribute("payment.service", "payment-service")
+  .setAttribute("payment.status", "IN_PROGRESS")
     .startSpan();
 
 try (io.opentelemetry.context.Scope scope = span.makeCurrent()) {
@@ -856,12 +904,15 @@ try (io.opentelemetry.context.Scope scope = span.makeCurrent()) {
 } catch (Exception e) {
     // Record error details
     span.recordException(e);
-    span.setStatus(StatusCode.ERROR, e.getMessage());
+  span.setAttribute("payment.status", "FAILED");
+  span.setStatus(StatusCode.ERROR, e.getMessage());
     throw e;
 } finally {
     span.end();  // Always end the span
 }
 ----
+
+MicroProfile Telemetry 2.1 also supports CDI injection for `io.opentelemetry.api.metrics.Meter`, which this service uses for custom counters.
 
 === Key Telemetry Points
 
@@ -890,16 +941,14 @@ Telemetry data can be viewed in Jaeger UI:
 [source,bash]
 ----
 # Start Jaeger container (if not already running)
-docker run --rm --name jaeger \
+docker run -d --name jaeger \
   -p 16686:16686 \
   -p 4317:4317 \
   -p 4318:4318 \
-  -p 5778:5778 \
-  -p 9411:9411 \
-  jaegertracing/jaeger:2.7.0
+  jaegertracing/all-in-one:latest
 
 # Access Jaeger UI
-open http://localhost:16686
+xdg-open http://localhost:16686
 ----
 
 In the Jaeger UI:
@@ -914,9 +963,8 @@ If telemetry data is not appearing in Jaeger:
 1. **Verify Jaeger is running** with OTLP ports exposed (4317, 4318)
 2. **Check Liberty server configuration** in server.xml
 3. **Validate application configuration** in microprofile-config.properties
-4. **Ensure trace application is enabled** with `<trace enabled="true" type="ALL" />`
-5. **Check network connectivity** between the service and Jaeger
-6. **Inspect Liberty server logs** for telemetry-related messages
+4. **Check network connectivity** between the service and Jaeger
+5. **Inspect Liberty server logs** for telemetry-related messages
 
 === Testing Telemetry
 
@@ -931,6 +979,240 @@ curl -X POST -H "Content-Type: application/json" \
 
 # Check for payment service in Jaeger UI services dropdown
 curl -s http://localhost:16686/api/services
+----
+
+=== Step-by-Step Verification
+
+Use the following process to verify MicroProfile Telemetry 2.1 behavior in the payment service.
+
+==== 1. Build and start the payment service
+
+NOTE: Before starting, stop any previously running server instance to avoid port conflicts:
+
+[source,bash]
+----
+mvn liberty:stop
+----
+
+[source,bash]
+----
+cd code/chapter09/payment
+mvn clean package
+mvn liberty:run
+----
+
+Expected result:
+
+* The service starts on `http://localhost:9080/payment/`.
+* Health endpoint responds with `UP` at `http://localhost:9080/health`.
+
+==== 2. Verify telemetry configuration is active
+
+Confirm these values are present in `src/main/resources/META-INF/microprofile-config.properties`:
+
+* `otel.sdk.disabled=false`
+* `otel.exporter.otlp.endpoint=http://localhost:4317`
+* `otel.traces.exporter=otlp`
+* `otel.metrics.exporter=otlp`
+* `otel.logs.exporter=none`
+
+==== 3. Start Jaeger for trace ingestion
+
+Open a new terminal and run the following command to start Jaeger in a Docker container:
+[source,bash]
+----
+docker run -d --name jaeger \
+  -p 16686:16686 \
+  -p 4317:4317 \
+  -p 4318:4318 \
+  jaegertracing/all-in-one:latest
+----
+
+Expected result:
+
+* Jaeger UI available at `http://localhost:16686`.
+
+==== 4. Generate telemetry traffic manually
+
+Send requests to exercise traces, fault tolerance, and custom span attributes:
+
+[source,bash]
+----
+# Authorization flow
+curl -X POST "http://localhost:9080/payment/api/authorize?amount=100"
+
+# Payment details flow
+curl -X POST "http://localhost:9080/payment/api/payments" \
+  -H "Content-Type: application/json" \
+  -d '{"cardNumber":"4111111111111111","cardHolderName":"Test User","expiryDate":"12/25","securityCode":"123","amount":75.50}'
+
+# Verification flow (creates transaction_id)
+curl -X POST "http://localhost:9080/payment/api/verify" \
+  -H "Content-Type: application/json" \
+  -d '{"cardNumber":"4111111111111111","cardHolderName":"Test User","expiryDate":"12/25","securityCode":"123","amount":75.50}'
+
+# Circuit breaker path
+curl "http://localhost:9080/payment/api/health/gateway"
+
+# Async + bulkhead path
+curl -X POST "http://localhost:9080/payment/api/notify/PAY-12345?recipient=ops@example.com"
+----
+
+==== 5. Verify traces in Jaeger
+
+In Jaeger UI:
+
+1. Open `http://localhost:16686` in a browser.
+2. In the *Search* panel, select service `payment-service`.
+3. Set *Lookback* to `Last 15 min` (or a wider range if needed).
+4. Click *Find Traces*.
+5. Open one trace from `/payment/api/payments` or `/payment/api/verify`.
+6. In the trace view, confirm you can see:
+7. Root HTTP span for the inbound request.
+8. Child/internal spans such as `payment.process`.
+9. Span attributes including `payment.amount`, `payment.method`, and `payment.status`.
+10. For failed requests, verify error state/events are visible on spans.
+11. For `/payment/api/verify`, confirm trace includes verification workflow spans and request timing.
+
+If no traces appear in UI:
+
+1. Generate fresh traffic from Step 4.
+2. Verify `otel.exporter.otlp.endpoint` points to the running Jaeger OTLP endpoint.
+3. Re-run search with broader lookback window.
+
+CLI check (optional):
+
+[source,bash]
+----
+curl -s http://localhost:16686/api/services
+----
+
+Expected result:
+
+* Response includes `payment-service`.
+
+==== 6. Verify metrics publication
+
+[source,bash]
+----
+curl -s http://localhost:9080/metrics | grep -E "http_server_request_duration|ft_|jvm_" | head -n 40
+----
+
+Expected result:
+
+* HTTP server metrics are present (`http_server_request_duration...`).
+* Fault tolerance metrics are present (`ft_retry...`, `ft_circuitbreaker...`, `ft_bulkhead...`, `ft_timeout...`).
+* JVM/runtime metrics are present (`jvm_...`, `memory_...`, `cpu_...`).
+
+==== 7. Verify logs and trace correlation signals
+
+Watch server logs while sending requests:
+
+[source,bash]
+----
+tail -f target/liberty/wlp/usr/servers/mpServer/logs/messages.log
+----
+
+Expected result:
+
+* You see payment flow logs and fault tolerance events.
+* If your telemetry backend supports OTLP logs, logs are exported through the configured OTLP endpoint.
+* If the backend does not implement OTLP logs/metrics services, traces can still succeed while logs/metrics export reports `UNIMPLEMENTED`.
+
+==== 8. Verify OpenAPI endpoint used by this module
+
+[source,bash]
+----
+curl -I http://localhost:9080/openapi
+curl -I http://localhost:9080/openapi/ui/
+----
+
+Expected result:
+
+* Both endpoints return HTTP `200`.
+
+==== 9. Clean up local verification environment
+
+[source,bash]
+----
+# Stop Jaeger container
+docker rm -f jaeger
+
+# Stop Liberty server (from mvn liberty:run terminal)
+# Press Ctrl+C
+----
+
+=== Verifying Telemetry with Zipkin
+
+Use this flow when you want to validate MicroProfile OpenTelemetry traces in Zipkin instead of Jaeger.
+
+==== 1. Start Zipkin
+
+[source,bash]
+----
+docker run -d --name zipkin \
+  -p 9411:9411 \
+  openzipkin/zipkin:latest
+----
+
+Expected result:
+
+* Zipkin UI is available at `http://localhost:9411`.
+
+==== 2. Run the payment service with Zipkin trace exporter
+
+From `code/chapter09/payment`, start Liberty with temporary environment overrides:
+
+[source,bash]
+----
+OTEL_TRACES_EXPORTER=zipkin \
+OTEL_EXPORTER_ZIPKIN_ENDPOINT=http://localhost:9411/api/v2/spans \
+mvn liberty:run
+----
+
+Notes:
+
+* This overrides trace export for the current run only.
+* Existing `otel.logs.exporter=none` remains valid for local verification.
+
+==== 3. Generate trace traffic
+
+[source,bash]
+----
+curl -X POST "http://localhost:9080/payment/api/payments" \
+  -H "Content-Type: application/json" \
+  -d '{"cardNumber":"4111111111111111","cardHolderName":"Test User","expiryDate":"12/25","securityCode":"123","amount":75.50}'
+
+curl -X POST "http://localhost:9080/payment/api/verify" \
+  -H "Content-Type: application/json" \
+  -d '{"cardNumber":"4111111111111111","cardHolderName":"Test User","expiryDate":"12/25","securityCode":"123","amount":75.50}'
+----
+
+==== 4. Validate traces in Zipkin UI
+
+1. Open `http://localhost:9411`.
+2. Select service `payment-service`.
+3. Click *Run Query*.
+4. Open a trace for `/payment/api/payments` or `/payment/api/verify`.
+5. Verify spans include `payment.process` and `payment.verify`.
+6. Confirm span tags include `payment.amount`, `payment.method`, and `payment.status`.
+
+Optional API check:
+
+[source,bash]
+----
+curl -s http://localhost:9411/api/v2/services
+----
+
+Expected result:
+
+* Response includes `payment-service`.
+
+==== 5. Clean up Zipkin
+
+[source,bash]
+----
+docker rm -f zipkin
 ----
 
 === Benefits of Telemetry Implementation
