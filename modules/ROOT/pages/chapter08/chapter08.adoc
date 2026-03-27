@@ -111,6 +111,97 @@ To use the Fault Tolerance API in your project, include the following dependency
 
 The Fault Tolerance API defines a contract for fault tolerance implementations.
 
+== MicroProfile Fault Tolerance Annotations
+
+The MicroProfile Fault Tolerance annotations provide a declarative way to implement fault-tolerant behavior in Java methods, allowing developers to handle failures gracefully with minimal code changes.
+
+=== List of Annotations
+
+|=== 
+| Annotation | Description
+| `@Asynchronous` | Ensures that the annotated method executes in a separate thread, allowing non-blocking execution. This is useful for improving responsiveness and handling long-running tasks asynchronously. 
+| `@Retry` | Specifies that the annotated method should automatically retry on failure. Parameters such as `maxRetries`, `delay`, `maxDuration`, and `jitter` control retry behavior. Configurations can be externalized using MicroProfile Config.
+| `@Timeout` | Specifies the maximum duration (in milliseconds) the method can execute before being aborted. If the timeout is exceeded, a `TimeoutException` is thrown. // Updated for MicroProfile Fault Tolerance 4.1
+| `@CircuitBreaker` | Defines a circuit breaker mechanism to prevent repeated calls to a failing method. Includes parameters like `failureRatio`, `delay`, and `requestVolumeThreshold`.
+| `@Fallback` | Specifies alternative logic to execute when the primary method fails. This ensures meaningful responses and graceful degradation.
+| `@Bulkhead` | Limits the number of concurrent method executions to isolate system resources and prevent cascading failures.
+|===
+
+=== Implementing Retry Policies and Configuration
+
+Retries are a fundamental fault tolerance strategy for managing transient failures such as temporary network outages or intermittent service unavailability. The `@Retry` annotation in the MicroProfile Fault Tolerance API provides a simple and effective way to implement retry policies. By customizing parameters such as the number of retries, delay between attempts, and conditions for retries, you can ensure your application responds to failures gracefully and minimizes downtime.
+
+==== Applying `@Retry` in `PaymentService` class
+Below is an example of applying the `@Retry` annotation in the `authorizePayment` method within the `PaymentService` class of the MicroProfile e-commerce project:
+
+[source,java]
+----
+package io.microprofile.tutorial.store.payment.service;
+
+import io.microprofile.tutorial.store.payment.exception.PaymentProcessingException;
+import io.microprofile.tutorial.store.payment.exception.CriticalPaymentException;
+import io.microprofile.tutorial.store.payment.entity.PaymentDetails;
+import org.eclipse.microprofile.faulttolerance.Retry;
+import org.eclipse.microprofile.faulttolerance.Timeout;
+import org.eclipse.microprofile.faulttolerance.Fallback;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import java.util.logging.Logger;
+
+@ApplicationScoped
+public class PaymentService {
+
+    private static final Logger logger = Logger.getLogger(PaymentService.class.getName());
+
+    /**
+     * Authorize a payment transaction with fault tolerance.
+     * 
+     * Fault Tolerance Strategy:
+     * - @Retry: Handles transient network failures (up to 3 retries with jitter)
+     * - @Timeout: Prevents indefinite waits (3 second limit per attempt)
+     * - @Fallback: Provides degraded service when gateway unavailable
+     */
+    @Retry(
+        maxRetries = 3,
+        delay = 2000,
+        jitter = 500,
+        retryOn = PaymentProcessingException.class,
+        abortOn = CriticalPaymentException.class
+    )
+    @Timeout(3000)
+    @Fallback(fallbackMethod = "fallbackAuthorizePayment")
+    public String authorizePayment(PaymentDetails paymentDetails) 
+        throws PaymentProcessingException {
+        
+        logger.info("Processing payment for amount: " + paymentDetails.getAmount());
+
+        // Simulate transient failures (70% success rate)
+        if (Math.random() > 0.7) {
+            throw new PaymentProcessingException("Temporary payment processing failure");
+        }
+
+        return String.format(
+            "{\"status\":\"success\",\"message\":\"Payment authorized\",\"amount\":%s}",
+            paymentDetails.getAmount()
+        );
+    }
+
+    public String fallbackAuthorizePayment(PaymentDetails paymentDetails) {
+        logger.warning("Payment gateway unavailable - using fallback");
+        return String.format(
+            "{\"status\":\"pending\",\"message\":\"Payment queued for processing\",\"amount\":%s}",
+            paymentDetails.getAmount()
+        );
+    }
+}
+----
+
+In this example, the `authorizePayment` method attempts to process a payment. If a transient failure occurs (e.g., `PaymentProcessingException`), the method retries up to three times (`maxRetries = 3`), and there is a delay of 2000 milliseconds between retries (`delay = 2000`), with a random variation of up to 500 milliseconds added to the delay (`jitter  = 500`) to avoid synchronized retries (e.g. thundering herd problem). 
+The retries are attempted only for the exception `PaymentProcessingException` (`retryOn = PaymentProcessingException.class`) and are aborted if a `CriticalPaymentException` is encountered (`abortOn = CriticalPaymentException.class`).
+
+This approach helps maintain application resilience while preventing unnecessary retries that could worsen critical failures. The `@Fallback` annotation ensures graceful degradation - if all retries fail, the fallback method queues the payment for offline processing rather than returning an error to the user.
+
+
 === Creating Custom Exception Classes
 
 Fault tolerance annotations use exceptions to determine behavior. Create specific exception types for different failure scenarios to control which failures trigger retries, fallbacks, or circuit breakers.
@@ -210,96 +301,6 @@ public String processPayment(PaymentDetails details) {
 - Use `abortOn` for permanent, non-recoverable failures
 - Document which exceptions represent which scenarios
 - Consider creating domain-specific exception types (e.g., `GatewayTimeoutException extends PaymentProcessingException`)
-
-== MicroProfile Fault Tolerance Annotations
-
-The MicroProfile Fault Tolerance annotations provide a declarative way to implement fault-tolerant behavior in Java methods, allowing developers to handle failures gracefully with minimal code changes.
-
-=== List of Annotations
-
-|=== 
-| Annotation | Description
-| `@Asynchronous` | Ensures that the annotated method executes in a separate thread, allowing non-blocking execution. This is useful for improving responsiveness and handling long-running tasks asynchronously. 
-| `@Retry` | Specifies that the annotated method should automatically retry on failure. Parameters such as `maxRetries`, `delay`, `maxDuration`, and `jitter` control retry behavior. Configurations can be externalized using MicroProfile Config.
-| `@Timeout` | Specifies the maximum duration (in milliseconds) the method can execute before being aborted. If the timeout is exceeded, a `TimeoutException` is thrown. // Updated for MicroProfile Fault Tolerance 4.1
-| `@CircuitBreaker` | Defines a circuit breaker mechanism to prevent repeated calls to a failing method. Includes parameters like `failureRatio`, `delay`, and `requestVolumeThreshold`.
-| `@Fallback` | Specifies alternative logic to execute when the primary method fails. This ensures meaningful responses and graceful degradation.
-| `@Bulkhead` | Limits the number of concurrent method executions to isolate system resources and prevent cascading failures.
-|===
-
-=== Implementing Retry Policies and Configuration
-
-Retries are a fundamental fault tolerance strategy for managing transient failures such as temporary network outages or intermittent service unavailability. The `@Retry` annotation in the MicroProfile Fault Tolerance API provides a simple and effective way to implement retry policies. By customizing parameters such as the number of retries, delay between attempts, and conditions for retries, you can ensure your application responds to failures gracefully and minimizes downtime.
-
-==== Applying `@Retry` in `PaymentService` class
-Below is an example of applying the `@Retry` annotation in the `authorizePayment` method within the `PaymentService` class of the MicroProfile e-commerce project:
-
-[source,java]
-----
-package io.microprofile.tutorial.store.payment.service;
-
-import io.microprofile.tutorial.store.payment.exception.PaymentProcessingException;
-import io.microprofile.tutorial.store.payment.exception.CriticalPaymentException;
-import io.microprofile.tutorial.store.payment.entity.PaymentDetails;
-import org.eclipse.microprofile.faulttolerance.Retry;
-import org.eclipse.microprofile.faulttolerance.Timeout;
-import org.eclipse.microprofile.faulttolerance.Fallback;
-
-import jakarta.enterprise.context.ApplicationScoped;
-import java.util.logging.Logger;
-
-@ApplicationScoped
-public class PaymentService {
-
-    private static final Logger logger = Logger.getLogger(PaymentService.class.getName());
-
-    /**
-     * Authorize a payment transaction with fault tolerance.
-     * 
-     * Fault Tolerance Strategy:
-     * - @Retry: Handles transient network failures (up to 3 retries with jitter)
-     * - @Timeout: Prevents indefinite waits (3 second limit per attempt)
-     * - @Fallback: Provides degraded service when gateway unavailable
-     */
-    @Retry(
-        maxRetries = 3,
-        delay = 2000,
-        jitter = 500,
-        retryOn = PaymentProcessingException.class,
-        abortOn = CriticalPaymentException.class
-    )
-    @Timeout(3000)
-    @Fallback(fallbackMethod = "fallbackAuthorizePayment")
-    public String authorizePayment(PaymentDetails paymentDetails) 
-        throws PaymentProcessingException {
-        
-        logger.info("Processing payment for amount: " + paymentDetails.getAmount());
-
-        // Simulate transient failures (70% success rate)
-        if (Math.random() > 0.7) {
-            throw new PaymentProcessingException("Temporary payment processing failure");
-        }
-
-        return String.format(
-            "{\"status\":\"success\",\"message\":\"Payment authorized\",\"amount\":%s}",
-            paymentDetails.getAmount()
-        );
-    }
-
-    public String fallbackAuthorizePayment(PaymentDetails paymentDetails) {
-        logger.warning("Payment gateway unavailable - using fallback");
-        return String.format(
-            "{\"status\":\"pending\",\"message\":\"Payment queued for processing\",\"amount\":%s}",
-            paymentDetails.getAmount()
-        );
-    }
-}
-----
-
-In this example, the `authorizePayment` method attempts to process a payment. If a transient failure occurs (e.g., `PaymentProcessingException`), the method retries up to three times (`maxRetries = 3`), and there is a delay of 2000 milliseconds between retries (`delay = 2000`), with a random variation of up to 500 milliseconds added to the delay (`jitter  = 500`) to avoid synchronized retries (e.g. thundering herd problem). 
-The retries are attempted only for the exception `PaymentProcessingException` (`retryOn = PaymentProcessingException.class`) and are aborted if a `CriticalPaymentException` is encountered (`abortOn = CriticalPaymentException.class`).
-
-This approach helps maintain application resilience while preventing unnecessary retries that could worsen critical failures. The `@Fallback` annotation ensures graceful degradation - if all retries fail, the fallback method queues the payment for offline processing rather than returning an error to the user.
 
 ==== Understanding the `@Retry` Parameters
 
