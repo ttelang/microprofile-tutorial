@@ -653,15 +653,13 @@ package io.microprofile.tutorial.store.product;
         description = "Product API with multiple security schemes"
     )
 )
-@SecuritySchemes({
-    @SecurityScheme(
-        securitySchemeName = "bearer",
-        type = SecuritySchemeType.HTTP,
-        description = "JWT Bearer token authentication",
-        scheme = "bearer",
-        bearerFormat = "JWT"
-    )
-})
+@SecurityScheme(
+    securitySchemeName = "bearer",
+    type = SecuritySchemeType.HTTP,
+    description = "JWT Bearer token authentication",
+    scheme = "bearer",
+    bearerFormat = "JWT"
+)
 public class ProductRestApplication extends Application {
 }
 ----
