@@ -4,7 +4,7 @@ Microservices-based applications have better scalability, flexibility, and resil
 
 MicroProfile Telemetry specification provides a set of vendor-neutral APIs for instrumenting, collecting, and exporting telemetry data such as traces, metrics, and logs. It is built on the foundation of https://opentelemetry.io/[OpenTelemetry] from the https://www.cncf.io/[Cloud Native Computing Foundation (CNCF)] project, an open-source observability framework. 
 
-In this chapter, we will explore the fundamentals of MicroProfile Telemetry, covering topics such as tracing concepts, instrumenting Telemetry, setting up tracing providers, context propagation and correlation, analyzing traces, metrics collection, log bridging, security considerations for tracing, and more. By the end of this chapter, you will learn how to effectively leverage distributed tracing, metrics, and logging for debugging, performance monitoring, and system optimization.
+In this chapter, we will explore the fundamentals of MicroProfile Telemetry, covering topics such as tracing concepts, instrumenting Telemetry, setting up tracing providers, context propagation and correlation, analyzing traces, security considerations for tracing, and more. By the end of this chapter, you will learn how to effectively leverage distributed tracing for debugging, performance monitoring, and system optimization.
 
 == Topics to be covered
 
@@ -430,7 +430,6 @@ One of the key advantages of agent-based instrumentation is that it requires no 
 Refer to the https://opentelemetry.io/docs/zero-code/java/agent/getting-started/[OpenTelemetry Java Agent Getting Started page] for step-by-step instructions on enabling it for your application.
 Once enabled, the agent automatically instruments the application, seamlessly integrating with distributed tracing systems without requiring developer intervention. This makes it an efficient and non-intrusive way to implement observability in MicroProfile applications.
 
-// Updated for MicroProfile Telemetry 2.1
 == Metrics
 
 Metrics are captured measurements of an application's and runtime's behavior. An application can define custom metrics in addition to the required metrics provided by the runtime.
@@ -700,6 +699,21 @@ Tracing can help detect potential security incidents. Monitor traces for unusual
 Set up alerts for these anomalies to investigate and mitigate potential issues. +
 By following these security considerations, you can leverage the benefits of distributed tracing without compromising the security of your system or the privacy of your users. Careful handling of trace data, coupled with robust encryption, access controls, and compliance practices, ensures that tracing remains a valuable yet secure component of your observability strategy.
 
+== What's New in MicroProfile Telemetry 2.1
+
+MicroProfile Telemetry 2.1 is aligned with MicroProfile 7.1. The following changes are delivered in this release.
+
+* MicroProfile Telemetry 2.1 consumes https://github.com/open-telemetry/opentelemetry-java/releases/tag/v1.48.0[OpenTelemetry Java v1.48.0].
+* If you are migrating from earlier version of MicroProfile Telemetry, update the `microprofile-telemetry-api` dependency version to `2.1`.
+* Verify that your deployment environment provides the OpenTelemetry Java v1.48.0 libraries or a later patch version.
+* The stabilization of HTTP semantic conventions (attributes such as `http.method` have been renamed to `http.request.method`).
+* The introduction of a single shared OpenTelemetry SDK instance when `otel.sdk.disabled=false` is configured at runtime initialization time.
+* The addition of Metrics and Logs support.
+
+=== Impact on Existing Applications
+
+Applications that do not use JVM metrics are unaffected by the 2.1 changes. Applications relying on JVM metrics should update their `microprofile-telemetry-api` dependency version to 2.1 to benefit from the corrected JVM metrics configuration.
+
 == Conclusion
 
 MicroProfile Telemetry provides a robust foundation for observability in Java-based microservices, enabling developers to implement distributed tracing, metrics collection, and log bridging seamlessly. By leveraging this specification, you can gain deep insights into the flow of requests, identify bottlenecks, and enhance the reliability and performance of your applications. The integration of standardized concepts such as spans, traces, context propagation, metrics instruments, and log correlation ensures that developers can maintain a cohesive understanding of their system's behavior across service boundaries.
@@ -710,49 +724,4 @@ In this chapter, we explored the critical security considerations surrounding tr
 
 As microservices architectures continue to evolve, the ability to observe and trace system interactions will remain a critical factor in maintaining resilient and efficient applications. MicroProfile Telemetry stands as a valuable tool in achieving these goals, providing developers with the observability they need to deliver reliable, high-performance microservices in modern cloud-native environments.
 
-== What's New in MicroProfile Telemetry 2.1
 
-MicroProfile Telemetry 2.1 is aligned with MicroProfile 7.1. The following changes are delivered in this release.
-
-=== OpenTelemetry Java Upgrade
-
-MicroProfile Telemetry 2.1 consumes https://github.com/open-telemetry/opentelemetry-java/releases/tag/v1.48.0[OpenTelemetry Java v1.48.0], upgraded from v1.39.0 in MicroProfile Telemetry 2.0.
-Implementations MAY consume a later patch release of the OpenTelemetry Java library provided that all required TCKs pass.
-
-The API artifact has changed to a Bill of Materials (BOM):
-
-[source, xml]
-----
-<dependency>
-    <groupId>org.eclipse.microprofile.telemetry</groupId>
-    <artifactId>microprofile-telemetry-api</artifactId>
-    <type>pom</type>
-    <version>2.1</version>
-</dependency>
-----
-
-=== JVM Metrics Configuration
-
-The TCK for JVM metrics has been updated so that JVM metrics configure themselves correctly without requiring explicit configuration. No application code changes are required for this fix.
-
-=== Incompatible Changes
-
-There are no incompatible API or behavior changes between MicroProfile Telemetry 2.0 and 2.1.
-
-=== Migration Notes
-
-If you are migrating from MicroProfile Telemetry 2.0:
-
-* Update the `microprofile-telemetry-api` dependency version from `2.0` to `2.1`.
-* Verify that your deployment environment provides the OpenTelemetry Java v1.48.0 libraries or a later patch version.
-* No application code changes are required to upgrade from 2.0 to 2.1.
-
-If you are migrating from MicroProfile Telemetry 1.1, review the MicroProfile Telemetry 2.0 release notes for breaking changes, particularly:
-
-* The stabilization of HTTP semantic conventions (attributes such as `http.method` have been renamed to `http.request.method`).
-* The introduction of a single shared OpenTelemetry SDK instance when `otel.sdk.disabled=false` is configured at runtime initialization time.
-* The addition of Metrics and Logs support.
-
-=== Impact on Existing Applications
-
-Applications that do not use JVM metrics are unaffected by the 2.1 changes. Applications relying on JVM metrics should update their `microprofile-telemetry-api` dependency version to 2.1 to benefit from the corrected JVM metrics configuration.
