@@ -1,15 +1,18 @@
 #!/bin/bash
 # Script to copy JWT public key to Liberty server config directory and restart server
 
-LIBERTY_CONFIG_DIR="/workspaces/liberty-rest-app/order/target/liberty/wlp/usr/servers/orderServer"
-PUBLIC_KEY_SOURCE="/workspaces/liberty-rest-app/order/src/main/resources/META-INF/publicKey.pem"
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+LIBERTY_CONFIG_DIR="$SCRIPT_DIR/target/liberty/wlp/usr/servers/orderServer"
+PUBLIC_KEY_SOURCE="$SCRIPT_DIR/src/main/resources/META-INF/publicKey.pem"
 
 echo "Copying JWT public key to Liberty server config directory..."
 
 # Make sure the Liberty server directory exists
 if [ ! -d "$LIBERTY_CONFIG_DIR" ]; then
   echo "Liberty server directory doesn't exist yet. Building project first..."
-  cd /workspaces/liberty-rest-app/order
+  cd "$SCRIPT_DIR"
   mvn clean package
 fi
 
@@ -35,7 +38,7 @@ fi
 
 # Restart the Liberty server
 echo "Restarting Liberty server..."
-cd /workspaces/liberty-rest-app/order
+cd "$SCRIPT_DIR"
 mvn liberty:stop
 mvn liberty:start
 

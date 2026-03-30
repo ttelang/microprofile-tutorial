@@ -19,10 +19,8 @@ import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
-import org.eclipse.microprofile.openapi.annotations.security.SecurityScheme;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.eclipse.microprofile.openapi.annotations.enums.SchemaType;
-import org.eclipse.microprofile.openapi.annotations.enums.SecuritySchemeType;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -42,13 +40,6 @@ import java.math.BigDecimal;
 @Tag(name = "Order Management", description = "CRUD operations and order management for the e-commerce store")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@SecurityScheme(
-    securitySchemeName = "jwt",
-    type = SecuritySchemeType.HTTP,
-    scheme = "bearer",
-    bearerFormat = "JWT",
-    description = "JWT authentication with bearer token"
-)
 public class OrderResource {
 
     private static final Logger LOGGER = Logger.getLogger(OrderResource.class.getName());
@@ -56,14 +47,14 @@ public class OrderResource {
     // AtomicLong for generating unique order IDs
     private static final java.util.concurrent.atomic.AtomicLong idGenerator = new java.util.concurrent.atomic.AtomicLong(1);
 
-    // In-memory store for orders
-    private final java.util.Map<Long, Order> orders = new java.util.concurrent.ConcurrentHashMap<>();
+    // In-memory store for orders shared across requests
+    private static final java.util.Map<Long, Order> orders = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
      * Get order by ID - Accessible only to users with the "user" role
      */
     @RolesAllowed("user") // Only users can access this method
-    @Operation(summary = "Get order by ID", description = "Retrieve a specific order by its ID")
+    @Operation(summary = "Get order by ID", description = "Retrieve a specific order by its ID. Requires role: user")
     @SecurityRequirement(name = "jwt")
     @APIResponses({
         @APIResponse(
@@ -77,6 +68,10 @@ public class OrderResource {
         @APIResponse(
             responseCode = "401",
             description = "Unauthorized - JWT token is missing or invalid"
+        ),
+        @APIResponse(
+            responseCode = "403",
+            description = "Forbidden - user does not have required role: user"
         ),
         @APIResponse(responseCode = "404", description = "Order not found")
     })
@@ -112,10 +107,12 @@ public class OrderResource {
     @DELETE
     @Path("/{id}")
     @RolesAllowed("admin") // Only admins can access this method
-    @Operation(summary = "Delete an order", description = "Delete an order by its ID")
+    @Operation(summary = "Delete an order", description = "Delete an order by its ID. Requires role: admin")
     @APIResponses({
-        @APIResponse(responseCode = "204", description = "Order deleted successfully"),
-        @APIResponse(responseCode = "404", description = "Order not found")
+        @APIResponse(responseCode = "401", description = "Unauthorized - JWT token is missing or invalid"),
+        @APIResponse(responseCode = "403", description = "Forbidden - user does not have required role: admin"),
+        @APIResponse(responseCode = "200", description = "Order deleted successfully"),
+        @APIResponse(responseCode = "204", description = "No Content - order did not exist")
     })
     @SecurityRequirement(name = "jwt")
     public Response deleteOrder(
@@ -131,12 +128,10 @@ public class OrderResource {
         Order removedOrder = orders.remove(id);
         if (removedOrder != null) {
             LOGGER.info("Order deleted successfully with ID: " + id + " by admin: " + admin);
-            return Response.noContent().build();
+            return Response.ok("Order deleted successfully").build();
         } else {
             LOGGER.warning("Order not found with ID: " + id);
-            return Response.status(Response.Status.NOT_FOUND)
-                    .entity("{\"error\":\"Order not found with ID: " + id + "\"}")
-                    .build();
+            return Response.noContent().build();
         }
     }
     
@@ -144,7 +139,9 @@ public class OrderResource {
      * Create a new order
      */
     @POST
-    @Operation(summary = "Create a new order", description = "Create a new order in the system")
+    @RolesAllowed("user")
+    @SecurityRequirement(name = "jwt")
+    @Operation(summary = "Create a new order", description = "Create a new order in the system. Requires role: user")
     @APIResponses({
         @APIResponse(
             responseCode = "201", 
@@ -154,7 +151,9 @@ public class OrderResource {
                 schema = @Schema(implementation = Order.class)
             )
         ),
-        @APIResponse(responseCode = "400", description = "Invalid order data")
+        @APIResponse(responseCode = "400", description = "Invalid order data"),
+        @APIResponse(responseCode = "401", description = "Unauthorized - JWT token is missing or invalid"),
+        @APIResponse(responseCode = "403", description = "Forbidden - user does not have required role: user")
     })
     public Response createOrder(@Valid @NotNull Order order) {
         LOGGER.info("Creating new order for customer: " + order.getCustomerId());
@@ -169,6 +168,9 @@ public class OrderResource {
         if (order.getStatus() == null) {
             order.setStatus(OrderStatus.PENDING);
         }
+
+        // Calculate totals so persisted orders always have a valid totalAmount
+        validateAndCalculateTotals(order);
         
         orders.put(id, order);
         
@@ -184,7 +186,9 @@ public class OrderResource {
      */
     @PUT
     @Path("/{id}")
-    @Operation(summary = "Update an order", description = "Update an existing order by its ID")
+    @RolesAllowed("user")
+    @SecurityRequirement(name = "jwt")
+    @Operation(summary = "Update an order", description = "Update an existing order by its ID. Requires role: user")
     @APIResponses({
         @APIResponse(
             responseCode = "200", 
@@ -194,6 +198,8 @@ public class OrderResource {
                 schema = @Schema(implementation = Order.class)
             )
         ),
+        @APIResponse(responseCode = "401", description = "Unauthorized - JWT token is missing or invalid"),
+        @APIResponse(responseCode = "403", description = "Forbidden - user does not have required role: user"),
         @APIResponse(responseCode = "404", description = "Order not found"),
         @APIResponse(responseCode = "400", description = "Invalid order data")
     })
@@ -232,7 +238,9 @@ public class OrderResource {
      */
     @PATCH
     @Path("/{id}/status")
-    @Operation(summary = "Update order status", description = "Update the status of an existing order")
+    @RolesAllowed("admin")
+    @SecurityRequirement(name = "jwt")
+    @Operation(summary = "Update order status", description = "Update the status of an existing order. Requires role: admin")
     @APIResponses({
         @APIResponse(
             responseCode = "200", 
@@ -242,6 +250,8 @@ public class OrderResource {
                 schema = @Schema(implementation = Order.class)
             )
         ),
+        @APIResponse(responseCode = "401", description = "Unauthorized - JWT token is missing or invalid"),
+        @APIResponse(responseCode = "403", description = "Forbidden - user does not have required role: admin"),
         @APIResponse(responseCode = "404", description = "Order not found"),
         @APIResponse(responseCode = "400", description = "Invalid status")
     })
@@ -263,6 +273,9 @@ public class OrderResource {
                     .entity("{\"error\":\"Order not found with ID: " + id + "\"}")
                     .build();
         }
+
+        order.setStatus(newStatus);
+        order.setLastModified(LocalDateTime.now());
         
         LOGGER.info("Order status updated successfully for ID: " + id);
         return Response.ok(order).build();
@@ -277,7 +290,9 @@ public class OrderResource {
      */
     @GET
     @Path("/customer/{customerId}")
-    @Operation(summary = "Get orders by customer ID", description = "Retrieve all orders for a specific customer")
+    @RolesAllowed("user")
+    @SecurityRequirement(name = "jwt")
+    @Operation(summary = "Get orders by customer ID", description = "Retrieve all orders for a specific customer. Requires role: user")
     @APIResponses({
         @APIResponse(
             responseCode = "200", 
@@ -285,7 +300,9 @@ public class OrderResource {
             content = @Content(
                 schema = @Schema(implementation = Order.class, type = SchemaType.ARRAY)
             )
-        )
+        ),
+        @APIResponse(responseCode = "401", description = "Unauthorized - JWT token is missing or invalid"),
+        @APIResponse(responseCode = "403", description = "Forbidden - user does not have required role: user")
     })
     public Response getOrdersByCustomerId(
             @PathParam("customerId") 
@@ -306,7 +323,9 @@ public class OrderResource {
      */
     @GET
     @Path("/stats")
-    @Operation(summary = "Get order statistics", description = "Get statistical information about orders")
+    @RolesAllowed("admin")
+    @SecurityRequirement(name = "jwt")
+    @Operation(summary = "Get order statistics", description = "Get statistical information about orders. Requires role: admin")
     @APIResponses({
         @APIResponse(
             responseCode = "200", 
@@ -315,7 +334,9 @@ public class OrderResource {
                 mediaType = "application/json", 
                 schema = @Schema(implementation = Map.class)
             )
-        )
+        ),
+        @APIResponse(responseCode = "401", description = "Unauthorized - JWT token is missing or invalid"),
+        @APIResponse(responseCode = "403", description = "Forbidden - user does not have required role: admin")
     })
     public Response getOrderStatistics() {
         LOGGER.info("Fetching order statistics");
@@ -328,12 +349,14 @@ public class OrderResource {
         stats.put("ordersByStatus", statusCounts);
         
         OptionalDouble avgTotal = orders.values().stream()
+            .filter(order -> order.getTotalAmount() != null)
                 .mapToDouble(order -> order.getTotalAmount().doubleValue())
                 .average();
         stats.put("averageOrderValue", avgTotal.orElse(0.0));
         
         Optional<BigDecimal> maxTotal = orders.values().stream()
                 .map(Order::getTotalAmount)
+            .filter(total -> total != null)
                 .max(java.util.Comparator.naturalOrder());
         stats.put("maxOrderValue", maxTotal.orElse(BigDecimal.ZERO));
         

@@ -1,0 +1,51 @@
+= JWTenizr Setup
+:toc: left
+:icons: font
+:source-highlighter: highlightjs
+
+This document explains how to obtain `jwtenizr.jar` for JWT testing flow.
+
+The User service manual test instructions expect this file to exist in:
+
+[source,text]
+----
+code/chapter10/tools/jwtenizr.jar
+----
+
+Upstream project:
+
+`https://github.com/AdamBien/jwtenizr`
+
+== Option 1. Download The Latest Release Jar
+
+Use this if you only need the executable jar.
+
+[source,bash]
+----
+cd code/chapter10/tools
+wget -O jwtenizr.jar https://github.com/AdamBien/jwtenizr/releases/latest/download/jwtenizr.jar
+----
+
+This places the executable directly in the expected folder.
+
+== Option 2. Build From Source And Copy The Jar
+
+Use this if you want to inspect or build the tool yourself.
+
+[source,bash]
+----
+cd /tmp
+git clone https://github.com/AdamBien/jwtenizr.git
+cd jwtenizr
+mvn clean package
+cp target/jwtenizr.jar /workspaces/microprofile-tutorial/code/chapter10/tools/
+----
+
+== Verify The File Exists
+
+[source,bash]
+----
+ls -l /workspaces/microprofile-tutorial/code/chapter10/tools/jwtenizr.jar
+----
+
+Once the jar is present, return to the service guide and continue with token generation and manual endpoint testing.

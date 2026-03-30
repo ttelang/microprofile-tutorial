@@ -1,15 +1,18 @@
 package io.microprofile.tutorial.store.user.resource;
 
+import java.util.Optional;
 import java.util.Set;
+import org.eclipse.microprofile.jwt.Claim;
+import org.eclipse.microprofile.jwt.ClaimValue;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 
+import jakarta.annotation.security.RolesAllowed;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.SecurityContext;
 
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
@@ -18,8 +21,6 @@ import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
-import org.eclipse.microprofile.openapi.annotations.enums.SecuritySchemeType;
-import org.eclipse.microprofile.openapi.annotations.security.SecurityScheme;
 
 /**
  * REST resource for user management operations.
@@ -30,14 +31,22 @@ import org.eclipse.microprofile.openapi.annotations.security.SecurityScheme;
 @Path("/users")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
-@SecurityScheme(
-    securitySchemeName = "jwt",
-    type = SecuritySchemeType.HTTP,
-    scheme = "bearer",
-    bearerFormat = "JWT",
-    description = "JWT authentication with bearer token"
-)
 public class UserResource {
+
+    @Inject
+    JsonWebToken jwt;
+
+    @Inject
+    @Claim("upn")
+    ClaimValue<String> upn;
+
+    @Inject
+    @Claim("groups")
+    ClaimValue<Set<String>> groups;
+
+    @Inject
+    @Claim("tenant_id")
+    ClaimValue<Optional<String>> tenant;
 
 
     @Operation(
@@ -61,12 +70,12 @@ public class UserResource {
     })
     @GET
     @Path("/user-profile")
-    public String getUserProfile(@Context SecurityContext ctx) {
-        JsonWebToken jwt = (JsonWebToken) ctx.getUserPrincipal();
-        String userId = jwt.getName(); // Extracts the "sub" claim
-        Set<String> roles = jwt.getGroups(); // Extracts the "groups" claim
-        String tenant = jwt.getClaim("tenant_id"); // Custom claim
+    @RolesAllowed("user")
+    public String getUserProfile() {
+        String principalName = upn.getValue() != null ? upn.getValue() : jwt.getName();
+        Set<String> userRoles = groups.getValue();
+        String tenantId = tenant.getValue().orElse("N/A");
 
-        return "User: " + userId + ", Roles: " + roles + ", Tenant: " + tenant;
+        return "User: " + principalName + ", Roles: " + userRoles + ", Tenant: " + tenantId;
     }  
 }

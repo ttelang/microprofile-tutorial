@@ -1,12 +1,13 @@
 = JWT Authentication
 :id: chapter10
 
-In modern microservices architectures, where services are distributed and stateless,
-securing communications between clients and services and between individual services is critical. *JSON Web Token (JWT)* provides a lightweight, self-contained, and efficient user authentication and authorization mechanism, enabling scalable and secure identity propagation across distributed systems. 
+Securing communications between clients and services and between individual services is critical in microservices architectures. *JSON Web Token (JWT)* provides a lightweight, self-contained, and efficient user authentication and authorization mechanism, enabling scalable and secure identity propagation across distributed systems. 
 
 *MicroProfile JWT* is a specification that standardizes JWT-based authentication and authorization for Java microservices. Leveraging the JWT open standard https://datatracker.ietf.org/doc/html/rfc7519[RFC 7519] enables services to securely extract and validate claims such as identity, roles, and permissions.
 
 MicroProfile JWT allows developers to build secure, interoperable, and portable microservices. It supports *role-based access control (RBAC)*, simplifies identity management in stateless services, and avoids vendor lock-in by adhering to open specifications.
+
+In previous chapters, we built services such as the Catalog and Payment services and explored capabilities including MicroProfile Config, Fault Tolerance, and Telemetry. In this chapter, we introduce two new microservices for the e-commerce application: the *Order Service* and the *User Service*. These services expose REST APIs that we will secure using MicroProfile JWT, demonstrating how to implement authentication and authorization into this application.
 
 == Topics to be covered:
 - Introduction to JWT Authentication
@@ -16,6 +17,7 @@ MicroProfile JWT allows developers to build secure, interoperable, and portable 
 - Setting up MicroProfile JWT
 - Configuring MicroProfile JWT Validation
 - Request Flow in MicroProfile JWT
+- Accessing JWT Claims with CDI Injection
 - Role-Based Access Control (RBAC)
 - Setting Token Expiry Times for Security
 - Error Handling
@@ -69,18 +71,10 @@ Example of claims in a JWT payload:
 Example JWT Token:
 [source]
 ----
-eyJhbGciOiJSU0ExXzUiLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0.
-QR1Owv2ug2WyPBnbQrRARTeEk9kDO2w8qDcjiHnSJflSdv1iNqhWXaKH4MqAkQtM
-oNfABIPJaZm0HaA415sv3aeuBWnD8J-Ui7Ah6cWafs3ZwwFKDFUUsWHSK-IPKxLG
-TkND09XyjORj_CHAgOPJ-Sd8ONQRnJvWn_hXV1BNMHzUjPyYwEsRhDhzjAD26ima
-sOTsgruobpYGoQcXUwFDn7moXPRfDE8-NoQX7N7ZYMmpUDkR-Cx9obNGwJQ3nM52
-YCitxoQVPzjbl7WBuB7AohdBoZOdZ24WlN1lVIeh8v1K4krB8xgKvRU8kgFrEn_a
-1rZgN5TiysnmzTROF869lQ.
-AxY8DCtDaGlsbGljb3RoZQ.
-MKOle7UQrG6nSxTLX6Mqwt0orbHvAKeWnDYvpIAeZ72deHxz3roJDXQyhxx0wKaM
-HDjUEOKIwrtkHthpqEanSBNYHZgmNOV7sln1Eu9g3J8.
-fiK51VwhsxJ-siBMR-YFiA
+eyJraWQiOiJqd3Qua2V5IiwidHlwIjoiSldUIiwiYWxnIjoiUlMyNTYifQ.eyJ0ZW5hbnRfaWQiOiJlY29tbS10ZW5hbnQtMSIsInN1YiI6InVzZXIxIiwidXBuIjoidXNlcjFAZXhhbXBsZS5jb20iLCJhdXRoX3RpbWUiOjE3NDk2NDExOTUsImlzcyI6Im1wLWVjb21tLXN0b3JlIiwiZ3JvdXBzIjpbInVzZXIiXSwiZXhwIjoxNzQ5NjQyMTk1LCJpYXQiOjE3NDk2NDExOTUsImp0aSI6IjQyIn0.WRpbTfgu4CEtd98gYk4r3yXOc7CZXpWaP2ALZCYW9sXzIgDOQlh0dNwuvMwntySJ-fexCDzetZLHkvxNKkUFA01E_QFEIUyINEJMlS47P9eF_Gof3qt-8o1Flq61CcNrCRGmOFN--Skh4jli1vECNxE6Mlu5KZjNBrfmFwmJiyiNF8cW3G0iIMwJSniewW4sXGCekTZM7-8nWXYoZfNvpkZE8f_XZVOnXzw9AIB0Afrs80V7LuIb-RR3Xo91QERbjqJ3HUhz99eIstRfl8oxiSkHKbPQrmdLKMSZ4YaGSNKBjIo9K2gLwOwUFPSTUBovWbYTkVTV-e9yQyF2kGs4lw
 ----
+
+NOTE: A signed JWT (JWS) has 3 dot-separated parts (`header.payload.signature`). An encrypted JWT (JWE) has 5 parts (`header.encryptedKey.iv.ciphertext.tag`), but we will focus on signed JWTs in this chapter.
 
 === Types of Claims in MicroProfile JWT
 
@@ -123,11 +117,11 @@ For example, a user authenticates with an Auth Service and receives a JWT. This 
 
 JWTs are also used for authorization, enabling fine-grained access control based on user roles or permissions. The JWT payload typically includes a group or role claim specifying the user’s roles or permissions. For example, a user with the admin role might be allowed to access all resources while a user with the user role might only have access to specific resources. 
 
-MicroProfile JWT integrates seamlessly with Jakarta EE’s `@RolesAllowed` annotation, making it easy to enforce role-based access control (RBAC) in microservices. Role mapping can be configured in _microprofile-config.properties_: 
+MicroProfile JWT integrates seamlessly with Jakarta EE’s `@RolesAllowed` annotation, making it easy to enforce role-based access control (RBAC) in microservices. By default, roles are read from the `groups` claim. If your identity provider stores roles in a different claim name, configure role mapping in _microprofile-config.properties_: 
 
 [source]
 ----
-mp.jwt.verify.roles=groups 
+mp.jwt.verify.groups.claim=roles
 ----
 
 === Claims-based identity
@@ -206,33 +200,90 @@ For Gradle, add the following to your _build.gradle_:
 implementation 'org.eclipse.microprofile.jwt:microprofile-jwt-auth-api:2.1'
 ----
 
+Enable MP JWT authentication in your Jakarta RESTful Web Services (JAX-RS) application class:
+
+[source, java]
+----
+@LoginConfig(authMethod = "MP-JWT")
+@ApplicationPath("/api")
+public class OrderApplication extends Application {
+}
+----
+
+The `MP-JWT` auth method instructs the runtime to validate incoming bearer tokens and establish the authenticated principal for secured endpoints.
+
 == Configuring MicroProfile JWT Validation
 
-MicroProfile JWT requires validation rules configuration to be defined  in `src/main/resources/microprofile-config.properties` file. Below is an example configuration:
+MicroProfile JWT requires validation rules configuration to be defined in `src/main/resources/META-INF/microprofile-config.properties`. Below is the Chapter 10 configuration pattern used by the services:
 
 [source]
 ----
 # Public key (PEM format) to verify JWT signatures  
-mp.jwt.verify.publickey.location=META-INF/publicKey.pem  
+mp.jwt.verify.publickey.location=/META-INF/publicKey.pem  
 
-# Expected issuer (e.g., your OIDC provider)  
-mp.jwt.verify.issuer=https://auth.example.com  
+# Expected issuer  
+mp.jwt.verify.issuer=mp-ecomm-store
+
+# Role claim mapping
+mp.jwt.verify.groups.claim=groups
 
 # Optional: Validate token audience  
-mp.jwt.verify.audiences=order-service,payment-service
+# mp.jwt.verify.audiences=order-service,payment-service
+
+# Optional (MicroProfile JWT 2.1): map groups from a custom claim name
+# mp.jwt.verify.groups.claim=roles
+
+# Optional (MicroProfile JWT 2.1): read token from a cookie instead of Authorization header
+# mp.jwt.token.header=Cookie
+# mp.jwt.token.cookie=Bearer
 ----
 
 Explanation: 
 
 - The `mp.jwt.verify.publickey.location` property specifies the location of the public key used to verify the JWT’s signature. 
 
-- The `mp.jwt.verify.issuer` property defines the expected issuer of the JWT, ensuring that tokens are only accepted if issued by a trusted authority. 
+- The `mp.jwt.verify.issuer` property defines the expected issuer of the JWT, ensuring that tokens are only accepted if issued by the configured authority (`mp-ecomm-store` in this chapter). 
 
 - Optionally, the `mp.jwt.verify.audiences` property can specify the allowed audiences for the JWT, ensuring that the token is intended for the service.
+
+- Optionally, `mp.jwt.verify.groups.claim` lets you map roles from a non-default claim name. The default groups claim remains `groups`.
+
+- Optionally, use `mp.jwt.token.header` and `mp.jwt.token.cookie` to extract the token from a cookie instead of the `Authorization` header.
+
+You can also configure the verification key inline using `mp.jwt.verify.publickey`, or point `mp.jwt.verify.publickey.location` to a JWKS endpoint URL for key retrieval.
 
 === Public Key Setup
 
 Place the PEM-encoded public key in _src/main/resources/META-INF/publicKey.pem_. This key is used to verify incoming JWT signatures.
+
+=== Generating Test Tokens
+
+This chapter includes ready-to-use token generation assets in `code/chapter10/tools`:
+
+- `jwt-token.json` defines the claims payload used to generate the token (including `upn`, `groups`, and `tenant_id`).
+- `jwtenizr-config.json` stores the signing configuration (issuer and key material).
+- `token.jwt` is a signed JWT that can be used for local testing (regenerate it whenever claims or time-sensitive fields change).
+
+To test secured endpoints quickly:
+
+. Copy the token value from `code/chapter10/tools/token.jwt`.
+. Send it as a bearer token in the `Authorization` header.
+
+[source]
+----
+Authorization: Bearer <token-from-code/chapter10/tools/token.jwt>
+----
+
+If you modify claims in `jwt-token.json`, regenerate `token.jwt` using your JWT tooling so endpoint authorization behavior reflects your updated roles/claims.
+
+For a quick end-to-end verification of chapter examples, run:
+
+[source]
+----
+./code/chapter10/order/test-jwt.sh
+----
+
+NOTE: `test-jwt.sh` regenerates a fresh token from `code/chapter10/tools/jwtenizr.jar` before testing (unless `JWT_TOKEN` is explicitly provided).
 
 == Request Flow in MicroProfile JWT
 
@@ -254,7 +305,7 @@ Authorization: Bearer eyJhbGciOiJSUzI1NiIs…
 
 ==== Service-to-Service
 
-In microservices architecture, a client sends a JWT token to the initial service (for example, Order Service) using the `Authorization: Bearer` header. The initial service can forward the same token when calling another backend service (for example, the Inventory Service). Each microservice independently validates the JWT to enforce decentralized, stateless security.
+In a microservices architecture, a client sends a JWT token to the initial service (for example, the Order Service) using the `Authorization: Bearer` header. The initial service can forward the same token when calling another backend service (for example, the Inventory Service). Each microservice independently validates the JWT to enforce decentralized, stateless security.
 
 In advanced scenarios involving multiple downstream services, careful consideration must be given to validating the JWT's `aud` (audience) claim to ensure the token is intended for the target service.
 
@@ -262,7 +313,7 @@ In advanced scenarios involving multiple downstream services, careful considerat
 
 MicroProfile JWT runtime handles token extraction and validation automatically. The token is parsed and validated as follows:
 
-- Header Parsing: The runtime extracts the token from the Bearer schema.
+- Header Parsing: The runtime extracts the token from the Bearer scheme.
 
 - Decoding: The JWT is split into its header, payload, and signature components.
 
@@ -277,35 +328,74 @@ The token validation involves the following steps:
 
 . `exp` : This checks if the token has not expired. 
 
-. `aud` : Optionally it checks for the included service(s) in `mp.jwt.verify.audiences`.
+. `aud` : Optionally, it checks for the included service(s) in `mp.jwt.verify.audiences`.
 
 If valid, the JWT’s claims populate the `SecurityContext`. Otherwise, MicroProfile JWT rejects the request with a `401 Unauthorized` status.
 
 === Accessing JWT claims via `SecurityContext`  
 
-The `SecurityContext` interface (from Jakarta EE) provides programmatic access to JWT claims. Once a token is validated, MicroProfile JWT injects the `JsonWebToken` into the `SecurityContext`, allowing developers to:
+The `SecurityContext` interface (from Jakarta EE) provides programmatic access to JWT claims. Once a token is validated, MicroProfile JWT makes the `JsonWebToken` available through the authenticated principal, allowing developers to:
 
-- Retrieve user identity (e.g., `sub` claim).
+- Retrieve the principal name (`upn` if present, otherwise `sub`).
 
-- Check user roles (e.g., `groups` claim).
+- Retrieve user roles (`groups` claim).
 
-- Access custom claims (e.g., `tenant_id` claim).
+- Retrieve custom claims (for example, `tenant_id`).
 
 [source, java]
 ----
 @GET  
 @Path("/user-profile")  
 public String getUserProfile(@Context SecurityContext ctx) {  
-    JsonWebToken jwt = (JsonWebToken) ctx.getUserPrincipal();  
-    String userId = jwt.getName(); // Extracts the "sub" claim  
-    Set<String> roles = jwt.getGroups(); // Extracts the "groups" claim  
-    String tenant = jwt.getClaim("tenant_id"); // Custom claim  
+    JsonWebToken jwt = (JsonWebToken) ctx.getUserPrincipal();
+  String principalName = jwt.getName(); // Uses "upn" if present, otherwise "sub"
+  Set<String> userRoles = jwt.getGroups(); // Extracts the "groups" claim
+  String tenantId = jwt.getClaim("tenant_id"); // Extracts a custom claim
 
-    return "User: " + userId + ", Roles: " + roles + ", Tenant: " + tenant;  
+  return "User: " + principalName + ", Roles: " + userRoles + ", Tenant: " + tenantId;
 }
 ----
 
-The `SecurityContext` simplifies working with JWTs, enabling seamless integration with Jakarta EE’s security annotations like `@RolesAllowed`. By calling `securityContext.getUserPrincipal()`, the application can obtain the `JsonWebToken` instance, which contains all the claims from the JWT.
+The `SecurityContext` approach is useful when you want access to the full token in one place and integrates seamlessly with Jakarta EE security annotations such as `@RolesAllowed`.
+
+== Accessing JWT Claims with CDI Injection
+
+MicroProfile JWT 2.1 also supports direct claim injection through CDI. This is often cleaner than casting from `SecurityContext` when you only need specific claims.
+
+[source, java]
+----
+@Path("/users")
+public class UserResource {
+
+  @Inject
+  JsonWebToken jwt;
+
+  @Inject
+  @Claim("upn")
+  ClaimValue<String> upn;
+
+  @Inject
+  @Claim("groups")
+  ClaimValue<Set<String>> groups;
+
+  @Inject
+  @Claim("tenant_id")
+  ClaimValue<Optional<String>> tenant;
+
+  @GET
+  @Path("/user-profile")
+  @RolesAllowed("user")
+  public String getUserProfile() {
+    String principalName = upn.getValue() != null ? upn.getValue() : jwt.getName();
+    Set<String> userRoles = groups.getValue();
+    String tenantId = tenant.getValue().orElse("N/A");
+
+    return "User: " + principalName + ", Roles: " + userRoles + ", Tenant: " + tenantId;
+  }
+}
+----
+
+Use `ClaimValue<T>` when you want type-safe access and optional-claim handling, and prefer the `SecurityContext` approach when you need the full token context in one object.
 
 == Role-Based Access Control (RBAC)
 
@@ -329,6 +419,8 @@ In this case, the user has two roles: user and admin.
 === Securing Endpoints
 The roles in the groups claim can be used directly with the `@RolesAllowed` annotation to secure endpoints.
 
+NOTE: The `OrderResource` below uses an in-memory `ConcurrentHashMap` to store orders. This is intentional; the goal here is to focus on JWT security without the complexity of a persistence layer. We will add a proper persistence layer to the Order Service in a later chapter.
+
 [source, java]
 ----
 @Path("/orders")
@@ -337,42 +429,48 @@ public class OrderResource {
   @GET
   @Path("/{id}")
   @RolesAllowed("user") // Only users can access this method
-  public Response getOrder(@PathParam("id") String id, @Context SecurityContext ctx) {
-    String user = ctx.getUserPrincipal().getName();
-    // Fetch order for the user
-    return Response.ok("Order for user: " + user + ", ID: " + id).build();
+  public Response getOrder(@PathParam("id") Long id, @Context SecurityContext ctx) {
+    Order order = orders.get(id);
+    if (order == null) {
+      return Response.status(Response.Status.NOT_FOUND)
+          .entity("{\"error\":\"Order not found with ID: " + id + "\"}")
+          .build();
+    }
+    return Response.ok(order).build();
   }
 
   @DELETE
   @Path("/{id}")
   @RolesAllowed("admin") // Only admins can access this method
-  public Response deleteOrder(@PathParam("id") String id, @Context SecurityContext ctx) {
-    String admin = ctx.getUserPrincipal().getName();
-    // Delete order as admin
-    return Response.ok("Order deleted by admin: " + admin + ", ID: " + id).build();
+  public Response deleteOrder(@PathParam("id") Long id, @Context SecurityContext ctx) {
+    Order removedOrder = orders.remove(id);
+    if (removedOrder != null) {
+      return Response.ok("Order deleted successfully").build();
+    }
+    return Response.noContent().build();
   }
 }
 ----
 
-The `GET /orders/{id}` service is accessible to users, whereas the `DELETE /orders/{id}` is only available to users with the admin role.
+The `GET /orders/{id}` service is accessible to users, whereas `DELETE /orders/{id}` is only available to users with the admin role.
 
 === Custom Role Mapping 
 
-If your JWT uses a claim other than groups to represent roles (e.g., roles or scopes), you can customize the mapping using the `mp.jwt.verify.roles` property in _microprofile-config.properties_:
+If your JWT uses a claim other than groups to represent roles (e.g., roles or scopes), you can customize the mapping using the `mp.jwt.verify.groups.claim` property in _microprofile-config.properties_:
 
 [source]
 ----
 # Optional: Map roles from the "groups" claim (default behavior)
-mp.jwt.verify.roles=groups
+mp.jwt.verify.groups.claim=groups
 ----
 
-The `groups` claim is the default claim used for role mapping in MicroProfile JWT Authentication. Therefore, you typically do not need to set the `mp.jwt.verify.roles` property unless your JWT uses a different claim name. For example, some identity providers (like OAuth 2.0 servers or OpenID Connect providers) might include roles in claims such as `roles`, `permissions`, or `scope` instead of `groups`.
+The `groups` claim is the default claim used for role mapping in MicroProfile JWT Authentication. Therefore, you typically do not need to set the `mp.jwt.verify.groups.claim` property unless your JWT uses a different claim name. For example, some identity providers (like OAuth 2.0 servers or OpenID Connect providers) might include roles in claims such as `roles`, `permissions`, or `scope` instead of `groups`.
 
 In such cases, update the mapping in your _microprofile-config.properties_ file:
 
 [source]
 ----
-mp.jwt.verify.roles=roles
+mp.jwt.verify.groups.claim=roles
 ----
 
 This ensures that MicroProfile JWT Authentication correctly maps the roles for use with Jakarta EE security annotations like `@RolesAllowed`.
@@ -484,5 +582,5 @@ MicroProfile JWT offers a standards-based, interoperable approach for securing m
 *Further Reading:*
 
 * https://datatracker.ietf.org/doc/html/rfc7519[RFC 7519]
-* https://github.com/eclipse/microprofile-jwt-auth[MicroProfile JWT 2.1 Spec]
+* https://download.eclipse.org/microprofile/microprofile-jwt-auth-2.1/microprofile-jwt-auth-spec-2.1.html[MicroProfile JWT 2.1 Spec]
 * https://jakarta.ee/specifications/security/3.0/[Jakarta Security 3.0]

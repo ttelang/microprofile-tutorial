@@ -148,11 +148,36 @@
             <div class="endpoint">
                 <span class="method get">GET</span>
                 <strong>/api/orders/{id}</strong>
-                <p>Returns the order information for the specified ID.</p>
+                <p>Returns the full order payload for the specified ID.</p>
                 <p><strong>Security:</strong> Requires valid JWT Bearer token with "user" role</p>
                 <div class="response-example">
 <strong>Response Example:</strong>
-"Order for user: user1@example.com, ID: 12345"
+{
+  "id": 1,
+  "customerId": "user1",
+  "status": "PENDING",
+  "totalAmount": 49.99
+}
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <span class="method post">POST</span>
+                <strong>/api/orders</strong>
+                <p>Creates a new order and returns the created resource.</p>
+                <p><strong>Security:</strong> Requires valid JWT Bearer token with "user" role</p>
+                <div class="response-example">
+<strong>Response:</strong> 201 Created (with Location header and order JSON)
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <span class="method put">PUT</span>
+                <strong>/api/orders/{id}</strong>
+                <p>Updates an existing order by ID.</p>
+                <p><strong>Security:</strong> Requires valid JWT Bearer token with "user" role</p>
+                <div class="response-example">
+<strong>Response:</strong> 200 OK (updated order JSON)
                 </div>
             </div>
 
@@ -163,7 +188,38 @@
                 <p><strong>Security:</strong> Requires valid JWT Bearer token with "admin" role</p>
                 <div class="response-example">
 <strong>Response Example:</strong>
-"Order deleted by admin: admin@example.com, ID: 12345"
+HTTP 200 OK with "Order deleted successfully" (if order exists),
+or HTTP 204 No Content (if order does not exist)
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <span class="method patch">PATCH</span>
+                <strong>/api/orders/{id}/status?status=CONFIRMED</strong>
+                <p>Updates only the order status.</p>
+                <p><strong>Security:</strong> Requires valid JWT Bearer token with "admin" role</p>
+                <div class="response-example">
+<strong>Response:</strong> 200 OK (order JSON with updated status)
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <strong>/api/orders/customer/{customerId}</strong>
+                <p>Returns all orders for a specific customer.</p>
+                <p><strong>Security:</strong> Requires valid JWT Bearer token with "user" role</p>
+                <div class="response-example">
+<strong>Response:</strong> 200 OK (array of order JSON objects)
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <span class="method get">GET</span>
+                <strong>/api/orders/stats</strong>
+                <p>Returns aggregate order statistics.</p>
+                <p><strong>Security:</strong> Requires valid JWT Bearer token with "admin" role</p>
+                <div class="response-example">
+<strong>Response:</strong> 200 OK ({"totalOrders":..., "ordersByStatus":..., "averageOrderValue":..., "maxOrderValue":...})
                 </div>
             </div>
         </div>

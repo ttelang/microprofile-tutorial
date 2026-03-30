@@ -1,0 +1,5 @@
+<server>
+    <httpEndpoint id="defaultHttpEndpoint"
+                  httpPort="8050"
+                  httpsPort="8051" />
+</server>

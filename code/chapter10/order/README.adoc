@@ -1,97 +1,190 @@
-= Order Service - MicroProfile E-Commerce Store
+= Order Service - MicroProfile E-Commerce Store (Chapter 10)
+:toc: left
+:icons: font
+:source-highlighter: highlightjs
+:sectnums:
 
-== Overview
-
-The Order Service is a microservice in the MicroProfile E-Commerce Store application. It provides order management functionality with secure JWT-based authentication and role-based authorization.
-
-== Features
-
-* 🔐 *JWT Authentication & Authorization*: Role-based security using MicroProfile JWT
-* 📋 *Order Management*: Create, read, update, and delete operations for orders
-* 📖 *OpenAPI Documentation*: Comprehensive API documentation with Swagger UI
-* 🏗️ *MicroProfile Compliance*: Built with Jakarta EE and MicroProfile standards
+The Order Service is a microservice in the MicroProfile E-Commerce Store application. It provides full order management with JWT-based authentication and role-based authorization.
 
 == Technology Stack
 
-* *Runtime*: Open Liberty
-* *Framework*: MicroProfile, Jakarta EE
-* *Security*: MicroProfile JWT
-* *API*: Jakarta RESTful Web Services, MicroProfile OpenAPI
-* *Build*: Maven
+* Jakarta RESTful Web Services
+* MicroProfile JWT
+* MicroProfile OpenAPI
+* Maven
+
+== What The Service Does
+
+The service stores orders in memory and exposes a secured REST API. All endpoints require a valid JWT Bearer token. Access is role-gated: most read/write operations require the `user` role, and administrative operations require the `admin` role.
+
+* Context root: `/order`
+* JAX-RS base path: `/api`
+* Resource path: `/orders`
+* Port: `8050`
 
 == API Endpoints
 
-=== Role-Based Secured Endpoints
+NOTE: The landing page at `src/main/webapp/index.html` highlights only key role-based examples (GET and DELETE). The table below reflects the complete API implemented in `OrderResource`.
+
+[cols="2,1,1,4", options="header"]
+|===
+|Endpoint |Method |Role |Description
+
+|`/api/orders/{id}` |GET |`user` |Retrieve a specific order by ID
+|`/api/orders` |POST |`user` |Create a new order
+|`/api/orders/{id}` |PUT |`user` |Update an existing order
+|`/api/orders/{id}` |DELETE |`admin` |Delete an order by ID
+|`/api/orders/{id}/status` |PATCH |`admin` |Update order status (query param: `status`)
+|`/api/orders/customer/{customerId}` |GET |`user` |Get all orders for a customer
+|`/api/orders/stats` |GET |`admin` |Get order statistics
+|===
+
+=== Endpoint Details
 
 ==== GET /api/orders/{id}
-Returns order information for the specified ID.
 
-*Security*: Requires valid JWT Bearer token with `user` role
+Returns the full `Order` JSON object for the given ID.
 
-*Response Example*:
-----
-Order for user: user1@example.com, ID: 12345
-----
+*Role*: `user`
 
 *HTTP Status Codes*:
-* `200` - Order information returned successfully
-* `401` - Unauthorized - JWT token is missing or invalid
-* `403` - Forbidden - User lacks required permissions
+* `200` - Order returned successfully
+* `401` - JWT token is missing or invalid
+* `403` - Insufficient role
+* `404` - Order not found
+
+==== POST /api/orders
+
+Creates a new order. The `status` field defaults to `PENDING` if not supplied. The total amount is calculated from the item quantities and unit prices.
+
+*Role*: `user`
+
+*HTTP Status Codes*:
+* `201` - Order created, `Location` header contains the new resource URL
+* `400` - Invalid order data (validation failure)
+* `401` - JWT token is missing or invalid
+* `403` - Insufficient role
+
+==== PUT /api/orders/{id}
+
+Replaces an existing order. Preserves the original `id` and `orderDate`; recalculates `totalAmount` from items.
+
+*Role*: `user`
+
+*HTTP Status Codes*:
+* `200` - Order updated successfully
+* `400` - Invalid order data
+* `401` - JWT token is missing or invalid
+* `404` - Order not found
 
 ==== DELETE /api/orders/{id}
-Deletes an order with the specified ID.
 
-*Security*: Requires valid JWT Bearer token with `admin` role
+Removes an order from the store.
 
-*Response Example*:
-----
-Order deleted by admin: admin@example.com, ID: 12345
-----
+*Role*: `admin`
 
 *HTTP Status Codes*:
-* `200` - Order deleted successfully
-* `401` - Unauthorized - JWT token is missing or invalid
-* `403` - Forbidden - User lacks required permissions
-* `404` - Not Found - Order does not exist
+* `200` - Order deleted successfully (response body: `Order deleted successfully`)
+* `204` - No content (order ID did not exist)
+* `401` - JWT token is missing or invalid
+* `403` - Insufficient role
+
+==== PATCH /api/orders/{id}/status?status=\{STATUS}
+
+Updates only the `status` field of an order. Valid values for `status`: `PENDING`, `CONFIRMED`, `PROCESSING`, `SHIPPED`, `DELIVERED`, `CANCELLED`, `REFUNDED`.
+
+*Role*: `admin`
+
+*HTTP Status Codes*:
+* `200` - Status updated, full Order object returned
+* `401` - JWT token is missing or invalid
+* `403` - Insufficient role
+* `400` - Invalid status value
+* `404` - Order not found
+
+==== GET /api/orders/customer/{customerId}
+
+Returns an array of all orders belonging to the given customer ID. Returns an empty array if none exist.
+
+*Role*: `user`
+
+*HTTP Status Codes*:
+* `200` - List of orders (may be empty)
+* `401` - JWT token is missing or invalid
+* `403` - Insufficient role
+
+==== GET /api/orders/stats
+
+Returns a JSON object with:
+
+* `totalOrders` — count of all orders
+* `ordersByStatus` — map of status → count
+* `averageOrderValue` — mean `totalAmount` across all orders
+* `maxOrderValue` — highest `totalAmount`
+
+*Role*: `admin`
+
+*HTTP Status Codes*:
+* `200` - Statistics returned
+* `401` - JWT token is missing or invalid
+* `403` - Insufficient role
+
+== Order Entity
+
+=== Example Order JSON (request body for POST / PUT)
+
+[source,json]
+----
+{
+  "customerId": "user1",
+  "customerEmail": "user1@example.com",
+  "status": "PENDING",
+  "totalAmount": 49.99,
+  "currency": "USD",
+  "items": [
+    {
+      "productId": "p-100",
+      "productName": "Keyboard",
+      "quantity": 1,
+      "unitPrice": 49.99
+    }
+  ],
+  "shippingAddress": {
+    "street": "1 Main St",
+    "city": "Austin",
+    "state": "TX",
+    "zipCode": "78701",
+    "country": "US"
+  },
+  "billingAddress": {
+    "street": "1 Main St",
+    "city": "Austin",
+    "state": "TX",
+    "zipCode": "78701",
+    "country": "US"
+  }
+}
+----
+
+NOTE: `totalAmount` is recalculated from items on POST and PUT. You may omit it in the request body.
 
 == Authentication & Authorization
 
 === JWT Token Requirements
 
-The service expects JWT tokens with the following claims:
-
 [cols="1,1,3", options="header"]
 |===
-|Claim
-|Required
-|Description
+|Claim |Required |Description
 
-|`iss`
-|Yes
-|Issuer - must match `mp.jwt.verify.issuer` configuration
-
-|`sub`
-|Yes
-|Subject - unique user identifier
-
-|`groups`
-|Yes
-|Array containing user roles ("user" or "admin")
-
-|`upn`
-|Yes
-|User Principal Name - used as username
-
-|`exp`
-|Yes
-|Expiration timestamp
-
-|`iat`
-|Yes
-|Issued at timestamp
+|`iss` |Yes |Issuer — must be `mp-ecomm-store`
+|`sub` |Yes |Subject — unique user identifier
+|`upn` |Yes |User Principal Name — used as the principal in `SecurityContext`
+|`groups` |Yes |Array of roles; must include `user` and/or `admin` as needed
+|`exp` |Yes |Expiration timestamp
+|`iat` |Yes |Issued at timestamp
 |===
 
-=== Example JWT Payload
+=== Example JWT Payload — user role
 
 [source,json]
 ----
@@ -106,7 +199,8 @@ The service expects JWT tokens with the following claims:
 }
 ----
 
-For admin access:
+=== Example JWT Payload — admin role
+
 [source,json]
 ----
 {
@@ -122,142 +216,263 @@ For admin access:
 
 == Configuration
 
-=== MicroProfile Configuration
-
-The service uses the following MicroProfile configuration properties:
+=== MicroProfile Configuration Properties
 
 [source,properties]
 ----
-# Enable OpenAPI scanning
-mp.openapi.scan=true
+mp.openapi.scan.disable=false
 
-# JWT verification settings
 mp.jwt.verify.publickey.location=/META-INF/publicKey.pem
 mp.jwt.verify.issuer=mp-ecomm-store
-
-# OpenAPI UI configuration
-mp.openapi.ui.enable=true
+mp.jwt.verify.groups.claim=groups
 ----
 
 === Security Configuration
 
-The service requires:
-
-1. *Public Key*: RSA public key in PEM format located at `/META-INF/publicKey.pem`
-2. *Issuer Validation*: JWT tokens must have matching `iss` claim
-3. *Role-Based Access*: Endpoints require specific roles in JWT `groups` claim:
-   - `/api/orders/{id}` (GET) - requires "user" role
-   - `/api/orders/{id}` (DELETE) - requires "admin" role
+1. *Public Key*: RSA public key in PEM format at `/META-INF/publicKey.pem`
+2. *Issuer Validation*: JWT `iss` claim must equal `mp-ecomm-store`
+3. *Role-Based Access*:
+** `user` role — GET `/api/orders/{id}`, POST `/api/orders`, PUT `/api/orders/{id}`, GET `/api/orders/customer/{customerId}`
+** `admin` role — DELETE `/api/orders/{id}`, PATCH `/api/orders/{id}/status`, GET `/api/orders/stats`
 
 == Development Setup
 
 === Prerequisites
 
-* Java 17 or higher
-* Maven 3.6+
-* Docker (optional, for containerized deployment)
+* Java 21 or higher
+* Maven 3.13+
 
-=== Building the Service
+=== Build and Run
+
+From this directory (`code/chapter10/order`):
 
 [source,bash]
 ----
-# Build the project
 mvn clean package
-
-# Run with Liberty dev mode
-mvn liberty:dev
+mvn liberty:run
 ----
 
-=== Running with Docker
+The service listens on port `8050`.
 
-The Order Service can be run in a Docker container:
+=== Open The Landing Page (index.html)
+
+After the service starts, open the Order service landing page in your browser:
+
+[source,text]
+----
+http://localhost:8050/order/
+----
+
+This serves `src/main/webapp/index.html` from the deployed application.
+
+== OpenAPI And UI
+
+* OpenAPI document: `http://localhost:8050/openapi`
+* Swagger UI: `http://localhost:8050/openapi/ui`
+
+=== OpenAPI Security Documentation
+
+Security is documented in the generated OpenAPI specification as follows:
+
+* Bearer JWT security scheme named `jwt`
+* Operation-level security requirement (`@SecurityRequirement(name = "jwt")`) on each endpoint
+* Role requirement documented in each operation description (`Requires role: user` or `Requires role: admin`)
+* Authentication and authorization failure responses documented per endpoint (`401` and `403`)
+
+== Get jwtenizr In The tools Folder
+
+Token generation requires `jwtenizr.jar` in `code/chapter10/tools/`. See the root-level setup guide:
+
+`JWTENIZR-README.adoc`
+
+Complete that setup first, then continue with the manual test flow below.
+
+== Helper Scripts
+
+The Order service includes two utility scripts in `code/chapter10/order`.
+
+=== `test-jwt.sh` (JWT smoke test)
+
+Purpose:
+
+* Creates an order on the Order service
+* Fetches the created order
+* Calls the User service profile endpoint
+* Regenerates a fresh JWT token from `code/chapter10/tools/jwtenizr.jar` before running checks
+* Fails fast if any call does not return the expected status
+
+Requirements:
+
+* Order service running at `http://localhost:8050/order/api`
+* User service running at `http://localhost:6050/user/api`
+* `jwtenizr.jar` available in `code/chapter10/tools` for auto-token regeneration
+
+NOTE: If you set `JWT_TOKEN` explicitly, the script uses that value and skips token regeneration.
+
+Usage:
 
 [source,bash]
 ----
-# Make the script executable (if needed)
-chmod +x run-docker.sh
-
-# Build and run using Docker
-./run-docker.sh
+cd code/chapter10/order
+chmod +x test-jwt.sh
+./test-jwt.sh
 ----
 
-This script will:
-1. Build the application with Maven
-2. Create a Docker image with Open Liberty
-3. Run the container with ports mapped to host
-
-Or manually with Docker commands:
+Optional environment overrides:
 
 [source,bash]
 ----
-# Build the application
-mvn clean package
-
-# Build the Docker image
-docker build -t mp-ecomm-store/order:latest .
-
-# Run the container
-docker run -d --name order-service -p 8050:8050 -p 8051:8051 mp-ecomm-store/order:latest
+ORDER_BASE_URL=http://localhost:8050/order/api \
+USER_BASE_URL=http://localhost:6050/user/api \
+./test-jwt.sh
 ----
 
-=== Testing with JWT Tokens
+=== `copy-jwt-key.sh` (copy public key + restart Liberty)
 
-The Order Service uses JWT-based authentication with role-based authorization. To test the endpoints, you'll need valid JWT tokens with the appropriate roles.
+Purpose:
 
-==== Generate JWT Tokens with jwtenizr
+* Copies `src/main/resources/META-INF/publicKey.pem` to Liberty server runtime config
+* Restarts Liberty (`mvn liberty:stop` then `mvn liberty:start`)
 
-The project includes a `jwtenizr` tool in the `/tools` directory:
+Use this when JWT verification fails because the runtime key is missing or stale.
+
+Usage:
 
 [source,bash]
 ----
-# Navigate to tools directory
-cd tools/
+cd code/chapter10/order
+chmod +x copy-jwt-key.sh
+./copy-jwt-key.sh
+----
 
-# Generate token for user role (default)
+Expected output includes key copy confirmation and server restart messages.
+
+== Manual Testing
+
+Run these commands and verify each response.
+
+=== 1. Start the service
+
+This step brings up the Order service on port `8050` so you can run authenticated requests against live endpoints.
+
+[source,bash]
+----
+cd code/chapter10/order
+mvn liberty:run
+----
+
+=== 2. Generate a user-role JWT token
+
+All endpoints are secured with MicroProfile JWT and require a Bearer token.
+
+[source,bash]
+----
+cd ../tools
 java -jar jwtenizr.jar
-
-# Generate token and test endpoint
-java -Dverbose -jar jwtenizr.jar http://localhost:8050/order/api/orders/12345
 ----
 
-==== Testing Different Roles
+Token is written to `code/chapter10/tools/token.jwt`.
 
-For testing admin-only endpoints, you'll need to modify the JWT token payload to include the "admin" role:
+=== 3. Create an order (user role)
 
-1. Edit the `jwt-token.json` file in the tools directory
-2. Add "admin" to the groups array: `"groups": ["admin", "user"]`
-3. Generate a new token: `java -jar jwtenizr.jar`
-4. Test the admin endpoint:
-   [source,bash]
-   ----
-   curl -X DELETE -H "Authorization: Bearer $(cat token.jwt)" \
-        http://localhost:8050/order/api/orders/12345
-   ----
-
-== API Documentation
-
-The OpenAPI documentation is available at:
-
-* *OpenAPI Spec*: `http://localhost:8050/order/openapi`
-* *Swagger UI*: `http://localhost:8050/order/openapi/ui`
-
-== Troubleshooting
-
-=== Common JWT Issues
-
-* *403 Forbidden*: Verify the JWT token contains the required role in the `groups` claim
-* *401 Unauthorized*: Check that the token is valid and hasn't expired
-* *Token Validation Errors*: Ensure the issuer (`iss`) matches the configuration
-
-=== Testing with curl
+This step seeds test data and gives you an order `id` used by subsequent read, update, and delete checks.
 
 [source,bash]
 ----
-# Test user role endpoint
-curl -H "Authorization: Bearer $(cat tools/token.jwt)" \
-     http://localhost:8050/order/api/orders/12345
-
-# Test admin role endpoint
-curl -X DELETE -H "Authorization: Bearer $(cat tools/token.jwt)" \
-     http://localhost:8050/order/api/orders/12345
+curl -i -X POST \
+  -H "Authorization: Bearer $(cat token.jwt)" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customerId": "user1",
+    "customerEmail": "user1@example.com",
+    "currency": "USD",
+    "items": [{"productId":"p-100","productName":"Keyboard","quantity":1,"unitPrice":49.99}],
+    "shippingAddress": {"street":"1 Main St","city":"Austin","state":"TX","zipCode":"78701","country":"US"},
+    "billingAddress":  {"street":"1 Main St","city":"Austin","state":"TX","zipCode":"78701","country":"US"}
+  }' \
+  http://localhost:8050/order/api/orders
 ----
+
+Expected: `HTTP 201 Created` with the new order JSON. Note the `id` in the response body for the next steps.
+
+=== 4. Retrieve the order (user role)
+
+This step verifies user-role authorization and confirms the stored order shape returned by GET.
+
+Replace `1` with the `id` returned by the create step.
+
+[source,bash]
+----
+curl -i \
+  -H "Authorization: Bearer $(cat token.jwt)" \
+  http://localhost:8050/order/api/orders/1
+----
+
+Expected: `HTTP 200 OK` with full Order JSON.
+
+=== 5. Update order status (requires admin role)
+
+This step validates admin-only authorization and the PATCH status workflow.
+
+Edit `jwt-token.json` in the tools directory and change `groups` to `["admin", "user"]`, then regenerate the token:
+
+[source,bash]
+----
+java -jar jwtenizr.jar
+----
+
+Now update the status:
+
+[source,bash]
+----
+curl -i -X PATCH \
+  -H "Authorization: Bearer $(cat token.jwt)" \
+  "http://localhost:8050/order/api/orders/1/status?status=CONFIRMED"
+----
+
+Expected: `HTTP 200 OK` with order showing `"status": "CONFIRMED"`.
+
+=== 6. Delete an order (admin role)
+
+This step confirms admin-only delete behavior.
+
+[source,bash]
+----
+curl -i -X DELETE \
+  -H "Authorization: Bearer $(cat token.jwt)" \
+  http://localhost:8050/order/api/orders/1
+----
+
+Expected:
+
+* `HTTP 200 OK` with body `Order deleted successfully` when the order exists
+* `HTTP 204 No Content` when the order ID does not exist
+
+=== 7. Negative checks
+
+This step ensures security enforcement is working (`401` without token, `403` with insufficient role).
+
+No token (expect 401):
+
+[source,bash]
+----
+curl -i http://localhost:8050/order/api/orders/1
+----
+
+Wrong role — use a user-role token to call an admin endpoint (expect 403):
+
+[source,bash]
+----
+# Edit jwt-token.json: "groups": ["user"] only, then regenerate
+java -jar jwtenizr.jar
+curl -i -X DELETE \
+  -H "Authorization: Bearer $(cat token.jwt)" \
+  http://localhost:8050/order/api/orders/1
+----
+
+== Common Issues
+
+* `401 Unauthorized`: token missing, expired, or invalid signature.
+* `403 Forbidden`: token is valid but `groups` does not contain the required role.
+* `404 Not Found`: the order ID does not exist in the in-memory store (store resets on server restart).
+* `400 Bad Request`: request body failed bean validation (check required fields and formats).

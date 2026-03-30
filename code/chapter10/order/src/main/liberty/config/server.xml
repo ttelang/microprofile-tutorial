@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<server description="MicroProfile Order Service Server">
+
+    <featureManager>
+        <feature>microProfile-7.1</feature>
+    </featureManager>
+
+    <httpEndpoint httpPort="${default.http.port}" httpsPort="${default.https.port}"
+                  id="defaultHttpEndpoint" host="*" />
+
+    <webApplication location="order.war" contextRoot="${app.context.root}"/>
+</server>
