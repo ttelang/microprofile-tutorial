@@ -32,6 +32,13 @@ public class ProductService {
             .collect(Collectors.toList());
     }
     
+    public List<Product> getProducts(Integer limit) {
+        long maxLimit = limit != null && limit > 0 ? limit : 100;
+        return productRepository.findAll().stream()
+            .limit(maxLimit)
+            .collect(Collectors.toList());
+    }
+    
     public Product findById(Long id) {
         return productRepository.findById(id);
     }
@@ -62,7 +69,12 @@ public class ProductService {
             input.getDescription(),
             input.getPrice(),
             input.getCategory(),
-            input.getStockQuantity()
+            input.getStockQuantity(),
+            java.time.LocalDate.now(),  // releaseDate - set to current date
+            null,  // stockStatus will be computed by getAvailabilityStatus()
+            "SKU-" + id,  // internalCode - excluded from GraphQL schema
+            "Product created on " + java.time.LocalDate.now(),  // auditLog
+            0.08  // taxRate - default 8% tax
         );
         productRepository.save(product);
         return product;

@@ -73,7 +73,12 @@ public class ProductRepository {
             input.getDescription(),
             input.getPrice(),
             input.getCategory(),
-            input.getStockQuantity()
+            input.getStockQuantity(),
+            java.time.LocalDate.now(),  // releaseDate - set to current date
+            null,  // stockStatus will be computed by getAvailabilityStatus()
+            "SKU-" + id,  // internalCode - excluded from GraphQL schema
+            "Product created on " + java.time.LocalDate.now(),  // auditLog
+            0.08  // taxRate - default 8% tax
         );
         save(product);
     }

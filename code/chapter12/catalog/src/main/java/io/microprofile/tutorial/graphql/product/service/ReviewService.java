@@ -48,4 +48,18 @@ public class ReviewService {
             .average()
             .orElse(0.0);
     }
+    
+    public List<ProductReview> getRecentReviews(int limit) {
+        return reviewRepository.findAll().stream()
+            .sorted(Comparator.comparing(ProductReview::getId).reversed())
+            .limit(limit)
+            .collect(Collectors.toList());
+    }
+    
+    public ProductReview findById(Long id) {
+        return reviewRepository.findAll().stream()
+            .filter(r -> r.getId().equals(id))
+            .findFirst()
+            .orElse(null);
+    }
 }
