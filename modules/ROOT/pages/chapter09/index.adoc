@@ -1,16 +1,16 @@
 = MicroProfile Telemetry
 
-Microservices-based applications have better scalability, flexibility, and resilience, but they suffer from additional challenges regarding availability and performance monitoring. This makes observability critical to ensure these distributed systems operate reliably.
+Microservices-based applications offer scalability, flexibility, and resilience, but they also introduce challenges in availability and performance monitoring. Observability is critical to ensure that these distributed systems operate reliably.
 
-MicroProfile Telemetry specification provides a set of vendor-neutral APIs for instrumenting, collecting, and exporting telemetry data such as traces, metrics, and logs. It is built on the foundation of https://opentelemetry.io/[OpenTelemetry] from the https://www.cncf.io/[Cloud Native Computing Foundation (CNCF)] project, an open-source observability framework. 
+https://opentelemetry.io/[OpenTelemetry], from the https://www.cncf.io/[Cloud Native Computing Foundation (CNCF)] project, is an open-source observability framework that provides standardized APIs, SDKs, and tools to create, collect, and manage telemetry data, including traces, metrics, and logs. The MicroProfile Telemetry specification defines how OpenTelemetry components integrate with MicroProfile, which helps applications participate in distributed tracing environments with a consistent, vendor-neutral experience.
 
-In this chapter, we will explore the fundamentals of MicroProfile Telemetry, covering topics such as tracing concepts, instrumenting Telemetry, setting up tracing providers, context propagation and correlation, analyzing traces, security considerations for tracing, and more. By the end of this chapter, you will learn how to effectively leverage distributed tracing for debugging, performance monitoring, and system optimization.
+This chapter explores the fundamentals of MicroProfile Telemetry, including tracing concepts, telemetry instrumentation, tracing provider setup, context propagation and correlation, trace analysis, and security considerations. By the end of this chapter, developers can use distributed tracing effectively for debugging, performance monitoring, and system optimization.
 
-== Topics to be covered
+== Topics Covered
 
 * Introduction to MicroProfile Telemetry
-* Tracing Concepts 
-** Spans 
+* Tracing Concepts
+** Spans
 ** Traces
 ** Context Propagation
 ** Correlation
@@ -33,16 +33,16 @@ Some of the key challenges in microservices-based applications include:
 
 * *Complexity due to Distributed Architecture*: Microservices are often deployed across multiple nodes, containers, or cloud environments, making it challenging to track requests as they move through the system. This lack of visibility increases debugging complexity, making it harder to identify bottlenecks and analyze system behavior.
 * *Polyglot Architecture*: Microservices are developed using multiple programming languages (e.g., Java, Python, and Go) and frameworks, resulting in inconsistent telemetry data and a lack of standardization in observability. This fragmentation makes correlating logs, traces, and metrics across services difficult.
-* *Latency*: Communication between Microservices involves latency, and all of this adds up as requests traverse several services. This makes it difficult to identify the root causes of issues.
-Ensuring High Availability: Failures in one microservice can affect the entire system, impacting multiple dependent microservices. This can lead to downtime or degraded performance, resulting in lost revenue and diminished user trust.
+* *Latency*: Communication between microservices introduces latency, and this latency accumulates as requests traverse several services. This makes it difficult to identify root causes.
+* *High Availability*: Failures in one microservice can affect the entire system, including dependent services. This can lead to downtime or degraded performance, resulting in lost revenue and diminished user trust.
 
-To address these challenges, MicroProfile Telemetry specification provides a standardized set of APIs for capturing telemetry data, including trace information and context propagation, to improve observability in distributed systems. By enabling seamless tracing, developers can analyze system behavior, troubleshoot service interactions, and ensure application reliability. 
+To address these challenges, the MicroProfile Telemetry specification provides a standardized set of APIs for capturing telemetry data, including trace information and context propagation, to improve observability in distributed systems. By enabling seamless tracing, developers can analyze system behavior, troubleshoot service interactions, and improve application reliability.
 
-MicroProfile Telemetry is vendor-neutral. It allows developers to switch between different OpenTelemetry implementations without modifying their application code. This flexibility ensures that MicroProfile applications can easily integrate with various observability platforms, making it easier to adopt, scale, and maintain Telemetry in modern cloud-native environments.
+MicroProfile Telemetry is vendor-neutral. It allows developers to switch between OpenTelemetry implementations without modifying application code. This flexibility helps MicroProfile applications integrate with different observability platforms, making telemetry easier to adopt, scale, and maintain in modern cloud-native environments.
 
 == Tracing Concepts
 
-Tracing is critical for observability. It allows developers to inspect the flow of requests as they traverse through distributed systems. Tracing provides visibility into the interactions and dependencies within a system by breaking down a request into multiple spans, and connecting them into traces with context propagated across services.
+Tracing is critical for observability. It allows developers to inspect request flow across distributed systems. Tracing provides visibility into system interactions and dependencies by breaking a request into multiple spans and connecting those spans into traces with context propagated across services.
 
 === Spans
 
@@ -62,16 +62,16 @@ A *trace* is a collection of related spans representing the end-to-end execution
 For example:
 ```
 API Gateway (Root Span) +
-│ 
+│
 ├── Order Service (Child Span) +
-│   │ 
+│   │
 │   ├── Database Query (Another Child Span) +
 │   │   ├── Fetch Order Details +
 │   │   ├── Process Order Data +
 │   │   └── Return Data to Order Service +
-│   │ 
+│   │
 │   └── Return Response to API Gateway +
-│ 
+│
 └── API Gateway Sends Final Response to User
 ```
 
@@ -81,13 +81,13 @@ API Gateway (Root Span) +
 
 === Correlation
 
-Context propagation is vital for connecting distributed spans and understanding their relationship ensuring trace metadata remains correlated as it travels with requests across service boundaries.
+Context propagation is vital for connecting distributed spans and understanding their relationships. It ensures that trace metadata remains correlated as it travels with requests across service boundaries.
 *Correlation* is the process of associating related spans and traces across multiple services and threads to form a cohesive view of a transaction. Correlation enables developers to:
 
 * Identify the source of bottlenecks or errors in distributed systems.
 * Understand the dependencies and interactions between services.
 
-When viewing logs, the +traceId+ and +spanId+ allow you to link specific log entries to the corresponding spans in your tracing system.
+When viewing logs, the +traceId+ and +spanId+ allow developers to link specific log entries to the corresponding spans in their tracing system.
 
 * *Trace ID*: A unique identifier shared across all spans in a single trace.
 * *Span ID*: A unique identifier for a single span. It is linked to a parent span, forming a hierarchy.
@@ -116,7 +116,7 @@ To enable tracing and exporting of telemetry data, include the MicroProfile Tele
 
 === *Step 2: Create a Tracer*
 
-MicroProfile automatically traces requests, but you can manually instrument your code using OpenTelementry APIs.
+MicroProfile automatically traces requests, but developers can manually instrument their code by using OpenTelemetry APIs.
 
 A *Tracer* is a core component of OpenTelemetry, responsible for *creating spans* and *managing trace data* within the application. To use it, inject a +Tracer+ instance into your MicroProfile service:
 
@@ -136,7 +136,7 @@ public class PaymentService {
     public void processPayment(String orderId, double amount) {
         // Create a custom span for tracing the payment process
         Span span = tracer.spanBuilder("payment.process").startSpan();
-        
+
         try {
             span.setAttribute("order.id", orderId);
             span.setAttribute("payment.amount", amount);
@@ -173,7 +173,7 @@ Use the Tracer to create a span that represents a specific operation or activity
 Span span = tracer.spanBuilder("my-span").startSpan();
 ----
 
-The method `spanBuilder("my-span")` creates a new named span, which represents a specific operation within the application's execution flow. This helps in tracing and monitoring the operation as part of a distributed system. Calling `startSpan()` marks the beginning of the span lifecycle, ensuring that the span is actively recorded until it is explicitly ended. This allows telemetry data to be captured for performance analysis, debugging, and observability.
+The method `spanBuilder("my-span")` creates a named span that represents a specific operation in the application's execution flow. This helps trace and monitor that operation as part of a distributed system. Calling `startSpan()` marks the beginning of the span lifecycle and records data until the span is explicitly ended. This telemetry data supports performance analysis, debugging, and observability.
 
 === *Step 4: Add Attributes to the Span*
 
@@ -238,7 +238,7 @@ One of Tempo’s key advantages is its tight integration with Grafana dashboards
 == Exporting Telemetry Data
 
 To export telemetry data, configure the exporter type and endpoint in `src/main/resources/META-INF/microprofile-config.properties`.
-MicroProfile Telemetry 2.0 and later require you to configure exporters for all three signal types: traces, metrics, and logs.
+MicroProfile Telemetry 2.0 and later require developers to configure exporters for all three signal types: traces, metrics, and logs.
 For OTLP (OpenTelemetry Protocol) export, add the following configuration:
 
 [source]
@@ -256,7 +256,7 @@ otel.service.name=payment-service
 otel.traces.sampler=parentbased_always_on
 ----
 
-Configure signal-specific exporters only when you need to override the shared OTLP endpoint or protocol:
+Configure signal-specific exporters only when developers need to override the shared OTLP endpoint or protocol:
 
 [source]
 ----
@@ -272,11 +272,11 @@ otel.logs.exporter=otlp
 
 This configuration sends telemetry data directly to an observability backend, enabling real-time distributed tracing, metrics collection, and log correlation. Ensure that the observability backend (for example, Jaeger for traces, or Grafana with Tempo and Loki) is running to receive telemetry data.
 
-OTLP is the native standard for OpenTelemetry. It allows you to use multiple observability platforms without changing instrumentation, providing a unified, vendor-neutral telemetry solution.
+OTLP is the native standard for OpenTelemetry. It allows developers to use multiple observability platforms without changing instrumentation, providing a unified, vendor-neutral telemetry solution.
 
 === Verify the Traces
 
-After you enable tracing and configure the exporter, verify that the traces are being captured and sent to the observability backend. This step confirms that the MicroProfile Telemetry setup functions correctly and that distributed tracing data is available for monitoring and debugging.
+After enabling tracing and configuring the exporter, verify that the traces are being captured and sent to the observability backend. This step confirms that the MicroProfile Telemetry setup functions correctly and that distributed tracing data is available for monitoring and debugging.
 
 ==== Run Jaeger
 
@@ -295,7 +295,7 @@ The above command runs the *all-in-one* Jaeger container, which includes the col
 
 Access the Jaeger UI at `http://<hostname>:16686`.
 
-Ensure all the services of the MicroProfile E-commerce application are running.
+Ensure that all services of the MicroProfile e-commerce application are running.
 
 Search using parameters such as operation name, time range, or service name for the traces associated with different microservices, and confirm that the telemetry data is visible.
 View a detailed breakdown of each span within the trace, including timing and attributes.
@@ -339,7 +339,7 @@ public class PaymentService {
 }
 ----
 
-Every time processPayment is called, a new span is created. The span is automatically linked to the current trace context. No need for explicit span creation or lifecycle management. You can use `@WithSpan` for tracing key business operations, such as order processing, payment handling, or API requests.
+Each time `processPayment` is called, a new span is created. The span is automatically linked to the current trace context. This approach avoids explicit span creation and lifecycle management. You can use `@WithSpan` to trace key business operations, such as order processing, payment handling, or API requests.
 
 ==== Using `SpanBuilder` for Custom Spans
 
@@ -370,11 +370,11 @@ public class TraceResource {
 }
 ----
 
-The method `tracer.spanBuilder("custom-span").startSpan()` creates a span with a specific name allowing developers to define meaningful trace segments for better observability. Using `span.setAttribute("custom.key", "customValue")`, custom metadata can be attached to the span, enriching trace data with relevant contextual information. Finally, calling `span.end()` explicitly marks the completion of the span, ensuring accurate tracking of execution duration. The `SpanBuilder` approach is particularly useful when developers require fine-grained control over when spans start and end, as well as the ability to include detailed metadata for enhanced trace analysis.
+The method `tracer.spanBuilder("custom-span").startSpan()` creates a span with a specific name, which allows developers to define meaningful trace segments for better observability. Using `span.setAttribute("custom.key", "customValue")`, custom metadata can be attached to the span to enrich trace data with relevant contextual information. Calling `span.end()` explicitly marks the completion of the span and ensures accurate tracking of execution duration. The `SpanBuilder` approach is useful when developers need fine-grained control over span start and end points and detailed metadata for trace analysis.
 
 === Manual Tracing in `PaymentService`
 
-To manually instrument the processPayment method in the PaymentService, we use OpenTelemetry’s API to create a custom span, add attributes, and control the span lifecycle.
+To manually instrument the `processPayment` method in `PaymentService`, use the OpenTelemetry API to create a custom span, add attributes, and control the span lifecycle.
 
 [source, java]
 ----
@@ -401,7 +401,7 @@ public class PaymentService {
             span.setAttribute("payment.status", "IN_PROGRESS");
 
             // Business logic for processing the payment
-            System.out.println(“Processing Payment…);
+            System.out.println("Processing payment...");
 
             // Update span attribute on successful completion
             span.setAttribute("payment.status", "SUCCESS");
@@ -421,7 +421,7 @@ The `payment.process` span is manually created using `tracer.spanBuilder()`, all
 
 In the event of an error, the span captures and records the exception, ensuring failure details are logged for debugging. The span lifecycle is carefully managed, starting before the business logic executes and ending only after the process is completed in the `finally` block. This structured approach guarantees accurate performance monitoring and trace completeness, improving visibility into how payments are processed in a distributed system.
 
-==  Agent Instrumentation
+== Agent Instrumentation
 
 Agent Instrumentation enables telemetry data collection without modifying application code by attaching a Java agent at runtime. This approach is particularly useful for legacy applications or scenarios where modifying source code is not feasible. The OpenTelemetry Java Agent dynamically instruments applications, automatically detecting and tracing interactions within commonly used frameworks such as Jakarta RESTful Web Services, database connections, and messaging systems.
 
@@ -432,7 +432,7 @@ Once enabled, the agent automatically instruments the application, seamlessly in
 
 == Metrics
 
-Metrics are captured measurements of an application's and runtime's behavior. An application can define custom metrics in addition to the required metrics provided by the runtime.
+Metrics are measurements of application and runtime behavior. Applications can define custom metrics in addition to the required metrics provided by the runtime.
 
 === Access to the OpenTelemetry Metrics API
 
@@ -528,7 +528,7 @@ Logs are activated whenever MicroProfile Telemetry is enabled with `otel.sdk.dis
 
 == Analyzing Traces
 
-Once trace data is collected and exported to a backend system, analyzing these traces becomes a crucial step in understanding the behavior of your distributed microservices architecture. By examining traces, you can gain insights into system performance, identify bottlenecks, and detect failures or anomalies.
+Once trace data is collected and exported to a backend system, analyzing these traces becomes a crucial step in understanding the behavior of distributed microservices architectures. By examining traces, developers can gain insights into system performance, identify bottlenecks, and detect failures or anomalies.
 
 === Visualizing Traces
 
@@ -559,7 +559,7 @@ Traces provide valuable information for diagnosing failures, including:
 Dependency graphs generated from traces show the interactions between services. These graphs help:
 
 * Visualize which services depend on each other.
-* Detects circular dependencies or excessive coupling.
+* Detect circular dependencies or excessive coupling.
 * Plan optimizations by focusing on critical services.
 
 === Correlating Traces with Logs and Metrics
@@ -567,8 +567,8 @@ Dependency graphs generated from traces show the interactions between services. 
 Traces, when combined with logs and metrics, provide a comprehensive picture of the system:
 
 * *Logs*: Use trace IDs and span IDs in logs to correlate application logs with specific spans.
-* *Metrics*: Correlate trace performance data with system metrics like CPU usage, memory consumption, or request rates.
-Example: If a span indicates high latency, check corresponding logs and metrics to identify the underlying cause, such as a resource constraint or network delay.
+* *Metrics*: Correlate trace performance data with system metrics, such as CPU usage, memory consumption, or request rates.
+*Example:* If a span indicates high latency, check corresponding logs and metrics to identify the underlying cause, such as a resource constraint or network delay.
 
 === Best Practices for Analyzing Traces
 
@@ -578,7 +578,7 @@ Example: If a span indicates high latency, check corresponding logs and metrics 
 . *Automate Alerts*: Set up alerts for abnormal patterns in traces, such as increased latency or failure rates.
 . *Collaborate Across Teams*: Share trace insights with development, operations, and QA teams to improve system reliability.
 
-By analyzing traces effectively, you can identify opportunities to optimize your microservices, ensure smoother operations, and enhance the overall user experience. Tracing tools provide a powerful way to visualize and understand the intricate dynamics of distributed systems. +
+By analyzing traces effectively, developers can identify opportunities to optimize their microservices, ensure smoother operations, and enhance the overall user experience. Tracing tools provide a powerful way to visualize and understand the intricate dynamics of distributed systems.
 When analyzing traces, developers should look for the following:
 
 * *Long spans:* Spans that take a long time to complete may indicate a performance issue.
@@ -586,11 +586,11 @@ When analyzing traces, developers should look for the following:
 * *Errors:* Errors can indicate problems with a service or a request.
 * *High latency:* High latency can indicate a problem with the network or a service.
 
-By analyzing traces, developers can identify and troubleshoot problems with their microservices applications. This can help developers improve the performance and reliability of their applications.
+By analyzing traces, developers can identify and troubleshoot problems in microservices applications. This improves performance and reliability.
 
-Here are some tips for analyzing traces:
+The following tips can help developers analyze traces:
 
-* *Use a trace viewer:* A trace viewer is a tool that can help you visualize and analyze traces.
+* *Use a trace viewer:* A trace viewer helps developers visualize and analyze traces.
 * *Look for patterns:* Look for patterns in the traces that may indicate a problem.
 * *Correlate traces with metrics:* Correlate traces with metrics to get a better understanding of the performance of your application.
 * *Use sampling:* Use sampling to reduce the number of traces that are collected. This can improve the performance of your tracing system.
@@ -628,8 +628,8 @@ span.setAttribute("credit.card.last4", "****1234");
 === Encrypt Trace Data
 
 To prevent unauthorized access during transmission, ensure that telemetry data is encrypted. Use secure protocols such as HTTPS or TLS for exporting trace data to a backend.
- 
- *Example:*
+
+*Example:*
 
 * Configure the tracing provider to use encrypted connections:
 
@@ -664,7 +664,7 @@ Sampling reduces the volume of traces collected and limits the exposure of sensi
 
 *Example:*
 
-Random sampling to limiting the amount of trace data collected:
+Use random sampling to limit the amount of trace data collected:
 
 [source, properties]
 ----
@@ -682,7 +682,7 @@ Ensure that your tracing practices comply with data protection and privacy regul
 
 === Isolate Tracing Infrastructure
 
-The tracing infrastructure, such as Jaeger or OpenTelemetry Collector, should be isolated from the public internet and accessible only within secure networks. 
+The tracing infrastructure, such as Jaeger or OpenTelemetry Collector, should be isolated from the public internet and accessible only within secure networks.
 
 *Best Practice:*
 
@@ -696,19 +696,19 @@ Tracing can help detect potential security incidents. Monitor traces for unusual
 * Unexpected spikes in requests.
 * Requests from unknown or unauthorized sources.
 * Abnormal response times indicating possible exploits.
-Set up alerts for these anomalies to investigate and mitigate potential issues. +
-By following these security considerations, you can leverage the benefits of distributed tracing without compromising the security of your system or the privacy of your users. Careful handling of trace data, coupled with robust encryption, access controls, and compliance practices, ensures that tracing remains a valuable yet secure component of your observability strategy.
+Set up alerts for these anomalies to investigate and mitigate potential issues.
+By following these security considerations, developers can leverage the benefits of distributed tracing without compromising the security of their systems or the privacy of their users. Careful handling of trace data, coupled with robust encryption, access controls, and compliance practices, ensures that tracing remains a valuable yet secure component of observability strategies.
 
 == What's New in MicroProfile Telemetry 2.1
 
 MicroProfile Telemetry 2.1 is aligned with MicroProfile 7.1. The following changes are delivered in this release.
 
 * MicroProfile Telemetry 2.1 consumes https://github.com/open-telemetry/opentelemetry-java/releases/tag/v1.48.0[OpenTelemetry Java v1.48.0].
-* If you are migrating from earlier version of MicroProfile Telemetry, update the `microprofile-telemetry-api` dependency version to `2.1`.
+* If migrating from an earlier version of MicroProfile Telemetry, update the `microprofile-telemetry-api` dependency version to `2.1`.
 * Verify that your deployment environment provides the OpenTelemetry Java v1.48.0 libraries or a later patch version.
 * The stabilization of HTTP semantic conventions (attributes such as `http.method` have been renamed to `http.request.method`).
 * The introduction of a single shared OpenTelemetry SDK instance when `otel.sdk.disabled=false` is configured at runtime initialization time.
-* The addition of Metrics and Logs support.
+* The addition of metrics and logs support.
 
 === Impact on Existing Applications
 
@@ -716,7 +716,7 @@ Applications that do not use JVM metrics are unaffected by the 2.1 changes. Appl
 
 == Conclusion
 
-MicroProfile Telemetry provides a robust foundation for observability in Java-based microservices, enabling developers to implement distributed tracing, metrics collection, and log bridging seamlessly. By leveraging this specification, you can gain deep insights into the flow of requests, identify bottlenecks, and enhance the reliability and performance of your applications. The integration of standardized concepts such as spans, traces, context propagation, metrics instruments, and log correlation ensures that developers can maintain a cohesive understanding of their system's behavior across service boundaries.
+MicroProfile Telemetry provides a robust foundation for observability in Java-based microservices, enabling developers to implement distributed tracing, metrics collection, and log bridging seamlessly. By leveraging this specification, developers can gain deep insights into the flow of requests, identify bottlenecks, and enhance the reliability and performance of their applications. The integration of standardized concepts such as spans, traces, context propagation, metrics instruments, and log correlation ensures that developers can maintain a cohesive understanding of their system's behavior across service boundaries.
 
 Through instrumentation, context propagation, and effective trace analysis, MicroProfile Telemetry simplifies the complexities of monitoring and debugging distributed systems. It empowers teams to proactively address issues, optimize performance, and improve the user experience. Moreover, by adhering to security best practices, developers can ensure that telemetry data is protected, compliant with regulations, and free of sensitive information.
 
