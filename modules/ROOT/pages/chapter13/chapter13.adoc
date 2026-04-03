@@ -29,23 +29,37 @@ compatible runtime such as Open Liberty, Quarkus, or Payara.
 applications using the legacy `javax.*` namespace from Java EE or earlier
 Jakarta EE releases.
 
-== What You Will Learn
+== What Topics Will Be Covered
 
-* Event-Driven Architecture (EDA) Overview
+*Foundations and Core Concepts*:
+
+* Event-Driven Architecture Overview
 * Introduction to Reactive Streams
 * Defining Messaging Logic with CDI Beans
-* Understanding Data Streaming and Event Sourcing
-* `@Incoming` and `@Outgoing` Declarative Messaging
-* `@Channel` and `@Emitter` Support
-* Backpressure and `@OnOverflow`
+
+*Message Processing Patterns*:
+
+* Declarative Messaging with @Incoming and @Outgoing
+* Programmatic Messaging with @Channel and @Emitter
+* Reactive Stream Operations
+
+*Reliability and Flow Control*:
+
+* Managing Backpressure
 * Message Acknowledgment and Error Handling
 * Assembly and Deployment Validation
-* Reactive Streams Operators
-* Connector Support and Communication Protocols
-* Integration with Other MicroProfile Specifications
-* What's New in {reactive-messaging-spec-name} {reactive-messaging-spec-version}
+
+*Advanced Topics and Integration*:
+
+* Event Sourcing and State Rebuilding
+* Connector Support and External Integration
+* Integration with MicroProfile Specifications
+
+*Production Readiness*:
+
 * Best Practices and Design Patterns
-* Conclusion and Next Steps
+* What's New in MicroProfile Reactive Messaging 3.0.1
+* Summary and Next Steps
 
 == Event-Driven Architecture (EDA) Overview
 
@@ -748,7 +762,7 @@ public class OrderController {
 
 * *Payload Sending*: `send(T payload)` sends a payload and returns `CompletionStage<Void>`. The `CompletionStage` completes when the emitted message is acknowledged. If processing fails, the `CompletionStage` completes exceptionally.
 * *Message Sending*: `send(Message<T> message)` sends a `Message` object and returns `void`. Use this form when you need custom acknowledgment or negative-acknowledgment functions.
-* *Backpressure Aware*: Emitters respect backpressure from downstream consumers, preventing overwhelming slow processors.
+* *Backpressure Aware*: Emitters respect backpressure from downstream consumers, preventing overwhelming slow processors. See the "Managing Backpressure" section for detailed backpressure control with `@OnOverflow`.
 
 *Emitter with Payload Acknowledgment*:
 
@@ -825,9 +839,502 @@ public class OrderResource {
 
 This pattern decouples the REST layer from the processing layer, enabling asynchronous processing and better scalability. The REST endpoint returns immediately while the order processing happens asynchronously in a separate messaging pipeline.
 
+For fine-grained control over backpressure behavior when using emitters, see the "Controlling Backpressure with @OnOverflow" sub-section within "Managing Backpressure" section.
+
+== Declarative Messaging with @Incoming and @Outgoing
+
+Declarative messaging is at the heart of MicroProfile Reactive Messaging. By using simple annotations, developers can define complex message processing pipelines without writing boilerplate code for message handling, threading, or backpressure management. The framework handles these concerns automatically based on the method signatures.
+
+=== Consuming Messages with @Incoming
+
+The `@Incoming` annotation marks a method as a consumer of messages from a specified channel. When messages arrive on that channel, the runtime automatically invokes the method.
+
+*Basic Message Consumption*:
+
+[source,java]
+----
+import org.eclipse.microprofile.reactive.messaging.Incoming;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class ProductUpdateHandler {
+    
+    @Inject
+    ProductService productService;
+    
+    @Incoming("product-updates")
+    public void processUpdate(Product product) {
+        productService.updateCache(product);
+    }
+}
+----
+
+The method receives the message payload (in this case, a `Product` object) and processes it synchronously. The message is automatically acknowledged after the method completes successfully.
+
+*Supported Method Signatures*:
+
+MicroProfile Reactive Messaging supports various method signatures to accommodate different processing patterns:
+
+*1. Simple Payload (Automatic Acknowledgment)*:
+
+[source,java]
+----
+@Incoming("items")
+public void process(String item) {
+    // Process the item
+    // Message is automatically acknowledged after method returns
+}
+----
+
+*2. Asynchronous Processing with CompletionStage*:
+
+[source,java]
+----
+@Incoming("items")
+public CompletionStage<Void> processAsync(String item) {
+    return processItemAsync(item);
+    // Message acknowledged when CompletionStage completes
+}
+----
+
+*3. Message Wrapper for Manual Control*:
+
+[source,java]
+----
+@Incoming("items")
+public CompletionStage<Void> process(Message<String> message) {
+    String payload = message.getPayload();
+    
+    return processItem(payload)
+        .thenCompose(v -> message.ack())  // Manual acknowledgment
+        .exceptionally(throwable -> {
+            message.nack(throwable);  // Negative acknowledgment on failure
+            return null;
+        });
+}
+----
+
+*4. Reactive Streams Processing*:
+
+[source,java]
+----
+@Incoming("items")
+public Multi<String> process(Multi<String> items) {
+    return items
+        .map(String::toUpperCase)
+        .filter(item -> item.length() > 3);
+}
+----
+
+The choice of signature depends on your processing requirements:
+
+* Use simple payload for synchronous, blocking operations
+* Use `CompletionStage` for asynchronous operations
+* Use `Message` wrapper when you need manual acknowledgment control or access to metadata
+* Use reactive types (`Multi`, `Publisher`) for stream transformations
+
+=== Accessing Message Metadata
+
+Messages can carry metadata in addition to their payload. This metadata might include Kafka headers, timestamps, partition keys, or connector-specific information.
+
+*Accessing Metadata through Message Wrapper*:
+
+[source,java]
+----
+import org.eclipse.microprofile.reactive.messaging.Message;
+import io.smallrye.reactive.messaging.kafka.api.IncomingKafkaRecordMetadata;
+
+@Incoming("orders")
+public CompletionStage<Void> processOrder(Message<Order> message) {
+    Order order = message.getPayload();
+    
+    // Access Kafka-specific metadata
+    message.getMetadata(IncomingKafkaRecordMetadata.class)
+        .ifPresent(metadata -> {
+            String topic = metadata.getTopic();
+            int partition = metadata.getPartition();
+            long offset = metadata.getOffset();
+            long timestamp = metadata.getTimestamp();
+            
+            log.info("Processing order from topic={}, partition={}, offset={}", 
+                topic, partition, offset);
+        });
+    
+    return processOrderAsync(order)
+        .thenCompose(v -> message.ack());
+}
+----
+
+*Common Metadata Types by Connector*:
+
+* *Kafka*: Topic, partition, offset, timestamp, key, headers
+* *AMQP*: Exchange, routing key, content type, correlation ID
+* *JMS*: Destination, delivery mode, priority, correlation ID
+* *Custom*: Application-specific metadata attached via `Message.of(payload, metadata)`
+
+Metadata access requires using the `Message<T>` wrapper rather than extracting just the payload.
+
+=== Producing Messages with @Outgoing
+
+The `@Outgoing` annotation marks a method as a producer of messages to a specified channel. Messages produced to the channel can be consumed by other methods annotated with `@Incoming` or sent to external brokers.
+
+*Simple Value Production*:
+
+[source,java]
+----
+import org.eclipse.microprofile.reactive.messaging.Outgoing;
+
+@Outgoing("prices")
+public double generatePrice() {
+    return computeCurrentPrice();
+}
+----
+
+This method is invoked repeatedly, and each returned value is sent as a message to the "prices" channel.
+
+*Stream Production with Multi*:
+
+[source,java]
+----
+import io.smallrye.mutiny.Multi;
+import java.time.Duration;
+
+@Outgoing("heartbeat")
+public Multi<String> generateHeartbeat() {
+    return Multi.createFrom().ticks().every(Duration.ofSeconds(5))
+        .map(tick -> "alive");
+}
+----
+
+This creates an infinite stream that emits "alive" every 5 seconds.
+
+*Periodic Production with Timestamps*:
+
+[source,java]
+----
+import java.time.Instant;
+
+@Outgoing("ticks")
+public Multi<Instant> generateTicks() {
+    return Multi.createFrom().ticks().every(Duration.ofSeconds(1))
+        .map(tick -> Instant.now());
+}
+----
+
+*Producing Messages with Metadata*:
+
+[source,java]
+----
+import org.eclipse.microprofile.reactive.messaging.Message;
+import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
+
+@Outgoing("events")
+public Message<Event> produceEvent(Event event) {
+    OutgoingKafkaRecordMetadata metadata = OutgoingKafkaRecordMetadata.builder()
+        .withKey(event.getAggregateId())
+        .withTopic("events-topic")
+        .build();
+    
+    return Message.of(event).addMetadata(metadata);
+}
+----
+
+=== Message Processing Patterns
+
+MicroProfile Reactive Messaging supports flexible transformation patterns by combining `@Incoming` and `@Outgoing` annotations:
+
+*One-to-One Transformation (Mapping)*:
+
+[source,java]
+----
+@Incoming("celsius")
+@Outgoing("fahrenheit")
+public double convertTemperature(double celsius) {
+    return celsius * 9.0 / 5.0 + 32.0;
+}
+----
+
+Each incoming message produces exactly one outgoing message with the transformed value.
+
+*One-to-Many Transformation (Splitting)*:
+
+[source,java]
+----
+@Incoming("orders")
+@Outgoing("order-items")
+public Multi<OrderItem> splitOrder(Order order) {
+    return Multi.createFrom().iterable(order.getItems());
+}
+----
+
+Each incoming order is split into multiple order items, with each item sent as a separate message downstream.
+
+*Many-to-One Transformation (Aggregation)*:
+
+[source,java]
+----
+@Incoming("sensor-readings")
+@Outgoing("averages")
+public Multi<Double> calculateMovingAverage(Multi<Double> readings) {
+    return readings
+        .group().intoLists().of(10)  // Batch into groups of 10
+        .map(batch -> batch.stream()
+            .mapToDouble(Double::doubleValue)
+            .average()
+            .orElse(0.0));
+}
+----
+
+Multiple sensor readings are aggregated into average values, with each batch producing one output message.
+
+*Filtering Messages*:
+
+[source,java]
+----
+@Incoming("all-events")
+@Outgoing("important-events")
+public Multi<Event> filterEvents(Multi<Event> events) {
+    return events.filter(event -> event.getPriority() > 5);
+}
+----
+
+Only events meeting the filter criteria are passed downstream. Low-priority events are discarded and automatically acknowledged.
+
+*Asynchronous Enrichment*:
+
+[source,java]
+----
+@Incoming("user-ids")
+@Outgoing("users")
+public CompletionStage<User> enrichUser(String userId) {
+    return userRepository.findById(userId);
+}
+----
+
+Each user ID triggers an asynchronous database lookup, and the enriched `User` object is sent downstream when the lookup completes.
+
+*Conditional Routing (Dropping Messages)*:
+
+[source,java]
+----
+@Incoming("transactions")
+@Outgoing("high-value-transactions")
+public Message<Transaction> routeHighValue(Message<Transaction> message) {
+    Transaction tx = message.getPayload();
+    
+    if (tx.getAmount() > 10000) {
+        return message;  // Forward high-value transactions
+    } else {
+        message.ack();  // Acknowledge but don't forward
+        return null;    // Null signals no output
+    }
+}
+----
+
+*Stream Transformation Pipeline*:
+
+[source,java]
+----
+@Incoming("raw-data")
+@Outgoing("processed-data")
+public Multi<ProcessedData> processStream(Multi<RawData> stream) {
+    return stream
+        .map(this::normalize)          // Transform
+        .filter(this::isValid)          // Filter
+        .onItem().transformToUniAndConcatenate(this::enrich)  // Async enrich
+        .map(this::aggregate);          // Final transformation
+}
+----
+
+These patterns can be combined to build sophisticated message processing pipelines declaratively, with the framework handling threading, backpressure, and error propagation automatically.
+
+*Key Pattern Guidelines*:
+
+* Use simple payload signatures for straightforward transformations
+* Use `Multi<T>` when working with streams or requiring backpressure control
+* Use `CompletionStage<T>` for async operations like database lookups or REST calls
+* Use `Message<T>` when you need manual acknowledgment control or metadata access
+* Return `null` from `@Outgoing` methods to drop messages without forwarding
+
+== Managing Backpressure in Reactive Messaging
+
+Backpressure is one of the most critical challenges in reactive systems. It occurs when message producers generate data faster than consumers can process it. Without proper handling, this mismatch can lead to memory exhaustion, dropped messages, or system failures.
+
+=== Understanding Backpressure
+
+In a messaging system, backpressure scenarios arise from:
+
+* *Fast Producer, Slow Consumer*: A Kafka topic receives thousands of messages per second, but the consumer can only process 100 per second due to database write latency.
+* *Bursty Traffic*: Periodic spikes in message volume (e.g., end-of-month batch jobs, flash sales) overwhelm downstream processors.
+* *Resource Constraints*: Limited database connections, network bandwidth, or CPU capacity become bottlenecks during message processing.
+
+*Traditional Approaches and Their Problems*:
+
+1. *Unbounded Buffers*: Queue all messages in memory without limits, leading to `OutOfMemoryError` when the queue grows faster than it drains.
+2. *Dropping Messages*: Silently discard excess messages to prevent buffer overflow, causing data loss and inconsistent state.
+3. *Blocking Producers*: Block producers until consumers catch up, reducing overall throughput and potentially causing cascading failures across distributed systems.
+
+Reactive Streams' request-based flow control provides a superior solution: consumers explicitly signal how many elements they can handle through the `Subscription.request(n)` method, and producers respect these demand signals by never sending more than requested.
+
+=== Automatic Backpressure Management
+
+MicroProfile Reactive Messaging automatically manages backpressure through the Reactive Streams protocol. The framework handles demand signaling and flow control behind the scenes based on your method signatures.
+
+*Sequential Processing Pattern*:
+
+[source,java]
+----
+import org.eclipse.microprofile.reactive.messaging.Incoming;
+import org.eclipse.microprofile.reactive.messaging.Outgoing;
+
+@Incoming("data")
+@Outgoing("processed-data")
+public String process(String data) {
+    return transform(data);
+}
+----
+
+The framework automatically:
+
+1. Requests one element from the upstream channel
+2. Waits for the `process` method to complete
+3. Sends the result downstream
+4. Requests the next element only after the current one is fully processed
+
+This sequential processing naturally provides backpressure: the upstream producer will not send more data until the current item is processed. If `transform(data)` takes 100ms, the consumer processes at most 10 messages per second, and the producer adapts to this rate.
+
+*Asynchronous Processing with Backpressure*:
+
+[source,java]
+----
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CompletableFuture;
+
+@Incoming("tasks")
+@Outgoing("results")
+public CompletionStage<Result> processAsync(Task task) {
+    return CompletableFuture.supplyAsync(() -> 
+        expensiveOperation(task)
+    );
+}
+----
+
+The framework waits for each `CompletionStage` to complete before requesting the next message. This ensures backpressure is maintained even when processing happens asynchronously on different threads or involves I/O operations.
+
+*Stream Processing with Reactive Types*:
+
+[source,java]
+----
+import io.smallrye.mutiny.Multi;
+
+@Incoming("events")
+@Outgoing("filtered-events")
+public Multi<Event> filterStream(Multi<Event> events) {
+    return events
+        .filter(event -> event.isImportant())
+        .map(this::enrich);
+}
+----
+
+When using reactive types like `Multi`, backpressure propagates automatically through the entire chain of operators. If a downstream subscriber can only handle 10 items, the `filter` and `map` operators request only what's needed from upstream.
+
+=== Configuring Backpressure Behavior
+
+While automatic backpressure works well for many scenarios, you can configure specific behaviors for advanced requirements:
+
+*Buffering Strategy*:
+
+Configure buffer sizes for incoming channels to smooth out temporary speed mismatches:
+
+[source,properties]
+----
+# Allow producer to send up to 256 messages ahead
+mp.messaging.incoming.data.buffer-size=256
+----
+
+This creates a buffer of 256 messages between the connector and your consumer method. The producer can send messages at its natural rate while the consumer processes at its own pace, as long as the buffer doesn't fill completely.
+
+*Choosing Buffer Size*:
+
+* *Small buffers (10-50)*: Tight backpressure control, minimal memory usage, but frequent demand signals
+* *Medium buffers (100-500)*: Good balance for most scenarios with occasional bursts
+* *Large buffers (1000+)*: Tolerate significant bursts, but consume more memory and delay backpressure signals
+
+*Concurrent Processing*:
+
+Process multiple messages concurrently while maintaining overall backpressure control:
+
+[source,java]
+----
+import io.smallrye.mutiny.Multi;
+import io.smallrye.mutiny.Uni;
+
+@Incoming("tasks")
+@Outgoing("results")
+public Multi<Result> processConcurrent(Multi<Task> tasks) {
+    return tasks
+        .onItem().transformToUniAndMerge(task ->
+            Uni.createFrom().completionStage(() ->
+                CompletableFuture.supplyAsync(() -> process(task))
+            ),
+            3  // Process up to 3 messages concurrently
+        );
+}
+----
+
+The concurrency limit (3 in this example) ensures that no more than 3 messages are processed simultaneously. This provides controlled parallelism for I/O-bound operations while preventing resource exhaustion.
+
+*Batching for Throughput*:
+
+Process messages in batches to improve throughput for operations that benefit from bulk processing:
+
+[source,java]
+----
+import io.smallrye.mutiny.Multi;
+import java.time.Duration;
+
+@Incoming("events")
+@Outgoing("batched-events")
+public Multi<List<Event>> batch(Multi<Event> events) {
+    return events
+        .group().intoLists().of(100, Duration.ofSeconds(5));
+}
+----
+
+This batches up to 100 events or waits up to 5 seconds, whichever comes first. Batching is particularly effective for:
+
+* Bulk database inserts
+* Batch API calls to external services
+* Aggregated analytics computations
+
+*Rate Limiting*:
+
+Control the maximum processing rate to prevent overwhelming downstream systems:
+
+[source,java]
+----
+import io.smallrye.mutiny.Multi;
+import io.smallrye.mutiny.Uni;
+import java.time.Duration;
+
+@Incoming("high-volume")
+@Outgoing("rate-limited")
+public Multi<Data> rateLimit(Multi<Data> stream) {
+    return stream
+        .group().intoLists().of(10)                    // Batch 10 items
+        .onItem().call(batch ->                         // Pause between batches
+            Uni.createFrom().nullItem()
+                .onItem().delayIt().by(Duration.ofMillis(100))
+        )
+        .onItem().transformToMultiAndConcatenate(Multi::createFrom().iterable);
+}
+----
+
+This processes at most 100 messages per second (10 messages every 100ms), protecting downstream services from overload.
+
 === Controlling Backpressure with @OnOverflow
 
-The `@OnOverflow` annotation controls what happens when messages are emitted faster than downstream consumers can process them. Without this annotation, the default strategy is `OnOverflow.Strategy.BUFFER` with a buffer size of 128 elements (or the value of the `mp.messaging.emitter.default-buffer-size` configuration property).
+When using `@Emitter` to programmatically send messages to channels, the `@OnOverflow` annotation controls what happens when messages are emitted faster than downstream consumers can process them. Without this annotation, the default strategy is `OnOverflow.Strategy.BUFFER` with a buffer size of 128 elements (or the value of the `mp.messaging.emitter.default-buffer-size` configuration property).
 
 [source,java]
 ----
@@ -872,429 +1379,243 @@ Emitter<Order> orderEmitter;
 
 *Choosing the Right Strategy*:
 
-* *`BUFFER`*: Best for most scenarios where occasional slowdowns are acceptable and you want to preserve all messages.
-* *`DROP` or `LATEST`*: Appropriate for high-frequency sensor data or metrics where missing some values is acceptable.
-* *`FAIL`*: Use when any backpressure indicates a system problem that should halt processing.
-* *`THROW_EXCEPTION`*: Provides immediate feedback to the caller that the system is overloaded.
+* *`BUFFER`*: Best for most scenarios where occasional slowdowns are acceptable and you want to preserve all messages. Good for business transactions, orders, or events that must not be lost.
+* *`DROP` or `LATEST`*: Appropriate for high-frequency sensor data, metrics, or real-time dashboards where missing some values is acceptable and recent data is more valuable than complete history.
+* *`FAIL`*: Use when any backpressure indicates a system problem that should halt processing and trigger alerts. Appropriate for critical systems where degraded performance should stop operations.
+* *`THROW_EXCEPTION`*: Provides immediate feedback to the caller that the system is overloaded. Useful in REST endpoints to return HTTP 503 Service Unavailable when the system cannot accept more requests.
+* *`UNBOUNDED_BUFFER`*: Rarely recommended. Only use in controlled environments with guaranteed bounded input (e.g., processing a fixed-size file).
+
+*Strategy Examples by Use Case*:
 
 [source,java]
 ----
-// For high-frequency sensor data where latest value matters most
+// High-frequency sensor data where latest value matters most
 @Inject
 @Channel("temperature-readings")
 @OnOverflow(OnOverflow.Strategy.LATEST)
 Emitter<Temperature> temperatureEmitter;
 
-// For critical transactions that must all be processed
+// Critical transactions that must all be processed
 @Inject
 @Channel("payments")
 @OnOverflow(value = OnOverflow.Strategy.BUFFER, bufferSize = 1000)
 Emitter<Payment> paymentEmitter;
+
+// REST endpoint that should fail fast when overloaded
+@Inject
+@Channel("api-requests")
+@OnOverflow(OnOverflow.Strategy.THROW_EXCEPTION)
+Emitter<ApiRequest> requestEmitter;
+
+@POST
+@Path("/requests")
+public Response handleRequest(ApiRequest request) {
+    try {
+        requestEmitter.send(request);
+        return Response.accepted().build();
+    } catch (IllegalStateException e) {
+        return Response.status(503).entity("System overloaded").build();
+    }
+}
 ----
 
 When the `@OnOverflow` annotation is absent, the `BUFFER` strategy with default buffer size applies automatically. This provides a sensible default for most applications while allowing fine-grained control when needed.
 
-== Declarative Messaging
+=== Backpressure Best Practices
 
-Declarative messaging is at the heart of MicroProfile Reactive Messaging. By using simple annotations, developers can define complex message processing pipelines without writing boilerplate code for message handling, threading, or backpressure management.
+*1. Match Buffer Sizes to Message Characteristics*:
 
-=== Consuming Messages with @Incoming
+* Small, frequent messages: Larger buffers (500-1000)
+* Large, infrequent messages: Smaller buffers (10-50)
+* Variable sizes: Monitor memory and adjust dynamically
 
-The `@Incoming` annotation marks a method as a consumer of messages from a specified channel. When messages arrive on that channel, the method is automatically invoked.
-
-*Basic Consumption*:
-
-[source,java]
-----
-@Incoming("product-updates")
-public void processUpdate(Product product) {
-    productService.updateCache(product);
-}
-----
-
-*Supported Method Signatures*:
-
-MicroProfile Reactive Messaging supports various method signatures for flexibility:
-
-*1. Simple Payload*:
-[source,java]
-----
-@Incoming("items")
-public void process(String item) { }
-----
-
-*2. Message Wrapper*:
-[source,java]
-----
-@Incoming("items")
-public void process(Message<String> message) { 
-    String payload = message.getPayload();
-    // Manual acknowledgment
-    message.ack();
-}
-----
-
-*3. Reactive Types*:
-[source,java]
-----
-@Incoming("items")
-public CompletionStage<Void> process(String item) {
-    return processAsync(item);
-}
-----
-
-*4. Reactive Streams*:
-[source,java]
-----
-@Incoming("items")
-public Subscriber<String> process() {
-    return ReactiveStreams.<String>builder()
-        .forEach(this::handleItem)
-        .build();
-}
-----
-
-=== Accessing Metadata
-
-Messages can carry metadata in addition to their payload. This metadata might include headers, timestamps, keys, or connector-specific information.
-
-*Accessing Metadata through Message*:
+*2. Use Concurrency for I/O-Bound Operations*:
 
 [source,java]
 ----
-@Incoming("orders")
-public void processOrder(Message<Order> message) {
-    Order order = message.getPayload();
-    
-    // Access metadata
-    Optional<String> source = message.getMetadata(IncomingKafkaRecordMetadata.class)
-        .map(metadata -> metadata.getTopic());
-    
-    Optional<Long> timestamp = message.getMetadata(IncomingKafkaRecordMetadata.class)
-        .map(metadata -> metadata.getTimestamp());
-}
-----
-
-*Common Metadata Types*:
-
-* *Kafka Metadata*: Topic, partition, offset, timestamp, key
-* *AMQP Metadata*: Exchange, routing key, content type
-* *Custom Metadata*: Application-specific metadata
-
-=== Producing Messages with @Outgoing
-
-The `@Outgoing` annotation marks a method as a producer of messages to a specified channel. The method can produce messages in various ways:
-
-*Simple Value Production*:
-
-[source,java]
-----
-@Outgoing("prices")
-public double generatePrice() {
-    return computeCurrentPrice();
-}
-----
-
-*Stream Production*:
-
-[source,java]
-----
-@Outgoing("heartbeat")
-public Publisher<String> generateHeartbeat() {
-    return ReactiveStreams.generate(() -> "alive")
-        .buildRs();
-}
-----
-
-*Periodic Production*:
-
-[source,java]
-----
-@Outgoing("ticks")
-public Publisher<Instant> generateTicks() {
-    return Multi.createFrom().ticks().every(Duration.ofSeconds(1))
-        .map(tick -> Instant.now());
-}
-----
-
-=== One-to-Many and Many-to-One Message Transformations
-
-MicroProfile Reactive Messaging supports flexible transformations between channels:
-
-*One-to-One Transformation*:
-
-[source,java]
-----
-@Incoming("celsius")
-@Outgoing("fahrenheit")
-public double convert(double celsius) {
-    return celsius * 9/5 + 32;
-}
-----
-
-*One-to-Many (Splitting)*:
-
-[source,java]
-----
-@Incoming("orders")
-@Outgoing("order-items")
-public PublisherBuilder<OrderItem> splitOrder(Order order) {
-    return ReactiveStreams.fromIterable(order.getItems());
-}
-----
-
-Each order produces multiple order items sent downstream.
-
-*Many-to-One (Aggregation)*:
-
-[source,java]
-----
-@Incoming("sensor-readings")
-@Outgoing("averages")
-public PublisherBuilder<Double> calculateAverage(PublisherBuilder<Double> readings) {
-    return readings.collect(Collectors.averagingDouble(d -> d));
-}
-----
-
-*Filtering*:
-
-[source,java]
-----
-@Incoming("all-events")
-@Outgoing("important-events")
-public PublisherBuilder<Event> filterEvents(PublisherBuilder<Event> events) {
-    return events.filter(event -> event.getPriority() > 5);
-}
-----
-
-*Enrichment*:
-
-[source,java]
-----
+// Good: Concurrent HTTP calls
 @Incoming("user-ids")
-@Outgoing("users")
-public CompletionStage<User> enrichUser(String userId) {
-    return userRepository.findById(userId);
+public Multi<User> fetchUsers(Multi<String> userIds) {
+    return userIds.onItem().transformToUniAndMerge(
+        id -> restClient.getUser(id),
+        10  // 10 concurrent HTTP requests
+    );
 }
+
+// Avoid: Concurrent CPU-intensive work (may cause thread pool exhaustion)
 ----
 
-These transformation patterns enable building complex processing pipelines declaratively.
+*3. Batch for Efficiency, Not to Bypass Backpressure*:
 
-== Dealing with Backpressure
+Batching should improve throughput for operations that benefit from bulk processing, not hide backpressure problems.
 
-Backpressure is one of the most critical challenges in reactive systems. It occurs when message producers generate data faster than consumers can process it. Without proper handling, this mismatch can lead to memory exhaustion, dropped messages, or system failures.
+*4. Choose @OnOverflow Strategies Based on Data Criticality*:
 
-=== Understanding Backpressure in Messaging Context
+* Critical data (payments, orders): Use `BUFFER` or `THROW_EXCEPTION`
+* Transient data (metrics, sensors): Use `DROP` or `LATEST`
+* Monitor dropped messages with metrics when using lossy strategies
 
-In a messaging system, backpressure scenarios include:
+*5. Monitor Backpressure Metrics*:
 
-* *Fast Producer, Slow Consumer*: A Kafka topic receives thousands of messages per second, but the consumer can only process 100 per second.
-* *Bursty Traffic*: Periodic spikes in message volume overwhelm downstream processors.
-* *Resource Constraints*: Database connections, network bandwidth, or CPU become bottlenecks.
+Use MicroProfile Metrics to track:
 
-*Traditional Approaches and Problems*:
-
-1. *Unbounded Buffers*: Queue all messages in memory, leading to OutOfMemoryError.
-2. *Dropping Messages*: Discard excess messages, causing data loss.
-3. *Blocking*: Block producers until consumers catch up, reducing throughput and causing cascading failures.
-
-Reactive Streams' request-based flow control provides a better solution: consumers explicitly request the number of elements they can handle, and producers respect these requests.
-
-=== Automatic Handling of Backpressure
-
-MicroProfile Reactive Messaging automatically manages backpressure through the Reactive Streams protocol:
-
-*Request Propagation*:
-
-When using this pattern:
+* Buffer fill rates
+* Processing latency
+* Message drop counts (if using DROP strategy)
+* Backpressure events
 
 [source,java]
 ----
+import org.eclipse.microprofile.metrics.Counter;
+import org.eclipse.microprofile.metrics.annotation.Metric;
+
+@Inject
+@Metric(name = "messages_processed_total")
+Counter messagesProcessed;
+
 @Incoming("data")
-@Outgoing("processed-data")
-public String process(String data) {
-    return transform(data);
+public void process(String data) {
+    // Process data
+    messagesProcessed.inc();
 }
 ----
 
-The framework:
-1. Requests one element from the upstream channel
-2. Waits for the `process` method to complete
-3. Sends the result downstream
-4. Requests the next element
+*6. Test Under Load*:
 
-This sequential processing naturally provides backpressure: the upstream producer will not send more data until the current item is processed.
+Simulate high message volumes and slow consumers to verify backpressure behavior before production deployment. Use tools like Apache JMeter or Gatling to generate realistic load patterns.
 
-*Asynchronous Processing with Backpressure*:
+Understanding and properly configuring backpressure ensures your reactive messaging applications remain stable and responsive under varying load conditions. The framework's automatic handling covers most scenarios, while the configuration options and `@OnOverflow` strategies provide fine-grained control when needed.
 
-[source,java]
-----
-@Incoming("tasks")
-@Outgoing("results")
-public CompletionStage<Result> processAsync(Task task) {
-    return CompletableFuture.supplyAsync(() -> 
-        expensiveOperation(task)
-    );
-}
-----
+== Message Acknowledgment and Error Handling
 
-The framework waits for the CompletionStage to complete before requesting the next message, ensuring backpressure is maintained even with async operations.
+Reliable message processing requires proper acknowledgment and error handling strategies. MicroProfile Reactive Messaging provides flexible mechanisms to ensure messages are processed correctly and failures are handled appropriately.
 
-=== Strategies for Configuring Backpressure Behavior
+=== Understanding Message Acknowledgment
 
-While automatic backpressure works well for many cases, developers can configure behavior for specific requirements:
+Acknowledgment (ack) is the signal sent to the messaging system confirming that a message has been successfully processed. Negative acknowledgment (nack) signals that processing failed and the message should be retried or sent to a dead letter queue.
 
-*Buffering Strategy*:
+Acknowledgment behavior directly affects message delivery guarantees:
 
-Configure buffer sizes for channels:
+* *At-most-once*: Messages are acknowledged before processing. If processing fails, the message is lost.
+* *At-least-once*: Messages are acknowledged after successful processing. If processing fails, the message is redelivered, potentially causing duplicates.
+* *Exactly-once*: Requires idempotent processing or transactional coordination (implementation-specific).
 
-[source,properties]
-----
-mp.messaging.incoming.data.buffer-size=256
-----
+=== Acknowledgment Strategies
 
-This creates a buffer of 256 messages, allowing the producer to send ahead while the consumer processes at its own pace.
+MicroProfile Reactive Messaging supports several acknowledgment strategies configured via the `@Acknowledgment` annotation:
 
-*Overflow Strategy*:
+*1. POST_PROCESSING (Default)*:
 
-Define what happens when buffers fill:
-
-[source,properties]
-----
-mp.messaging.incoming.data.overflow-strategy=drop-oldest
-----
-
-Strategies include:
-* `drop-oldest`: Remove the oldest message when buffer is full
-* `drop-latest`: Discard the newest message
-* `fail`: Throw an exception
-
-*Concurrent Processing*:
-
-Process multiple messages concurrently while maintaining backpressure:
+Acknowledge the message after the method completes successfully:
 
 [source,java]
 ----
-@Incoming("tasks")
-@Outgoing("results")
-public PublisherBuilder<Result> processConcurrent(
-        PublisherBuilder<Task> tasks) {
-    return tasks.flatMapCompletionStage(3, task ->
-        CompletableFuture.supplyAsync(() -> process(task))
-    );
-}
-----
-
-The `flatMapCompletionStage(3, ...)` processes up to 3 messages concurrently, providing controlled parallelism while respecting backpressure.
-
-*Batching*:
-
-Process messages in batches to improve throughput:
-
-[source,java]
-----
-@Incoming("events")
-@Outgoing("batched-events")
-public PublisherBuilder<List<Event>> batch(
-        PublisherBuilder<Event> events) {
-    return events.collect(
-        () -> new ArrayList<Event>(),
-        (list, event) -> {
-            list.add(event);
-            return list.size() < 100;
-        }
-    );
-}
-----
-
-*Throttling*:
-
-Limit message processing rate:
-
-[source,java]
-----
-@Incoming("high-volume")
-@Outgoing("throttled")
-public PublisherBuilder<Data> throttle(PublisherBuilder<Data> data) {
-    return ReactiveStreams.fromPublisher(
-        Multi.createFrom().publisher(data.buildRs())
-            .group().intoLists().of(10, Duration.ofSeconds(1))
-            .flatMap(list -> Multi.createFrom().iterable(list))
-    );
-}
-----
-
-== Message Acknowledgments and Error Handling
-
-Reliable message processing requires proper acknowledgment and error handling strategies. MicroProfile Reactive Messaging provides flexible mechanisms to ensure messages are processed reliably and failures are handled appropriately.
-
-=== Message Acknowledgment Strategies
-
-Acknowledgment confirms that a message has been successfully processed. The timing and handling of acknowledgments affect reliability and performance.
-
-*Acknowledgment Strategies*:
-
-MicroProfile Reactive Messaging supports several acknowledgment strategies configured via `@Acknowledgment`:
-
-[source,java]
-----
+import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
-----
 
-*1. PRE_PROCESSING*:
-
-Acknowledge the message before processing:
-
-[source,java]
-----
-@Incoming("data")
-@Acknowledgment(Acknowledgment.Strategy.PRE_PROCESSING)
-public void process(String data) {
-    // Message already acknowledged
-    processData(data);
-}
-----
-
-* *Use when*: Processing is idempotent or occasional message loss is acceptable.
-* *Risk*: If processing fails, the message is already acknowledged and will not be redelivered.
-
-*2. POST_PROCESSING*:
-
-Acknowledge after successful processing (default for most signatures):
-
-[source,java]
-----
-@Incoming("data")
+@Incoming("orders")
 @Acknowledgment(Acknowledgment.Strategy.POST_PROCESSING)
-public void process(String data) {
-    processData(data);
-    // Message acknowledged after method returns
+public void processOrder(Order order) {
+    orderService.save(order);
+    // Message acknowledged after method returns successfully
+    // If an exception is thrown, message is NOT acknowledged
 }
 ----
 
-* *Use when*: You need at-least-once delivery guarantees.
-* *Behavior*: If processing throws an exception, the message is not acknowledged.
+* *Use when*: You need at-least-once delivery guarantees and want automatic acknowledgment.
+* *Behavior*: If the method throws an exception, the message is not acknowledged and will be redelivered (subject to connector retry policies).
+* *Default for*: Methods with `void` return type or methods returning simple types.
+
+*Async POST_PROCESSING*:
+
+[source,java]
+----
+@Incoming("orders")
+@Acknowledgment(Acknowledgment.Strategy.POST_PROCESSING)
+public CompletionStage<Void> processOrder(Order order) {
+    return orderService.saveAsync(order);
+    // Message acknowledged when CompletionStage completes successfully
+    // If CompletionStage completes exceptionally, message is NOT acknowledged
+}
+----
+
+*2. PRE_PROCESSING*:
+
+Acknowledge the message before processing begins:
+
+[source,java]
+----
+@Incoming("metrics")
+@Acknowledgment(Acknowledgment.Strategy.PRE_PROCESSING)
+public void recordMetric(Metric metric) {
+    // Message already acknowledged before this line executes
+    metricsRepository.save(metric);
+    // If this fails, message is already acknowledged and won't be redelivered
+}
+----
+
+* *Use when*: Processing is idempotent, message loss is acceptable, or you want at-most-once semantics.
+* *Risk*: If processing fails, the message is already acknowledged and will not be redelivered.
+* *Best for*: High-throughput scenarios where occasional loss is acceptable (metrics, analytics, sensor data).
 
 *3. MANUAL*:
 
-Manually control when to acknowledge:
+Manually control when and how to acknowledge:
 
 [source,java]
 ----
-@Incoming("data")
+import org.eclipse.microprofile.reactive.messaging.Message;
+
+@Incoming("payments")
 @Acknowledgment(Acknowledgment.Strategy.MANUAL)
-public CompletionStage<Void> process(Message<String> message) {
-    return processData(message.getPayload())
-        .thenCompose(v -> message.ack())
+public CompletionStage<Void> processPayment(Message<Payment> message) {
+    Payment payment = message.getPayload();
+    
+    return paymentService.process(payment)
+        .thenCompose(result -> {
+            log.info("Payment processed successfully: {}", payment.getId());
+            return message.ack();  // Explicit acknowledgment
+        })
         .exceptionally(throwable -> {
-            message.nack(throwable);
-            return null;
+            log.error("Payment processing failed: {}", payment.getId(), throwable);
+            return message.nack(throwable);  // Negative acknowledgment
         });
 }
 ----
 
-* *Use when*: You need fine-grained control over acknowledgment timing.
-* *Methods*: `message.ack()` acknowledges, `message.nack(throwable)` negative acknowledges.
+* *Use when*: You need fine-grained control over acknowledgment timing or conditional acknowledgment logic.
+* *Methods*: 
+  - `message.ack()` returns `CompletionStage<Void>` for acknowledgment
+  - `message.nack(throwable)` returns `CompletionStage<Void>` for negative acknowledgment with reason
+  - `message.nack(throwable, metadata)` allows passing additional metadata about the failure
+
+*Conditional Acknowledgment*:
+
+[source,java]
+----
+@Incoming("events")
+@Acknowledgment(Acknowledgment.Strategy.MANUAL)
+public CompletionStage<Void> handleEvent(Message<Event> message) {
+    Event event = message.getPayload();
+    
+    return validateEvent(event)
+        .thenCompose(isValid -> {
+            if (isValid) {
+                return processEvent(event)
+                    .thenCompose(v -> message.ack());
+            } else {
+                // Invalid event - acknowledge to skip it (don't retry)
+                log.warn("Skipping invalid event: {}", event.getId());
+                return message.ack();
+            }
+        })
+        .exceptionally(throwable -> {
+            // Unexpected error - nack to retry
+            log.error("Event processing error: {}", event.getId(), throwable);
+            return message.nack(throwable);
+        });
+}
+----
 
 *4. NONE*:
 
@@ -1302,441 +1623,1525 @@ No automatic acknowledgment:
 
 [source,java]
 ----
-@Incoming("data")
+@Incoming("logs")
 @Acknowledgment(Acknowledgment.Strategy.NONE)
-public void process(String data) {
-    // No acknowledgment occurs
+public void logMessage(String message) {
+    logger.info(message);
+    // No acknowledgment occurs - connector manages it
 }
 ----
 
-* *Use when*: Connected to systems that do not support acknowledgment.
+* *Use when*: The connector or external system handles acknowledgment, or acknowledgment is not supported.
+* *Rare use case*: Most applications should use one of the other strategies.
 
-=== Error Handling and Failure Strategies
+=== Default Acknowledgment Behavior
 
-When message processing fails, strategies are needed to handle the failure:
+If no `@Acknowledgment` annotation is present, the default strategy depends on the method signature:
 
-*1. Retry*:
+[cols="2,1"]
+|===
+|Method Signature |Default Strategy
 
-Automatically retry failed messages:
+|`void method(T payload)`
+|POST_PROCESSING
+
+|`CompletionStage<Void> method(T payload)`
+|POST_PROCESSING
+
+|`void method(Message<T> message)`
+|MANUAL
+
+|`CompletionStage<Void> method(Message<T> message)`
+|MANUAL
+
+|`Multi<R> method(Multi<T> stream)`
+|POST_PROCESSING (per item)
+|===
+
+When using `Message<T>` wrapper, MANUAL is the default because it signals you want explicit control over acknowledgment.
+
+=== Error Handling Strategies
+
+When message processing fails, MicroProfile Reactive Messaging provides several strategies to handle the failure. These are configured per incoming channel:
+
+*1. Failure Strategy: fail (Default)*:
+
+Stop processing and propagate the failure:
 
 [source,properties]
 ----
-mp.messaging.incoming.data.failure-strategy=retry
-mp.messaging.incoming.data.retry.max-retries=3
-mp.messaging.incoming.data.retry.delay=1000
+mp.messaging.incoming.orders.failure-strategy=fail
 ----
 
-*2. Dead Letter Queue*:
+* *Behavior*: When a message fails, the entire channel stops processing. The application container may attempt to restart the channel based on the connector implementation.
+* *Use when*: Any failure indicates a critical problem that requires investigation and manual intervention.
 
-Send failed messages to a separate channel:
+*2. Failure Strategy: ignore*:
+
+Log the failure and continue processing subsequent messages:
 
 [source,properties]
 ----
-mp.messaging.incoming.data.failure-strategy=dead-letter-queue
-mp.messaging.incoming.data.dead-letter-queue.topic=failed-data
+mp.messaging.incoming.metrics.failure-strategy=ignore
 ----
 
-*3. Ignore*:
+* *Behavior*: Failed messages are logged and discarded. Processing continues with the next message.
+* *Use when*: Individual message failures should not stop the stream (e.g., best-effort metrics collection).
+* *Risk*: Failed messages are permanently lost.
 
-Log and ignore failures:
+*3. Failure Strategy: dead-letter-queue*:
+
+Send failed messages to a separate channel or topic for later analysis:
 
 [source,properties]
 ----
-mp.messaging.incoming.data.failure-strategy=ignore
+# Kafka connector example
+mp.messaging.incoming.orders.failure-strategy=dead-letter-queue
+mp.messaging.incoming.orders.dead-letter-queue.topic=orders-dlq
+mp.messaging.incoming.orders.dead-letter-queue.key.serializer=org.apache.kafka.common.serialization.StringSerializer
+mp.messaging.incoming.orders.dead-letter-queue.value.serializer=org.apache.kafka.common.serialization.StringSerializer
 ----
 
-*Programmatic Error Handling*:
+* *Behavior*: Failed messages are sent to the configured dead letter queue topic. Original message processing continues with the next message.
+* *Use when*: You want to preserve failed messages for later analysis and reprocessing without blocking the main stream.
+* *Requires*: Connector support (available in Kafka, AMQP connectors).
+
+*4. Custom Failure Handling with MANUAL Acknowledgment*:
+
+Implement custom logic for different failure scenarios:
 
 [source,java]
 ----
 @Incoming("orders")
+@Acknowledgment(Acknowledgment.Strategy.MANUAL)
 public CompletionStage<Void> processOrder(Message<Order> message) {
-    return orderService.process(message.getPayload())
-        .thenCompose(v -> message.ack())
+    Order order = message.getPayload();
+    
+    return orderService.process(order)
+        .thenCompose(result -> message.ack())
         .exceptionally(throwable -> {
             if (throwable instanceof ValidationException) {
-                log.warn("Invalid order", throwable);
-                return message.ack(); // Acknowledge to skip
+                // Business validation failure - skip this message
+                log.warn("Invalid order {}: {}", order.getId(), throwable.getMessage());
+                auditLog.recordInvalidOrder(order, throwable);
+                return message.ack();  // Acknowledge to prevent redelivery
+                
+            } else if (throwable instanceof TemporaryException) {
+                // Transient failure - retry via nack
+                log.warn("Temporary failure for order {}, will retry", order.getId());
+                return message.nack(throwable);
+                
             } else {
-                log.error("Processing failed", throwable);
-                return message.nack(throwable); // Retry
+                // Unexpected error - nack and alert
+                log.error("Unexpected error processing order {}", order.getId(), throwable);
+                alertService.sendAlert("Order processing failed", throwable);
+                return message.nack(throwable);
             }
         });
 }
 ----
 
-*Circuit Breaker Integration*:
+This pattern allows different handling for:
 
-Combine with MicroProfile Fault Tolerance:
+* *Validation errors*: Acknowledged and logged (no retry)
+* *Transient errors*: Negative acknowledged for retry
+* *Unexpected errors*: Negative acknowledged and alerts sent
 
-[source,java]
-----
-@Incoming("external-calls")
-@CircuitBreaker(requestVolumeThreshold = 10)
-@Fallback(fallbackMethod = "fallbackProcess")
-public CompletionStage<Void> process(Data data) {
-    return externalService.call(data);
-}
+=== Integration with MicroProfile Fault Tolerance
 
-public CompletionStage<Void> fallbackProcess(Data data) {
-    log.warn("Circuit open, using fallback");
-    return CompletableFuture.completedFuture(null);
-}
-----
+Combine message processing with MicroProfile Fault Tolerance for robust error handling:
 
-== Integration with Other MicroProfile Specifications
-
-MicroProfile Reactive Messaging integrates seamlessly with other MicroProfile specifications, enabling comprehensive solutions for building resilient, observable, and secure microservices.
-
-=== Fault Tolerance Integration
-
-Combine Reactive Messaging with MicroProfile Fault Tolerance for robust error handling:
+*Retry with Circuit Breaker*:
 
 [source,java]
 ----
-import org.eclipse.microprofile.faulttolerance.*;
+import org.eclipse.microprofile.faulttolerance.CircuitBreaker;
+import org.eclipse.microprofile.faulttolerance.Retry;
+import org.eclipse.microprofile.faulttolerance.Timeout;
+import java.time.temporal.ChronoUnit;
 
 @ApplicationScoped
-public class ResilientProcessor {
+public class OrderProcessor {
+    
+    @Inject
+    ExternalInventoryService inventoryService;
     
     @Incoming("orders")
-    @Retry(maxRetries = 3, delay = 1000)
-    @Timeout(2000)
+    @Acknowledgment(Acknowledgment.Strategy.POST_PROCESSING)
+    @Retry(maxRetries = 3, delay = 1, delayUnit = ChronoUnit.SECONDS)
+    @Timeout(value = 5, unit = ChronoUnit.SECONDS)
     @CircuitBreaker(
         requestVolumeThreshold = 10,
         failureRatio = 0.5,
-        delay = 5000
+        delay = 10,
+        delayUnit = ChronoUnit.SECONDS
     )
     public CompletionStage<Void> processOrder(Order order) {
-        return externalService.process(order);
-    }
-    
-    @Incoming("payments")
-    @Fallback(fallbackMethod = "cachePayment")
-    public CompletionStage<Void> processPayment(Payment payment) {
-        return paymentGateway.process(payment);
-    }
-    
-    public CompletionStage<Void> cachePayment(Payment payment) {
-        return paymentCache.store(payment);
-    }
-}
-----
-
-*Benefits*:
-* Automatic retries for transient failures
-* Timeouts prevent hanging operations
-* Circuit breakers protect against cascading failures
-* Fallbacks provide graceful degradation
-
-=== MicroProfile Metrics Integration
-
-// Updated for MicroProfile Reactive Messaging 3.0.1 specification
-When MicroProfile Reactive Messaging is used in an environment where MicroProfile Metrics is enabled, the implementation automatically produces channel-level metrics in the `base` scope. These metrics require no additional code or annotations.
-
-*Automatically Produced Metrics*:
-
-[cols="2,1,1,2"]
-|===
-|Name |Type |Unit |Description
-
-|`mp.messaging.message.count{channel="<channelname>"}`
-|Counter
-|None
-|The number of messages sent on the named channel.
-|===
-
-In addition to the automatically produced metrics, you can instrument messaging beans with MicroProfile Metrics annotations for application-specific monitoring:
-
-[source,java]
-----
-import org.eclipse.microprofile.metrics.annotation.*;
-
-@ApplicationScoped
-public class MonitoredProcessor {
-    
-    @Inject
-    @Metric(name = "orders.processed")
-    Counter ordersProcessed;
-    
-    @Inject
-    @Metric(name = "processing.time")
-    Histogram processingTime;
-    
-    @Incoming("orders")
-    @Counted(name = "orders.received")
-    @Timed(name = "order.processing.time")
-    public CompletionStage<Void> processOrder(Order order) {
-        long start = System.nanoTime();
-        return orderService.process(order)
-            .thenRun(() -> {
-                ordersProcessed.inc();
-                processingTime.update(
-                    System.nanoTime() - start
-                );
+        return inventoryService.checkAvailability(order)
+            .thenCompose(available -> {
+                if (available) {
+                    return inventoryService.reserveItems(order);
+                } else {
+                    throw new OutOfStockException();
+                }
             });
     }
 }
 ----
 
-*Additional Metrics Exposed*:
-* Message throughput (messages/second)
-* Processing latency
-* Error rates
-* Queue depths
+This configuration:
 
-=== MicroProfile Health for Liveness and Readiness Checks
+* *@Retry*: Retries up to 3 times with 1-second delays for transient failures
+* *@Timeout*: Fails if external service call exceeds 5 seconds
+* *@CircuitBreaker*: Opens circuit if 50% of last 10 requests fail, preventing cascade failures
 
-Implement health checks for messaging components:
+*Fallback for Degraded Service*:
+
+[source,java]
+----
+import org.eclipse.microprofile.faulttolerance.Fallback;
+
+@Incoming("notifications")
+@CircuitBreaker(requestVolumeThreshold = 5, failureRatio = 0.4)
+@Fallback(fallbackMethod = "fallbackNotification")
+public CompletionStage<Void> sendNotification(Notification notification) {
+    return emailService.send(notification);
+}
+
+public CompletionStage<Void> fallbackNotification(Notification notification) {
+    log.warn("Email service unavailable, queuing notification for later");
+    return notificationQueue.enqueue(notification);
+}
+----
+
+*Bulkhead for Resource Isolation*:
+
+[source,java]
+----
+import org.eclipse.microprofile.faulttolerance.Bulkhead;
+
+@Incoming("file-uploads")
+@Bulkhead(value = 5, waitingTaskQueue = 10)
+public CompletionStage<Void> processUpload(FileUpload upload) {
+    return fileProcessor.process(upload);
+}
+----
+
+Limits concurrent file processing to 5, with up to 10 waiting in queue, preventing resource exhaustion.
+
+=== Best Practices for Acknowledgment and Error Handling
+
+*1. Choose Acknowledgment Strategy Based on Delivery Guarantees*:
+
+* *At-least-once needed*: Use POST_PROCESSING (default)
+* *At-most-once acceptable*: Use PRE_PROCESSING for high throughput
+* *Complex logic required*: Use MANUAL for fine control
+* *Idempotent processing*: Design for at-least-once, handle duplicates gracefully
+
+*2. Implement Idempotent Message Handlers*:
+
+[source,java]
+----
+@Incoming("orders")
+public CompletionStage<Void> processOrder(Order order) {
+    // Check if already processed (idempotency key)
+    return orderRepository.findByIdempotencyKey(order.getIdempotencyKey())
+        .thenCompose(existing -> {
+            if (existing != null) {
+                log.info("Order already processed: {}", order.getId());
+                return CompletableFuture.completedFuture(null);
+            }
+            return orderService.process(order);
+        });
+}
+----
+
+*3. Use Dead Letter Queues for Failed Messages*:
+
+Configure DLQs to preserve failed messages without blocking processing:
+
+[source,properties]
+----
+mp.messaging.incoming.orders.failure-strategy=dead-letter-queue
+mp.messaging.incoming.orders.dead-letter-queue.topic=orders-dlq
+
+# Monitor and reprocess DLQ messages separately
+mp.messaging.incoming.orders-dlq.connector=smallrye-kafka
+mp.messaging.incoming.orders-dlq.topic=orders-dlq
+----
+
+*4. Combine Strategies for Robust Processing*:
+
+[source,java]
+----
+@Incoming("payments")
+@Acknowledgment(Acknowledgment.Strategy.MANUAL)
+@Retry(maxRetries = 2, delay = 1, delayUnit = ChronoUnit.SECONDS)
+@CircuitBreaker(requestVolumeThreshold = 10)
+public CompletionStage<Void> processPayment(Message<Payment> message) {
+    // MicroProfile Fault Tolerance handles retries and circuit breaking
+    // Manual acknowledgment provides fine-grained control
+    // Dead letter queue (via connector config) handles ultimate failures
+    return paymentGateway.process(message.getPayload())
+        .thenCompose(v -> message.ack())
+        .exceptionally(throwable -> message.nack(throwable));
+}
+----
+
+*5. Monitor Acknowledgment and Failure Metrics*:
+
+[source,java]
+----
+import org.eclipse.microprofile.metrics.Counter;
+import org.eclipse.microprofile.metrics.annotation.Counted;
+
+@Inject
+@Metric(name = "messages_acked")
+Counter ackedCounter;
+
+@Inject
+@Metric(name = "messages_nacked")
+Counter nackedCounter;
+
+@Incoming("data")
+@Acknowledgment(Acknowledgment.Strategy.MANUAL)
+public CompletionStage<Void> process(Message<Data> message) {
+    return processData(message.getPayload())
+        .thenCompose(v -> {
+            ackedCounter.inc();
+            return message.ack();
+        })
+        .exceptionally(throwable -> {
+            nackedCounter.inc();
+            return message.nack(throwable);
+        });
+}
+----
+
+*6. Document Failure Behavior*:
+
+Clearly document for each channel:
+
+* Expected failure scenarios
+* Acknowledgment strategy and rationale
+* Dead letter queue configuration
+* Retry policies and limits
+* Monitoring and alerting thresholds
+
+Proper acknowledgment and error handling ensure your reactive messaging applications are reliable, observable, and resilient to failures while maintaining the desired delivery guarantees.
+
+== Integration with Other MicroProfile Specifications
+
+MicroProfile Reactive Messaging integrates seamlessly with other MicroProfile specifications, enabling comprehensive solutions for building resilient, observable, configurable, and secure microservices.
+
+=== MicroProfile Fault Tolerance Integration
+
+MicroProfile Fault Tolerance provides patterns like retry, timeout, circuit breaker, bulkhead, and fallback that complement reactive messaging perfectly. These patterns can be applied directly to message processing methods to handle failures gracefully.
+
+[NOTE]
+====
+Fault Tolerance integration is covered extensively in the "Message Acknowledgment and Error Handling" section. This section provides additional integration patterns and use cases.
+====
+
+*Combining Multiple Fault Tolerance Patterns*:
+
+[source,java]
+----
+import org.eclipse.microprofile.faulttolerance.*;
+import org.eclipse.microprofile.reactive.messaging.Incoming;
+import java.time.temporal.ChronoUnit;
+
+@ApplicationScoped
+public class ResilientOrderProcessor {
+    
+    @Inject
+    ExternalInventoryService inventoryService;
+    
+    @Incoming("orders")
+    @Retry(
+        maxRetries = 3,
+        delay = 2,
+        delayUnit = ChronoUnit.SECONDS,
+        jitter = 200,
+        jitterDelayUnit = ChronoUnit.MILLIS
+    )
+    @Timeout(value = 10, unit = ChronoUnit.SECONDS)
+    @CircuitBreaker(
+        requestVolumeThreshold = 10,
+        failureRatio = 0.5,
+        delay = 30,
+        delayUnit = ChronoUnit.SECONDS,
+        successThreshold = 3
+    )
+    @Bulkhead(value = 5, waitingTaskQueue = 10)
+    public CompletionStage<Void> processOrder(Order order) {
+        return inventoryService.checkAndReserve(order)
+            .thenCompose(reserved -> {
+                if (reserved) {
+                    return fulfillmentService.createShipment(order);
+                }
+                throw new OutOfStockException(order.getId());
+            });
+    }
+}
+----
+
+This configuration provides:
+
+* *@Retry with Jitter*: Retries up to 3 times with 2-second base delay plus 0-200ms random jitter to avoid thundering herd
+* *@Timeout*: Fails if operation exceeds 10 seconds
+* *@CircuitBreaker*: Opens if 50% of last 10 requests fail; requires 3 consecutive successes to close
+* *@Bulkhead*: Limits concurrent executions to 5, with 10 waiting in queue
+
+*Fallback for Graceful Degradation*:
+
+[source,java]
+----
+@ApplicationScoped
+public class NotificationProcessor {
+    
+    @Inject
+    EmailService emailService;
+    
+    @Inject
+    SmsService smsService;
+    
+    @Incoming("notifications")
+    @CircuitBreaker(requestVolumeThreshold = 5, failureRatio = 0.4)
+    @Fallback(fallbackMethod = "sendViaSms")
+    public CompletionStage<Void> sendEmail(Notification notification) {
+        return emailService.send(notification);
+    }
+    
+    public CompletionStage<Void> sendViaSms(Notification notification) {
+        log.warn("Email service unavailable, sending notification via SMS");
+        return smsService.send(notification);
+    }
+}
+----
+
+*Asynchronous Fault Tolerance*:
+
+[source,java]
+----
+@ApplicationScoped
+public class PaymentProcessor {
+    
+    @Inject
+    PaymentGateway paymentGateway;
+    
+    @Incoming("payments")
+    @Asynchronous
+    @Retry(maxRetries = 2)
+    @Timeout(value = 5, unit = ChronoUnit.SECONDS)
+    public CompletionStage<Void> processPayment(Payment payment) {
+        return paymentGateway.charge(payment)
+            .thenCompose(result -> {
+                if (result.isSuccessful()) {
+                    return paymentRepository.recordSuccess(payment, result);
+                } else {
+                    throw new PaymentDeclinedException(result.getReason());
+                }
+            });
+    }
+}
+----
+
+The `@Asynchronous` annotation ensures fault tolerance policies are applied in an async-friendly manner, compatible with reactive message processing.
+
+=== MicroProfile Metrics Integration
+
+MicroProfile Metrics enables comprehensive monitoring of reactive messaging applications. The specification mandates automatic metrics, and you can add custom metrics for application-specific monitoring.
+
+*Automatically Produced Metrics*:
+
+When MicroProfile Reactive Messaging 3.0.1 is used in an environment where MicroProfile Metrics is available, implementations automatically produce the following metrics in the `base` scope:
+
+[cols="2,1,1,2"]
+|===
+|Metric Name |Type |Unit |Description
+
+|`mp.messaging.message.count`
+|Counter
+|None
+|The number of messages processed. Includes a `channel` tag identifying the channel name.
+|===
+
+Example metric output:
+----
+mp_messaging_message_count_total{channel="orders"} 1523
+mp_messaging_message_count_total{channel="notifications"} 847
+----
+
+These metrics require no additional code or configuration and are automatically exposed via the MicroProfile Metrics endpoint (typically `/metrics`).
+
+*Custom Application Metrics*:
+
+Add application-specific metrics to track business-level KPIs and detailed processing information:
+
+[source,java]
+----
+import org.eclipse.microprofile.metrics.*;
+import org.eclipse.microprofile.metrics.annotation.*;
+import jakarta.inject.Inject;
+
+@ApplicationScoped
+public class MonitoredOrderProcessor {
+    
+    @Inject
+    @Metric(name = "orders.processed.total", 
+            description = "Total number of orders processed successfully")
+    Counter ordersProcessed;
+    
+    @Inject
+    @Metric(name = "orders.failed.total",
+            description = "Total number of orders that failed processing")
+    Counter ordersFailed;
+    
+    @Inject
+    @Metric(name = "order.processing.duration",
+            description = "Distribution of order processing times")
+    Histogram processingDuration;
+    
+    @Inject
+    @Metric(name = "order.value.total",
+            description = "Total monetary value of processed orders")
+    Counter orderValue;
+    
+    @Incoming("orders")
+    @Counted(
+        name = "orders.received.total",
+        description = "Total number of order messages received"
+    )
+    @Timed(
+        name = "order.processing.time",
+        description = "Time spent processing orders"
+    )
+    public CompletionStage<Void> processOrder(Order order) {
+        long startTime = System.nanoTime();
+        
+        return orderService.process(order)
+            .thenRun(() -> {
+                // Record success metrics
+                ordersProcessed.inc();
+                orderValue.inc(order.getTotalAmount().longValue());
+                
+                long duration = System.nanoTime() - startTime;
+                processingDuration.update(duration);
+                
+                log.info("Order {} processed in {}ms", 
+                    order.getId(), duration / 1_000_000);
+            })
+            .exceptionally(throwable -> {
+                // Record failure metrics
+                ordersFailed.inc();
+                log.error("Order {} processing failed", order.getId(), throwable);
+                return null;
+            });
+    }
+}
+----
+
+*Tracking Backpressure and Queue Health*:
+
+[source,java]
+----
+@ApplicationScoped
+public class BackpressureMonitor {
+    
+    @Inject
+    @Metric(name = "channel.buffer.utilization",
+            description = "Buffer utilization percentage")
+    Gauge<Double> bufferUtilization;
+    
+    @Inject
+    @Metric(name = "messages.dropped.total",
+            description = "Messages dropped due to backpressure")
+    Counter messagesDropped;
+    
+    private final AtomicLong bufferedMessages = new AtomicLong(0);
+    private final long bufferCapacity = 1000;
+    
+    @Incoming("high-volume-stream")
+    @OnOverflow(value = OnOverflow.Strategy.DROP)
+    public void processHighVolume(Data data) {
+        bufferedMessages.incrementAndGet();
+        
+        try {
+            // Process data
+            processData(data);
+        } finally {
+            bufferedMessages.decrementAndGet();
+        }
+    }
+    
+    @Produces
+    @Metric(name = "channel.buffer.utilization")
+    public Gauge<Double> createBufferGauge() {
+        return () -> (bufferedMessages.get() / (double) bufferCapacity) * 100.0;
+    }
+}
+----
+
+*Metrics Endpoint Usage*:
+
+Metrics are exposed via standard MicroProfile Metrics endpoints:
+
+----
+# All metrics
+curl http://localhost:8080/metrics
+
+# Base metrics (includes mp.messaging.message.count)
+curl http://localhost:8080/metrics/base
+
+# Application metrics (custom metrics)
+curl http://localhost:8080/metrics/application
+
+# Prometheus format
+curl -H "Accept: application/openmetrics-text" http://localhost:8080/metrics
+----
+
+=== MicroProfile Health Integration
+
+MicroProfile Health enables liveness and readiness probes for messaging components, essential for container orchestration platforms like Kubernetes.
+
+*Liveness Checks*:
+
+Liveness checks determine if the application is running and should be restarted if unhealthy:
 
 [source,java]
 ----
 import org.eclipse.microprofile.health.*;
+import jakarta.enterprise.context.ApplicationScoped;
 
+@Liveness
 @ApplicationScoped
-public class MessagingHealthCheck {
+public class MessagingLivenessCheck implements HealthCheck {
+    
+    @Inject
+    KafkaConnectionManager kafkaManager;
+    
+    @Override
+    public HealthCheckResponse call() {
+        boolean isAlive = kafkaManager.isConnected();
+        
+        HealthCheckResponseBuilder builder = HealthCheckResponse
+            .named("messaging-liveness")
+            .status(isAlive);
+        
+        if (!isAlive) {
+            builder.withData("error", "Kafka broker connection lost");
+        }
+        
+        return builder.build();
+    }
+}
+----
+
+*Readiness Checks*:
+
+Readiness checks determine if the application can handle traffic:
+
+[source,java]
+----
+@Readiness
+@ApplicationScoped
+public class MessagingReadinessCheck implements HealthCheck {
     
     @Inject
     @Channel("orders")
     Emitter<Order> orderEmitter;
     
-    @Liveness
-    public HealthCheckResponse liveness() {
-        boolean isAlive = checkKafkaConnection();
-        return HealthCheckResponse
-            .named("messaging-liveness")
-            .status(isAlive)
+    @Inject
+    ChannelHealthMonitor channelMonitor;
+    
+    @Override
+    public HealthCheckResponse call() {
+        HealthCheckResponseBuilder builder = HealthCheckResponse
+            .named("messaging-readiness");
+        
+        boolean channelsReady = checkChannels(builder);
+        boolean connectorsReady = checkConnectors(builder);
+        
+        return builder
+            .status(channelsReady && connectorsReady)
             .build();
     }
     
-    @Readiness
-    public HealthCheckResponse readiness() {
-        boolean isReady = orderEmitter != null && 
-                         checkChannelAvailability();
-        return HealthCheckResponse
-            .named("messaging-readiness")
-            .status(isReady)
-            .withData("channel", "orders")
-            .build();
-    }
-    
-    private boolean checkKafkaConnection() {
-        // Check Kafka broker connectivity
+    private boolean checkChannels(HealthCheckResponseBuilder builder) {
+        if (orderEmitter == null) {
+            builder.withData("orders-channel", "not-initialized");
+            return false;
+        }
+        
+        builder.withData("orders-channel", "ready");
         return true;
     }
     
-    private boolean checkChannelAvailability() {
-        // Verify channel configuration
-        return true;
+    private boolean checkConnectors(HealthCheckResponseBuilder builder) {
+        boolean kafkaReady = channelMonitor.isKafkaConnectorReady();
+        builder.withData("kafka-connector", kafkaReady ? "ready" : "not-ready");
+        return kafkaReady;
     }
 }
 ----
 
-*Benefits*:
-* Kubernetes/OpenShift integration for pod management
-* Automatic restart on liveness failure
-* Traffic routing based on readiness
+*Startup Checks (MicroProfile Health 4.0+)*:
 
-=== Config Integration
-
-External configuration for messaging:
-
-[source,properties]
-----
-# Kafka connector configuration
-mp.messaging.connector.smallrye-kafka.bootstrap.servers=${KAFKA_SERVERS:localhost:9092}
-
-# Channel-specific configuration
-mp.messaging.incoming.orders.connector=smallrye-kafka
-mp.messaging.incoming.orders.topic=${ORDER_TOPIC:orders}
-mp.messaging.incoming.orders.group.id=${ORDER_GROUP:order-processors}
-mp.messaging.incoming.orders.auto.offset.reset=earliest
-
-# Outgoing configuration
-mp.messaging.outgoing.notifications.connector=smallrye-kafka
-mp.messaging.outgoing.notifications.topic=${NOTIFICATION_TOPIC:notifications}
-----
-
-Environment-specific configurations can be managed externally, enabling the same application to run in different environments without code changes.
-
-== Reactive Streams Operators
-
-Reactive Streams operators provide powerful tools for transforming, filtering, and combining message streams. MicroProfile Reactive Messaging supports the Reactive Streams Operators specification, enabling functional-style stream processing.
-
-=== Common Operators
-
-*Map*: Transform each element:
+Startup checks prevent traffic until slow initialization completes:
 
 [source,java]
 ----
+@Startup
+@ApplicationScoped
+public class MessagingStartupCheck implements HealthCheck {
+    
+    @Inject
+    SchemaRegistry schemaRegistry;
+    
+    @Override
+    public HealthCheckResponse call() {
+        boolean schemasLoaded = schemaRegistry.isInitialized();
+        
+        return HealthCheckResponse
+            .named("messaging-startup")
+            .status(schemasLoaded)
+            .withData("schemas-loaded", schemasLoaded)
+            .build();
+    }
+}
+----
+
+*Kubernetes Integration*:
+
+Configure Kubernetes probes to use health endpoints:
+
+[source,yaml]
+----
+apiVersion: v1
+kind: Pod
+metadata:
+  name: order-processor
+spec:
+  containers:
+  - name: app
+    image: order-processor:latest
+    livenessProbe:
+      httpGet:
+        path: /health/live
+        port: 8080
+      initialDelaySeconds: 30
+      periodSeconds: 10
+    readinessProbe:
+      httpGet:
+        path: /health/ready
+        port: 8080
+      initialDelaySeconds: 10
+      periodSeconds: 5
+    startupProbe:
+      httpGet:
+        path: /health/started
+        port: 8080
+      initialDelaySeconds: 0
+      periodSeconds: 5
+      failureThreshold: 30
+----
+
+*Benefits*:
+
+* *Automatic Restarts*: Kubernetes restarts pods failing liveness checks
+* *Traffic Management*: Readiness checks control when pods receive traffic
+* *Graceful Startup*: Startup checks prevent premature traffic routing during initialization
+* *Monitoring Integration*: Health data integrates with monitoring systems
+
+=== MicroProfile Config Integration
+
+MicroProfile Config enables externalized configuration for messaging channels, connectors, and application properties, supporting multiple configuration sources with defined precedence.
+
+*Channel Configuration*:
+
+[source,properties]
+----
+# Kafka connector global configuration
+mp.messaging.connector.smallrye-kafka.bootstrap.servers=${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+mp.messaging.connector.smallrye-kafka.security.protocol=${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+
+# Incoming channel: orders
+mp.messaging.incoming.orders.connector=smallrye-kafka
+mp.messaging.incoming.orders.topic=${ORDER_TOPIC:orders}
+mp.messaging.incoming.orders.group.id=${ORDER_GROUP_ID:order-processors}
+mp.messaging.incoming.orders.auto.offset.reset=${ORDER_OFFSET_RESET:earliest}
+mp.messaging.incoming.orders.enable.auto.commit=false
+mp.messaging.incoming.orders.value.deserializer=io.quarkus.kafka.client.serialization.JsonbDeserializer
+
+# Outgoing channel: notifications
+mp.messaging.outgoing.notifications.connector=smallrye-kafka
+mp.messaging.outgoing.notifications.topic=${NOTIFICATION_TOPIC:notifications}
+mp.messaging.outgoing.notifications.value.serializer=io.quarkus.kafka.client.serialization.JsonbSerializer
+mp.messaging.outgoing.notifications.acks=${KAFKA_ACKS:all}
+
+# Application-specific configuration
+app.order.processing.batch-size=${ORDER_BATCH_SIZE:100}
+app.order.processing.timeout-seconds=${ORDER_TIMEOUT:30}
+----
+
+*Injecting Configuration into Beans*:
+
+[source,java]
+----
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+
+@ApplicationScoped
+public class ConfigurableProcessor {
+    
+    @Inject
+    @ConfigProperty(name = "app.order.processing.batch-size", defaultValue = "100")
+    int batchSize;
+    
+    @Inject
+    @ConfigProperty(name = "app.order.processing.timeout-seconds", defaultValue = "30")
+    int timeoutSeconds;
+    
+    @Inject
+    @ConfigProperty(name = "app.feature.async-processing.enabled", defaultValue = "true")
+    boolean asyncProcessingEnabled;
+    
+    @Incoming("orders")
+    @Outgoing("processed-orders")
+    public Multi<List<Order>> batchOrders(Multi<Order> orders) {
+        return orders
+            .group().intoLists().of(batchSize, Duration.ofSeconds(timeoutSeconds));
+    }
+}
+----
+
+*Configuration Sources*:
+
+MicroProfile Config supports multiple sources with defined precedence (highest to lowest):
+
+1. System properties (`-Dmp.messaging.incoming.orders.topic=prod-orders`)
+2. Environment variables (`export MP_MESSAGING_INCOMING_ORDERS_TOPIC=prod-orders`)
+3. `application.properties` or `microprofile-config.properties`
+4. Default values in `@ConfigProperty`
+
+*Dynamic Configuration*:
+
+[source,java]
+----
+import org.eclipse.microprofile.config.Config;
+import org.eclipse.microprofile.config.ConfigProvider;
+
+@ApplicationScoped
+public class DynamicConfigProcessor {
+    
+    @Incoming("configurable-stream")
+    public void process(Data data) {
+        Config config = ConfigProvider.getConfig();
+        
+        // Read configuration at runtime
+        String processingMode = config.getValue("app.processing.mode", String.class);
+        
+        if ("batch".equals(processingMode)) {
+            processBatch(data);
+        } else {
+            processStream(data);
+        }
+    }
+}
+----
+
+*Environment-Specific Configuration*:
+
+Different profiles for development, staging, and production:
+
+[source,properties]
+----
+# application.properties (development defaults)
+mp.messaging.connector.smallrye-kafka.bootstrap.servers=localhost:9092
+app.order.processing.batch-size=10
+
+# Environment variables for production
+export KAFKA_BOOTSTRAP_SERVERS=kafka-prod.example.com:9092
+export ORDER_BATCH_SIZE=500
+export KAFKA_SECURITY_PROTOCOL=SASL_SSL
+----
+
+This enables the same application binary to run in different environments with externalized configuration.
+
+=== MicroProfile OpenAPI Integration
+
+Document reactive messaging endpoints when exposing them via REST:
+
+[source,java]
+----
+import org.eclipse.microprofile.openapi.annotations.*;
+import org.eclipse.microprofile.openapi.annotations.media.*;
+import org.eclipse.microprofile.openapi.annotations.responses.*;
+
+@Path("/orders")
+@ApplicationScoped
+public class OrderResource {
+    
+    @Inject
+    @Channel("orders")
+    Emitter<Order> orderEmitter;
+    
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(
+        summary = "Submit a new order",
+        description = "Submits an order for asynchronous processing via messaging"
+    )
+    @APIResponse(
+        responseCode = "202",
+        description = "Order accepted for processing",
+        content = @Content(schema = @Schema(implementation = OrderResponse.class))
+    )
+    @APIResponse(
+        responseCode = "503",
+        description = "Service temporarily unavailable - messaging system overloaded"
+    )
+    public Response submitOrder(
+        @RequestBody(
+            description = "Order details",
+            required = true,
+            content = @Content(schema = @Schema(implementation = Order.class))
+        ) Order order
+    ) {
+        try {
+            orderEmitter.send(order);
+            return Response.accepted()
+                .entity(new OrderResponse(order.getId(), "ACCEPTED"))
+                .build();
+        } catch (IllegalStateException e) {
+            return Response.status(503)
+                .entity("System overloaded, please retry")
+                .build();
+        }
+    }
+}
+----
+
+The OpenAPI documentation (available at `/openapi`) includes REST endpoints that bridge to messaging systems.
+
+=== Benefits of Integration
+
+Combining MicroProfile Reactive Messaging with other specifications provides:
+
+* *Resilience*: Fault Tolerance handles transient failures, circuit breakers prevent cascades
+* *Observability*: Metrics and Health provide comprehensive monitoring and diagnostics
+* *Flexibility*: Config enables environment-specific tuning without code changes
+* *Documentation*: OpenAPI documents REST-to-messaging bridges
+* *Production-Ready*: Built-in support for Kubernetes, monitoring systems, and enterprise requirements
+
+These integrations make MicroProfile Reactive Messaging suitable for production microservices architectures.
+
+== Reactive Stream Operations
+
+Reactive stream operations provide powerful tools for transforming, filtering, and combining message streams. MicroProfile Reactive Messaging implementations support reactive operators through libraries like Mutiny, enabling functional-style stream processing with backpressure management.
+
+=== Transformation Operators
+
+*Map - Transform Elements*:
+
+Transform each element in the stream:
+
+[source,java]
+----
+import io.smallrye.mutiny.Multi;
+
 @Incoming("prices-cents")
 @Outgoing("prices-dollars")
-public PublisherBuilder<Double> convert(PublisherBuilder<Integer> prices) {
+public Multi<Double> convertToDollars(Multi<Integer> prices) {
     return prices.map(cents -> cents / 100.0);
 }
 ----
 
-*Filter*: Select elements based on a predicate:
+*FlatMap - One-to-Many Transformation*:
 
-[source,java]
-----
-@Incoming("all-orders")
-@Outgoing("large-orders")
-public PublisherBuilder<Order> filterLarge(PublisherBuilder<Order> orders) {
-    return orders.filter(order -> order.getTotal() > 1000);
-}
-----
-
-*FlatMap*: Transform each element into a stream:
+Transform each element into a stream of elements:
 
 [source,java]
 ----
 @Incoming("orders")
 @Outgoing("items")
-public PublisherBuilder<Item> extractItems(PublisherBuilder<Order> orders) {
-    return orders.flatMap(order -> 
-        ReactiveStreams.fromIterable(order.getItems())
-    );
+public Multi<Item> extractItems(Multi<Order> orders) {
+    return orders
+        .onItem().transformToMultiAndConcatenate(order ->
+            Multi.createFrom().iterable(order.getItems())
+        );
 }
 ----
 
-*Collect*: Aggregate elements:
+Each order is expanded into multiple items, which are then flattened into a single stream.
+
+*OnItem.transform - Asynchronous Transformation*:
+
+Transform elements asynchronously with external service calls:
 
 [source,java]
 ----
-@Incoming("temperatures")
-@Outgoing("averages")
-public PublisherBuilder<Double> average(PublisherBuilder<Double> temps) {
-    return temps.collect(Collectors.averagingDouble(t -> t));
+@Incoming("user-ids")
+@Outgoing("users")
+public Multi<User> enrichUsers(Multi<String> userIds) {
+    return userIds
+        .onItem().transformToUniAndConcatenate(userId ->
+            userService.fetchUser(userId)  // Returns Uni<User>
+        );
 }
 ----
 
-*Take/Skip*: Limit stream elements:
+=== Filtering Operators
+
+*Filter - Select Elements*:
+
+Select elements based on a predicate:
+
+[source,java]
+----
+@Incoming("all-orders")
+@Outgoing("large-orders")
+public Multi<Order> filterLargeOrders(Multi<Order> orders) {
+    return orders.filter(order -> order.getTotal() > 1000.0);
+}
+----
+
+Only orders with totals exceeding $1000 are passed downstream.
+
+*Distinct - Remove Duplicates*:
+
+Remove duplicate elements from the stream:
+
+[source,java]
+----
+@Incoming("events")
+@Outgoing("unique-events")
+public Multi<Event> removeDuplicates(Multi<Event> events) {
+    return events
+        .select().distinct(Event::getId);
+}
+----
+
+*Skip and Take - Limit Stream Elements*:
+
+Skip the first N elements:
+
+[source,java]
+----
+@Incoming("events")
+@Outgoing("skip-header")
+public Multi<Event> skipHeader(Multi<Event> events) {
+    return events.skip().first(5);  // Skip first 5 events
+}
+----
+
+Take only the first N elements:
 
 [source,java]
 ----
 @Incoming("events")
 @Outgoing("first-ten")
-public PublisherBuilder<Event> takeFirst(PublisherBuilder<Event> events) {
-    return events.limit(10);
-}
-
-@Incoming("events")
-@Outgoing("skip-header")
-public PublisherBuilder<Event> skipFirst(PublisherBuilder<Event> events) {
-    return events.skip(5);
+public Multi<Event> takeFirst(Multi<Event> events) {
+    return events
+        .select().first(10);  // Take only first 10 events
 }
 ----
 
-*Peek*: Observe elements without modifying them:
+=== Observability Operators
+
+*Invoke - Side Effects*:
+
+Perform side effects without modifying the stream:
 
 [source,java]
 ----
 @Incoming("orders")
 @Outgoing("processed-orders")
-public PublisherBuilder<Order> logOrders(PublisherBuilder<Order> orders) {
-    return orders.peek(order -> 
-        log.info("Processing order: {}", order.getId())
-    );
+public Multi<Order> logOrders(Multi<Order> orders) {
+    return orders
+        .invoke(order -> log.info("Processing order: {}", order.getId()))
+        .invoke(order -> metrics.incrementOrderCount());
 }
 ----
+
+The `invoke` operator is useful for logging, metrics, or debugging without affecting the data flow.
+
+*Call - Asynchronous Side Effects*:
+
+Perform asynchronous side effects that return `Uni<Void>`:
+
+[source,java]
+----
+@Incoming("orders")
+@Outgoing("orders-logged")
+public Multi<Order> auditOrders(Multi<Order> orders) {
+    return orders
+        .onItem().call(order ->
+            auditService.logOrder(order)  // Returns Uni<Void>
+        );
+}
+----
+
+The stream waits for each audit operation to complete before proceeding, maintaining order and backpressure.
+
+=== Aggregation Operators
+
+*Group and Batch*:
+
+Collect elements into batches:
+
+[source,java]
+----
+@Incoming("events")
+@Outgoing("batched-events")
+public Multi<List<Event>> batchEvents(Multi<Event> events) {
+    return events
+        .group().intoLists().of(100);  // Batch 100 events at a time
+}
+----
+
+With time-based batching:
+
+[source,java]
+----
+import java.time.Duration;
+
+@Incoming("sensor-readings")
+@Outgoing("batched-readings")
+public Multi<List<SensorReading>> batchByTime(Multi<SensorReading> readings) {
+    return readings
+        .group().intoLists().of(50, Duration.ofSeconds(5));
+    // Batch up to 50 readings or every 5 seconds, whichever comes first
+}
+----
+
+*Collect - Terminal Aggregation*:
+
+Aggregate all elements into a single result:
+
+[source,java]
+----
+@Incoming("values")
+public Uni<Double> calculateAverage(Multi<Double> values) {
+    return values
+        .collect().asList()
+        .onItem().transform(list ->
+            list.stream()
+                .mapToDouble(Double::doubleValue)
+                .average()
+                .orElse(0.0)
+        );
+}
+----
+
+Note: This consumes the entire stream and returns a `Uni`, not suitable for infinite streams.
+
+*Scan - Running Aggregation*:
+
+Maintain running aggregates across elements:
+
+[source,java]
+----
+@Incoming("transactions")
+@Outgoing("running-balances")
+public Multi<Balance> calculateRunningBalance(Multi<Transaction> transactions) {
+    return transactions
+        .onItem().scan(() -> new Balance(0.0), 
+            (balance, transaction) -> {
+                balance.add(transaction.getAmount());
+                return balance;
+            }
+        );
+}
+----
+
+Each emitted balance reflects all transactions processed so far.
 
 === Combining Streams
 
-*Merge*: Combine multiple streams:
+*Merge - Combine Multiple Streams*:
+
+Merge multiple streams into one, emitting items as they arrive:
 
 [source,java]
 ----
-public Publisher<Event> mergeStreams(
-        Publisher<Event> stream1,
-        Publisher<Event> stream2) {
-    return Multi.createBy().merging()
-        .streams(stream1, stream2);
+@ApplicationScoped
+public class StreamCombiner {
+    
+    @Inject
+    @Channel("events-source-1")
+    Multi<Event> stream1;
+    
+    @Inject
+    @Channel("events-source-2")
+    Multi<Event> stream2;
+    
+    @Outgoing("merged-events")
+    public Multi<Event> mergeStreams() {
+        return Multi.createBy().merging()
+            .streams(stream1, stream2);
+    }
 }
 ----
 
-*Zip*: Combine corresponding elements from streams:
+Items from both streams are interleaved based on their arrival time.
+
+*Concatenate - Sequential Combination*:
+
+Combine streams sequentially (exhaust first stream before starting second):
 
 [source,java]
 ----
-public Publisher<OrderWithPrice> zipStreams(
-        Publisher<Order> orders,
-        Publisher<Price> prices) {
-    return Multi.createBy().combining()
-        .streams(orders, prices)
-        .using(OrderWithPrice::new);
+@Outgoing("concatenated-events")
+public Multi<Event> concatenateStreams() {
+    return Multi.createBy().concatenating()
+        .streams(historicalEvents, liveEvents);
 }
 ----
 
-== Support for Connectors
+*Combine - Pair Elements*:
 
-Connectors bridge MicroProfile Reactive Messaging channels with external messaging systems. They handle the complexity of interacting with message brokers, allowing developers to focus on business logic.
+Combine corresponding elements from multiple streams:
+
+[source,java]
+----
+@ApplicationScoped
+public class PricingService {
+    
+    @Inject
+    @Channel("orders")
+    Multi<Order> orders;
+    
+    @Inject
+    @Channel("prices")
+    Multi<Price> prices;
+    
+    @Outgoing("orders-with-prices")
+    public Multi<OrderWithPrice> combineStreams() {
+        return Multi.createBy().combining()
+            .streams(orders, prices)
+            .using((order, price) -> new OrderWithPrice(order, price));
+    }
+}
+----
+
+Elements are paired based on their index in the stream. If streams have different lengths, the combined stream completes when the shorter stream ends.
+
+*Broadcast - Fan-Out to Multiple Subscribers*:
+
+Share a single stream with multiple subscribers:
+
+[source,java]
+----
+@ApplicationScoped
+public class BroadcastProcessor {
+    
+    private Multi<Event> sharedStream;
+    
+    @PostConstruct
+    public void init() {
+        Multi<Event> source = createEventStream();
+        
+        // Broadcast to multiple subscribers
+        sharedStream = source.broadcast().toAtLeast(2);
+    }
+    
+    @Outgoing("analytics-events")
+    public Multi<Event> toAnalytics() {
+        return sharedStream;
+    }
+    
+    @Outgoing("logging-events")
+    public Multi<Event> toLogging() {
+        return sharedStream;
+    }
+}
+----
+
+=== Error Handling Operators
+
+*OnFailure.retry - Retry on Failure*:
+
+Automatically retry failed operations:
+
+[source,java]
+----
+@Incoming("external-calls")
+@Outgoing("results")
+public Multi<Result> callExternalService(Multi<Request> requests) {
+    return requests
+        .onItem().transformToUniAndConcatenate(request ->
+            externalService.call(request)
+                .onFailure().retry().atMost(3)
+        );
+}
+----
+
+*OnFailure.recoverWithItem - Provide Fallback*:
+
+Recover from failures with a default value:
+
+[source,java]
+----
+@Incoming("risky-operations")
+@Outgoing("safe-results")
+public Multi<Result> withFallback(Multi<Operation> operations) {
+    return operations
+        .onItem().transformToUniAndConcatenate(op ->
+            riskyService.execute(op)
+                .onFailure().recoverWithItem(Result.defaultValue())
+        );
+}
+----
+
+*OnFailure.transform - Convert Exceptions*:
+
+Transform exceptions into different types:
+
+[source,java]
+----
+@Incoming("payments")
+public Multi<Receipt> processPayments(Multi<Payment> payments) {
+    return payments
+        .onItem().transformToUniAndConcatenate(payment ->
+            paymentGateway.process(payment)
+                .onFailure(NetworkException.class)
+                    .transform(ex -> new TemporaryFailureException(ex))
+                .onFailure(InvalidCardException.class)
+                    .transform(ex -> new PermanentFailureException(ex))
+        );
+}
+----
+
+=== Rate Control Operators
+
+*Throttle - Limit Emission Rate*:
+
+Control the maximum rate of element emission:
+
+[source,java]
+----
+@Incoming("high-frequency-events")
+@Outgoing("throttled-events")
+public Multi<Event> throttleEvents(Multi<Event> events) {
+    return events
+        .onItem().call(event ->
+            Uni.createFrom().nullItem()
+                .onItem().delayIt().by(Duration.ofMillis(100))
+        );
+}
+----
+
+This limits processing to approximately 10 events per second.
+
+*Debounce - Ignore Rapid Emissions*:
+
+Only emit items after a quiet period:
+
+[source,java]
+----
+@Incoming("user-input")
+@Outgoing("search-queries")
+public Multi<String> debounceInput(Multi<String> input) {
+    return input
+        .group().intoLists().of(1, Duration.ofMillis(300))
+        .onItem().transform(list -> list.get(list.size() - 1));
+}
+----
+
+This is useful for search-as-you-type functionality, waiting 300ms of inactivity before processing.
+
+=== Best Practices for Stream Operations
+
+*1. Preserve Backpressure*:
+
+Always use operators that maintain backpressure. Avoid collecting entire streams into memory unless necessary:
+
+[source,java]
+----
+// Good: Maintains backpressure
+return stream
+    .map(this::transform)
+    .filter(this::isValid);
+
+// Bad: Breaks backpressure, loads everything into memory
+return Multi.createFrom().iterable(
+    stream.collect().asList().await().indefinitely()
+);
+----
+
+*2. Use Appropriate Operators for Async Operations*:
+
+Use `transformToUniAndConcatenate` or `transformToUniAndMerge` for async transformations:
+
+[source,java]
+----
+// Sequential async processing (preserves order)
+.onItem().transformToUniAndConcatenate(item -> asyncOperation(item))
+
+// Concurrent async processing (may reorder)
+.onItem().transformToUniAndMerge(item -> asyncOperation(item), 10)
+----
+
+*3. Handle Errors Appropriately*:
+
+Add error handling to prevent stream termination:
+
+[source,java]
+----
+return stream
+    .onItem().transformToUniAndConcatenate(item ->
+        processItem(item)
+            .onFailure().recoverWithItem(defaultValue)
+    );
+----
+
+*4. Log for Observability*:
+
+Use `invoke` for logging and metrics without disrupting the stream:
+
+[source,java]
+----
+return stream
+    .invoke(item -> log.debug("Processing: {}", item))
+    .map(this::transform)
+    .invoke(result -> metrics.recordSuccess());
+----
+
+*5. Batch for Efficiency*:
+
+Use batching for operations that benefit from bulk processing:
+
+[source,java]
+----
+return stream
+    .group().intoLists().of(100, Duration.ofSeconds(5))
+    .onItem().transformToUniAndConcatenate(batch ->
+        database.insertBatch(batch)
+    );
+----
+
+Reactive stream operations enable building sophisticated message processing pipelines declaratively while maintaining backpressure and resource efficiency throughout the entire flow.
+
+== Connector Support and External Integration
+
+Connectors bridge MicroProfile Reactive Messaging channels with external messaging systems. They handle the complexity of interacting with message brokers, allowing developers to focus on business logic while the connector manages connections, serialization, and protocol-specific details.
 
 === Connector Architecture
 
-Connectors implement the MicroProfile Reactive Messaging SPI to:
-* Subscribe to external message sources and publish to channels
-* Consume from channels and publish to external destinations
-* Handle serialization/deserialization
-* Manage connections and configurations
+Connectors implement the MicroProfile Reactive Messaging SPI (Service Provider Interface) to:
 
-Common connectors include:
-* *Kafka Connector*: Apache Kafka integration
-* *AMQP Connector*: RabbitMQ and other AMQP brokers
-* *JMS Connector*: Java Message Service
-* *In-Memory Connector*: Testing and development
+* Subscribe to external message sources and publish to internal channels
+* Consume from internal channels and publish to external destinations
+* Handle message serialization and deserialization
+* Manage connections, reconnection logic, and resource cleanup
+* Provide connector-specific configuration options
 
-=== Kafka Connector Example
+*Common Connector Implementations*:
 
-Configuration:
+* *Kafka Connector*: Apache Kafka integration with support for consumer groups, partitioning, and exactly-once semantics
+* *AMQP Connector*: RabbitMQ and other AMQP 1.0 brokers
+* *JMS Connector*: Java Message Service for integration with traditional message brokers
+* *In-Memory Connector*: For testing and local development without external dependencies
+* *MQTT Connector*: IoT and lightweight messaging
+* *Camel Connector*: Integration with Apache Camel routes
+
+=== Kafka Connector Configuration
+
+The Kafka connector is the most widely used connector for production microservices. Here's comprehensive configuration for both incoming and outgoing channels:
+
+*Incoming Channel (Consumer) Configuration*:
 
 [source,properties]
 ----
-# Incoming from Kafka
+# Kafka connector for incoming messages
 mp.messaging.incoming.orders.connector=smallrye-kafka
 mp.messaging.incoming.orders.topic=order-topic
 mp.messaging.incoming.orders.bootstrap.servers=localhost:9092
 mp.messaging.incoming.orders.group.id=order-service
-mp.messaging.incoming.orders.key.deserializer=org.apache.kafka.common.serialization.StringDeserializer
-mp.messaging.incoming.orders.value.deserializer=io.quarkus.kafka.client.serialization.ObjectMapperDeserializer
+mp.messaging.incoming.orders.auto.offset.reset=earliest
+mp.messaging.incoming.orders.enable.auto.commit=false
 
-# Outgoing to Kafka
+# Deserialization
+mp.messaging.incoming.orders.key.deserializer=org.apache.kafka.common.serialization.StringDeserializer
+mp.messaging.incoming.orders.value.deserializer=io.quarkus.kafka.client.serialization.JsonbDeserializer
+mp.messaging.incoming.orders.deserialization.failure.handled=true
+
+# Performance tuning
+mp.messaging.incoming.orders.fetch.min.bytes=1024
+mp.messaging.incoming.orders.max.poll.records=500
+----
+
+*Outgoing Channel (Producer) Configuration*:
+
+[source,properties]
+----
+# Kafka connector for outgoing messages
 mp.messaging.outgoing.order-confirmations.connector=smallrye-kafka
 mp.messaging.outgoing.order-confirmations.topic=confirmation-topic
 mp.messaging.outgoing.order-confirmations.bootstrap.servers=localhost:9092
+
+# Serialization
 mp.messaging.outgoing.order-confirmations.key.serializer=org.apache.kafka.common.serialization.StringSerializer
-mp.messaging.outgoing.order-confirmations.value.serializer=io.quarkus.kafka.client.serialization.ObjectMapperSerializer
+mp.messaging.outgoing.order-confirmations.value.serializer=io.quarkus.kafka.client.serialization.JsonbSerializer
+
+# Reliability settings
+mp.messaging.outgoing.order-confirmations.acks=all
+mp.messaging.outgoing.order-confirmations.retries=3
+mp.messaging.outgoing.order-confirmations.enable.idempotence=true
+
+# Performance tuning
+mp.messaging.outgoing.order-confirmations.batch.size=16384
+mp.messaging.outgoing.order-confirmations.linger.ms=10
 ----
 
-Usage:
+*Usage Example*:
 
 [source,java]
 ----
+import org.eclipse.microprofile.reactive.messaging.Incoming;
+import org.eclipse.microprofile.reactive.messaging.Outgoing;
+import jakarta.enterprise.context.ApplicationScoped;
+
 @ApplicationScoped
 public class OrderProcessor {
     
     @Incoming("orders")
     @Outgoing("order-confirmations")
-    public OrderConfirmation process(Order order) {
-        // Process the order
-        return new OrderConfirmation(order.getId());
+    public OrderConfirmation processOrder(Order order) {
+        // Business logic
+        validateOrder(order);
+        persistOrder(order);
+        
+        return new OrderConfirmation(
+            order.getId(),
+            "PROCESSED",
+            Instant.now()
+        );
     }
 }
 ----
 
-=== Using @Blocking for Worker Threads
+=== Using @Blocking for Blocking Operations
 
-// Updated for MicroProfile Reactive Messaging 3.0.1 specification
-NOTE: The `@Blocking` annotation is not defined in the MicroProfile Reactive Messaging specification. It is an extension provided by the SmallRye Reactive Messaging implementation (used by Quarkus). Other runtime implementations may provide equivalent mechanisms. Consult your runtime's documentation for portability guidance.
+[NOTE]
+====
+The `@Blocking` annotation is not defined in the MicroProfile Reactive Messaging 3.0.1 specification. It is an extension provided by the SmallRye Reactive Messaging implementation (used by Quarkus and other runtimes). Other implementations may provide equivalent mechanisms through different annotations or configuration. Consult your runtime's documentation for portability guidance.
+====
 
-By default, message processing occurs on the event loop thread. For blocking operations (database calls, file I/O, synchronous HTTP calls), use `@Blocking` to offload to a worker thread:
+By default, MicroProfile Reactive Messaging processes messages on event loop threads, which must not be blocked. For blocking operations such as database calls, file I/O, or synchronous HTTP requests, use `@Blocking` to offload processing to a worker thread pool:
+
+*Basic @Blocking Usage*:
 
 [source,java]
 ----
 import io.smallrye.reactive.messaging.annotations.Blocking;
+import jakarta.persistence.EntityManager;
+import jakarta.inject.Inject;
 
 @ApplicationScoped
-public class DatabaseProcessor {
+public class UserUpdateProcessor {
     
     @Inject
     EntityManager entityManager;
@@ -1744,91 +3149,171 @@ public class DatabaseProcessor {
     @Incoming("user-updates")
     @Blocking
     public void updateUser(User user) {
-        // Blocking database operation
+        // Blocking database operation - safe because of @Blocking
         entityManager.merge(user);
         entityManager.flush();
     }
 }
 ----
 
-*@Blocking Parameters*:
+*Advanced @Blocking Configuration*:
 
 [source,java]
 ----
-@Blocking(value = "my-pool", ordered = false)
+@Incoming("cpu-intensive-tasks")
+@Blocking(value = "cpu-pool", ordered = false)
+public Result processIntensiveTask(Task task) {
+    // CPU-intensive computation
+    return computeResult(task);
+}
 ----
 
-* `value`: Custom worker pool name
-* `ordered`: Whether to preserve message order (default: true)
+*@Blocking Parameters*:
+
+* `value`: Custom worker pool name. If not specified, uses the default worker pool.
+* `ordered`: Whether to preserve message order (default: `true`). Set to `false` for higher throughput when order doesn't matter.
+
+*Configuring Custom Worker Pools*:
+
+[source,properties]
+----
+# Default worker pool size
+smallrye.messaging.worker.pool-size=10
+
+# Custom pool configuration
+smallrye.messaging.worker.cpu-pool.pool-size=20
+smallrye.messaging.worker.cpu-pool.queue-size=1000
+----
 
 *When to Use @Blocking*:
-* Database operations (JPA, JDBC)
-* File system operations
-* Synchronous HTTP clients
+
+* Database operations (JPA, JDBC queries, transactions)
+* File system operations (reading, writing files)
+* Synchronous HTTP client calls
 * CPU-intensive computations
+* Thread.sleep() or blocking synchronization
 
 *When NOT to Use @Blocking*:
-* Asynchronous operations returning CompletionStage
+
+* Asynchronous operations returning `CompletionStage<T>` or `Uni<T>`
 * Non-blocking I/O operations
-* Simple, fast transformations
+* Simple, fast transformations (< 1ms)
+* Operations already running on worker threads
 
-== Support for Different Communication Protocols
+*Performance Implications*:
 
-While message brokers are the primary integration point for Reactive Messaging, the specification can be extended to support various communication protocols.
+[source,java]
+----
+// Without @Blocking - blocks event loop (BAD)
+@Incoming("orders")
+public void processOrder(Order order) {
+    // This BLOCKS the event loop thread!
+    entityManager.persist(order);  // Database I/O
+}
 
-=== Integrating gRPC Bidirectional Streaming
+// With @Blocking - uses worker thread (GOOD)
+@Incoming("orders")
+@Blocking
+public void processOrder(Order order) {
+    // Safe - runs on worker thread
+    entityManager.persist(order);
+}
 
-gRPC bidirectional streaming can be integrated with Reactive Messaging for real-time, low-latency communication:
+// Async alternative - no @Blocking needed (BEST)
+@Incoming("orders")
+public Uni<Void> processOrder(Order order) {
+    // Non-blocking async operation
+    return repository.persistAsync(order);
+}
+----
+
+== Integration with Communication Protocols
+
+While message brokers are the primary integration point, MicroProfile Reactive Messaging can be extended to support various communication protocols for specialized use cases.
+
+=== gRPC Bidirectional Streaming Integration
+
+Integrate gRPC bidirectional streaming with reactive messaging for real-time, low-latency communication:
 
 [source,java]
 ----
 import io.grpc.stub.StreamObserver;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
 @ApplicationScoped
-public class GrpcStreamingService extends OrderServiceGrpc.OrderServiceImplBase {
+public class GrpcOrderService extends OrderServiceGrpc.OrderServiceImplBase {
     
     @Inject
     @Channel("orders")
     Emitter<Order> orderEmitter;
     
+    @Inject
+    @Channel("order-updates")
+    Multi<OrderUpdate> orderUpdates;
+    
     @Override
     public StreamObserver<OrderRequest> streamOrders(
             StreamObserver<OrderResponse> responseObserver) {
+        
+        // Subscribe to order updates
+        orderUpdates.subscribe().with(
+            update -> responseObserver.onNext(toGrpcResponse(update)),
+            throwable -> responseObserver.onError(throwable),
+            () -> responseObserver.onCompleted()
+        );
+        
+        // Handle incoming order stream
         return new StreamObserver<OrderRequest>() {
             @Override
             public void onNext(OrderRequest request) {
                 Order order = convertToOrder(request);
-                orderEmitter.send(order);
-                responseObserver.onNext(
-                    OrderResponse.newBuilder()
-                        .setOrderId(order.getId())
-                        .setStatus("RECEIVED")
-                        .build()
-                );
+                
+                orderEmitter.send(order)
+                    .thenAccept(v -> log.info("Order emitted: {}", order.getId()))
+                    .exceptionally(throwable -> {
+                        log.error("Failed to emit order", throwable);
+                        responseObserver.onError(throwable);
+                        return null;
+                    });
             }
             
             @Override
-            public void onError(Throwable t) {
-                log.error("Stream error", t);
+            public void onError(Throwable throwable) {
+                log.error("gRPC stream error", throwable);
             }
             
             @Override
             public void onCompleted() {
-                responseObserver.onCompleted();
+                log.info("gRPC stream completed");
             }
         };
+    }
+    
+    private OrderResponse toGrpcResponse(OrderUpdate update) {
+        return OrderResponse.newBuilder()
+            .setOrderId(update.getOrderId())
+            .setStatus(update.getStatus())
+            .setTimestamp(update.getTimestamp().toEpochMilli())
+            .build();
     }
 }
 ----
 
-=== Real-Time Communication with WebSockets
+=== WebSocket Real-Time Communication
 
-WebSocket integration enables real-time browser-to-backend messaging:
+Integrate WebSockets for real-time browser-to-backend messaging:
 
 [source,java]
 ----
 import jakarta.websocket.*;
 import jakarta.websocket.server.ServerEndpoint;
+import org.eclipse.microprofile.reactive.messaging.Incoming;
+import jakarta.enterprise.context.ApplicationScoped;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @ServerEndpoint("/notifications")
 @ApplicationScoped
@@ -1840,30 +3325,47 @@ public class NotificationWebSocket {
     @OnOpen
     public void onOpen(Session session) {
         sessions.add(session);
+        log.info("WebSocket session opened: {}", session.getId());
     }
     
     @OnClose
     public void onClose(Session session) {
         sessions.remove(session);
+        log.info("WebSocket session closed: {}", session.getId());
+    }
+    
+    @OnError
+    public void onError(Session session, Throwable throwable) {
+        log.error("WebSocket error for session: {}", session.getId(), throwable);
+        sessions.remove(session);
     }
     
     @Incoming("notifications")
     public void broadcastNotification(Notification notification) {
-        String message = notification.toJson();
+        String message = toJson(notification);
+        
         sessions.forEach(session -> {
-            try {
-                session.getBasicRemote().sendText(message);
-            } catch (IOException e) {
-                log.error("Failed to send notification", e);
+            if (session.isOpen()) {
+                session.getAsyncRemote().sendText(message, result -> {
+                    if (!result.isOK()) {
+                        log.error("Failed to send notification to session: {}", 
+                            session.getId(), result.getException());
+                    }
+                });
             }
         });
+    }
+    
+    private String toJson(Notification notification) {
+        // JSON serialization logic
+        return JsonbBuilder.create().toJson(notification);
     }
 }
 ----
 
-=== Server-Sent Events (SSE)
+=== Server-Sent Events (SSE) Streaming
 
-Expose message streams via SSE for browser consumption:
+Expose reactive message streams as Server-Sent Events for browser consumption:
 
 [source,java]
 ----
@@ -1871,7 +3373,11 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
-import org.reactivestreams.Publisher;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.sse.Sse;
+import jakarta.ws.rs.sse.SseEventSink;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import io.smallrye.mutiny.Multi;
 
 @Path("/events")
 @ApplicationScoped
@@ -1879,59 +3385,116 @@ public class EventStreamResource {
     
     @Inject
     @Channel("events")
-    Publisher<Event> events;
+    Multi<Event> events;
     
     @GET
+    @Path("/stream")
     @Produces(MediaType.SERVER_SENT_EVENTS)
-    public Publisher<Event> streamEvents() {
-        return events;
+    public void streamEvents(@Context SseEventSink eventSink, @Context Sse sse) {
+        events
+            .subscribe().with(
+                event -> {
+                    eventSink.send(sse.newEventBuilder()
+                        .name("event")
+                        .data(Event.class, event)
+                        .build());
+                },
+                throwable -> {
+                    log.error("Error in event stream", throwable);
+                    eventSink.close();
+                },
+                () -> eventSink.close()
+            );
+    }
+    
+    @GET
+    @Path("/filtered")
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    public Multi<Event> streamFilteredEvents() {
+        return events
+            .filter(event -> event.getPriority() > 5);
     }
 }
 ----
 
-== Best Practices and Design Patterns
+== Best Practices and Production Patterns
 
-// Updated for MicroProfile Reactive Messaging 3.0.1 specification
-=== Assembly and Deployment Validation
+=== Graph Validation and Deployment Checks
 
-When the application starts, the Reactive Messaging implementation connects all annotated methods, `Emitter` instances, `@Channel` injections, and connectors, then validates the resulting graph. The implementation throws a `DeploymentException` if any of the following conditions exist:
+When the application starts, the MicroProfile Reactive Messaging implementation constructs a directed graph connecting all `@Incoming` and `@Outgoing` methods, `Emitter` instances, `@Channel` injections, and connectors. The implementation validates this graph and throws a `DeploymentException` if any of the following invalid conditions exist:
 
-* A method annotated with `@Incoming` has no upstream channel.
-* A method annotated with `@Outgoing` has no downstream channel.
-* A method annotated with `@Incoming` has multiple upstream channels.
-* A method annotated with `@Outgoing` has multiple downstream channels.
-* An `Emitter` has no downstream channel.
-* An `Emitter` has multiple downstream channels.
-* An injected `@Channel` has no upstream channel.
-* An injected `@Channel` has multiple upstream channels.
-* The application references a connector that is not available.
-* An incoming connector has no downstream channel or multiple downstream channels.
-* An outgoing connector has no upstream channel or multiple upstream channels.
+*Invalid Channel Configurations*:
 
-NOTE: Each channel name may be used in at most one `@Incoming` annotation across the entire application. If two separate methods carry `@Incoming` with the same channel name, the implementation treats the channel as having multiple downstream consumers, which is not supported and causes a `DeploymentException` at startup. The same constraint applies to `@Outgoing`: a given channel name may appear in at most one `@Outgoing` annotation.
+* A method annotated with `@Incoming` has no upstream channel
+* A method annotated with `@Outgoing` has no downstream channel
+* A method annotated with `@Incoming` has multiple upstream channels (fan-in not supported)
+* A method annotated with `@Outgoing` has multiple downstream channels (fan-out requires multiple methods)
+* An `Emitter` has no downstream channel
+* An `Emitter` has multiple downstream channels
+* An injected `@Channel` has no upstream channel
+* An injected `@Channel` has multiple upstream channels
 
-Building production-ready reactive messaging applications requires following best practices and established design patterns.
+*Invalid Connector Configurations*:
 
-=== Testing Reactive Messaging Components
+* The application references a connector that is not available in the runtime
+* An incoming connector has no downstream channel
+* An incoming connector has multiple downstream channels
+* An outgoing connector has no upstream channel
+* An outgoing connector has multiple upstream channels
 
-*Using In-Memory Connectors*:
+[IMPORTANT]
+====
+*Channel Uniqueness Constraint*
 
-For unit testing, use in-memory connectors to avoid external dependencies:
+Each channel name may appear in at most **one** `@Incoming` annotation across the entire application. If two methods are annotated with `@Incoming("same-channel")`, the implementation treats this as multiple downstream consumers for a single channel, which violates the specification and causes a `DeploymentException` at startup.
+
+The same constraint applies to `@Outgoing`: a given channel name may appear in at most **one** `@Outgoing` annotation.
+
+This design enforces a clear, unambiguous message flow graph. To broadcast messages to multiple consumers, use an intermediate method that fans out to multiple channels:
+
+[source,java]
+----
+@Incoming("source")
+@Outgoing("dest1")
+@Outgoing("dest2")  // ERROR: Multiple @Outgoing not allowed
+
+// Instead, use explicit fan-out:
+@Incoming("source")
+public Multi<Message> fanOut(Message msg) {
+    channel1Emitter.send(msg);
+    channel2Emitter.send(msg);
+    return Multi.createFrom().empty();
+}
+----
+====
+
+=== Testing Reactive Messaging Applications
+
+*Using In-Memory Connectors for Testing*:
+
+The SmallRye in-memory connector enables testing without external message brokers:
 
 [source,properties]
 ----
-# test/resources/application.properties
+# src/test/resources/application.properties
 mp.messaging.incoming.orders.connector=smallrye-in-memory
 mp.messaging.outgoing.confirmations.connector=smallrye-in-memory
 ----
 
-*Test Example*:
+*Comprehensive Test Example*:
 
 [source,java]
 ----
 import io.smallrye.reactive.messaging.memory.InMemoryConnector;
 import io.smallrye.reactive.messaging.memory.InMemorySource;
 import io.smallrye.reactive.messaging.memory.InMemorySink;
+import io.quarkus.test.junit.QuarkusTest;
+import jakarta.inject.Inject;
+import jakarta.enterprise.inject.Any;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import static org.awaitility.Awaitility.await;
+import java.time.Duration;
 
 @QuarkusTest
 public class OrderProcessorTest {
@@ -1940,148 +3503,290 @@ public class OrderProcessorTest {
     @Any
     InMemoryConnector connector;
     
+    private InMemorySource<Order> orders;
+    private InMemorySink<OrderConfirmation> confirmations;
+    
+    @BeforeEach
+    public void setup() {
+        orders = connector.source("orders");
+        confirmations = connector.sink("confirmations");
+        confirmations.clear();
+    }
+    
     @Test
     public void testOrderProcessing() {
-        InMemorySource<Order> orders = 
-            connector.source("orders");
-        InMemorySink<OrderConfirmation> confirmations = 
-            connector.sink("confirmations");
+        // Given
+        Order order = new Order("ORD-123", 250.00);
         
-        Order order = new Order("123", 100.0);
+        // When
         orders.send(order);
         
+        // Then
         await().atMost(Duration.ofSeconds(5))
             .until(() -> confirmations.received().size() == 1);
         
         OrderConfirmation confirmation = 
             confirmations.received().get(0).getPayload();
-        assertEquals("123", confirmation.getOrderId());
+            
+        assertEquals("ORD-123", confirmation.getOrderId());
+        assertEquals("PROCESSED", confirmation.getStatus());
+    }
+    
+    @Test
+    public void testBatchProcessing() {
+        // Send multiple orders
+        for (int i = 0; i < 10; i++) {
+            orders.send(new Order("ORD-" + i, 100.0 * i));
+        }
+        
+        // Verify all processed
+        await().atMost(Duration.ofSeconds(10))
+            .until(() -> confirmations.received().size() == 10);
     }
 }
 ----
 
-*Mocking Dependencies*:
+*Mocking Service Dependencies*:
 
 [source,java]
 ----
+import io.quarkus.test.junit.mockito.InjectMock;
+import static org.mockito.Mockito.*;
+
 @QuarkusTest
 public class ProcessorWithDependenciesTest {
     
     @InjectMock
     OrderService orderService;
     
+    @InjectMock
+    InventoryService inventoryService;
+    
+    @Inject
+    @Any
+    InMemoryConnector connector;
+    
     @Test
-    public void testWithMockedService() {
+    public void testWithMockedServices() {
+        // Setup mocks
+        when(inventoryService.checkStock(any()))
+            .thenReturn(Uni.createFrom().item(true));
         when(orderService.process(any()))
-            .thenReturn(CompletableFuture.completedFuture(null));
+            .thenReturn(Uni.createFrom().voidItem());
         
-        // Test messaging component
+        // Send test message
+        InMemorySource<Order> source = connector.source("orders");
+        source.send(new Order("TEST-1", 100.0));
+        
+        // Verify interactions
+        await().atMost(Duration.ofSeconds(5))
+            .untilAsserted(() -> {
+                verify(inventoryService).checkStock(any());
+                verify(orderService).process(any());
+            });
     }
 }
 ----
 
-=== Structuring Reactive Microservices
+=== Microservice Structure and Organization
 
-*Separation of Concerns*:
-
-Organize code by responsibility:
-* *Controllers/Resources*: REST endpoints, WebSocket endpoints
-* *Messaging Handlers*: Message processing logic
-* *Services*: Business logic
-* *Repositories*: Data access
-
-*Example Structure*:
+*Recommended Project Structure*:
 
 ----
-src/main/java/com/example/
-├── resources/
-│   └── OrderResource.java       # REST endpoints
+src/main/java/com/example/orders/
+├── api/
+│   ├── OrderResource.java           # REST API endpoints
+│   └── OrderWebSocket.java          # WebSocket endpoints
 ├── messaging/
-│   ├── OrderConsumer.java       # Message consumers
-│   ├── OrderProducer.java       # Message producers
-│   └── OrderTransformer.java    # Message transformations
+│   ├── consumers/
+│   │   ├── OrderConsumer.java       # @Incoming handlers
+│   │   └── PaymentEventConsumer.java
+│   ├── producers/
+│   │   ├── OrderEventProducer.java  # @Outgoing publishers
+│   │   └── NotificationProducer.java
+│   └── transformers/
+│       └── OrderTransformer.java     # @Incoming + @Outgoing
+├── domain/
+│   ├── Order.java                    # Domain models
+│   └── OrderStatus.java
 ├── services/
-│   └── OrderService.java        # Business logic
+│   ├── OrderService.java             # Business logic
+│   └── InventoryService.java
 └── repositories/
-    └── OrderRepository.java     # Data access
+    └── OrderRepository.java          # Data access
+
+src/main/resources/
+├── application.properties            # Configuration
+└── META-INF/
+    └── microprofile-config.properties
 ----
 
-=== Handling Idempotent Operations
+*Separation of Concerns Guidelines*:
 
-Messages may be delivered more than once. Ensure operations are idempotent:
+* **API Layer** (`api/`): REST, gRPC, WebSocket endpoints - entry points for external clients
+* **Messaging Layer** (`messaging/`): Message consumers, producers, transformers - reactive integration
+* **Domain Layer** (`domain/`): Business entities and value objects
+* **Service Layer** (`services/`): Business logic, validation, orchestration
+* **Repository Layer** (`repositories/`): Data access, persistence
+
+=== Implementing Idempotent Message Processing
+
+Messages may be delivered more than once due to network issues, broker failures, or rebalancing. All message processing must be idempotent to handle duplicate deliveries correctly.
 
 *Idempotency Key Pattern*:
 
 [source,java]
 ----
-@Incoming("payments")
-@Blocking
-public void processPayment(Message<Payment> message) {
-    Payment payment = message.getPayload();
-    String idempotencyKey = payment.getIdempotencyKey();
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
+@ApplicationScoped
+public class IdempotentPaymentProcessor {
     
-    if (processedPayments.contains(idempotencyKey)) {
-        log.info("Payment already processed: {}", idempotencyKey);
-        message.ack();
-        return;
-    }
+    private final Set<String> processedPayments = 
+        ConcurrentHashMap.newKeySet();
     
-    try {
-        paymentService.process(payment);
-        processedPayments.add(idempotencyKey);
-        message.ack();
-    } catch (Exception e) {
-        message.nack(e);
+    @Incoming("payments")
+    @Blocking
+    @Acknowledgment(Acknowledgment.Strategy.MANUAL)
+    public CompletionStage<Void> processPayment(Message<Payment> message) {
+        Payment payment = message.getPayload();
+        String idempotencyKey = payment.getIdempotencyKey();
+        
+        // Check if already processed
+        if (processedPayments.contains(idempotencyKey)) {
+            log.info("Payment already processed: {}", idempotencyKey);
+            return message.ack();
+        }
+        
+        // Process payment
+        return paymentService.process(payment)
+            .thenCompose(result -> {
+                processedPayments.add(idempotencyKey);
+                return message.ack();
+            })
+            .exceptionally(throwable -> {
+                log.error("Payment processing failed", throwable);
+                return message.nack(throwable);
+            });
     }
 }
 ----
 
-*Database-Based Idempotency*:
-
-[source,java]
-----
-@Transactional
-public void processOrder(Order order) {
-    Optional<ProcessedOrder> existing = 
-        repository.findByExternalId(order.getExternalId());
-    
-    if (existing.isPresent()) {
-        return; // Already processed
-    }
-    
-    // Process order
-    ProcessedOrder processed = new ProcessedOrder(order);
-    repository.persist(processed);
-}
-----
-
-=== Strategies for Message Serialization/Deserialization
-
-*JSON Serialization with Jackson*:
+*Database-Based Idempotency with Unique Constraints*:
 
 [source,java]
 ----
 @ApplicationScoped
-public class OrderSerializer implements Serializer<Order> {
+public class OrderProcessor {
     
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    @Inject
+    EntityManager entityManager;
+    
+    @Incoming("orders")
+    @Blocking
+    @Transactional
+    public void processOrder(Order order) {
+        try {
+            // Attempt to insert with unique constraint on external_id
+            ProcessedOrder processed = new ProcessedOrder();
+            processed.setExternalId(order.getExternalId());
+            processed.setOrderData(order);
+            processed.setProcessedAt(Instant.now());
+            
+            entityManager.persist(processed);
+            entityManager.flush();
+            
+            // If we get here, this is the first time we've seen this order
+            performBusinessLogic(order);
+            
+        } catch (PersistenceException e) {
+            if (isUniqueConstraintViolation(e)) {
+                // Already processed - safe to ignore
+                log.info("Order already processed: {}", order.getExternalId());
+            } else {
+                throw e;  // Unexpected database error
+            }
+        }
+    }
+    
+    private boolean isUniqueConstraintViolation(PersistenceException e) {
+        return e.getCause() instanceof ConstraintViolationException;
+    }
+}
+----
+
+*Entity Definition with Unique Constraint*:
+
+[source,java]
+----
+@Entity
+@Table(
+    name = "processed_orders",
+    uniqueConstraints = @UniqueConstraint(columnNames = "external_id")
+)
+public class ProcessedOrder {
+    
+    @Id
+    @GeneratedValue
+    private Long id;
+    
+    @Column(name = "external_id", nullable = false, unique = true)
+    private String externalId;
+    
+    @Column(name = "processed_at", nullable = false)
+    private Instant processedAt;
+    
+    // Other fields...
+}
+----
+
+=== Message Serialization Strategies
+
+*JSON Serialization with JSON-B*:
+
+[source,properties]
+----
+# Automatic JSON-B serialization
+mp.messaging.outgoing.events.value.serializer=io.quarkus.kafka.client.serialization.JsonbSerializer
+mp.messaging.incoming.events.value.deserializer=io.quarkus.kafka.client.serialization.JsonbDeserializer
+----
+
+*Custom JSON Serializer with Jackson*:
+
+[source,java]
+----
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.kafka.common.serialization.Serializer;
+import org.apache.kafka.common.errors.SerializationException;
+
+public class JacksonSerializer<T> implements Serializer<T> {
+    
+    private final ObjectMapper objectMapper = new ObjectMapper()
+        .registerModule(new JavaTimeModule())
+        .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     
     @Override
-    public byte[] serialize(String topic, Order order) {
+    public byte[] serialize(String topic, T data) {
+        if (data == null) {
+            return null;
+        }
+        
         try {
-            return objectMapper.writeValueAsBytes(order);
-        } catch (JsonProcessingException e) {
-            throw new SerializationException(e);
+            return objectMapper.writeValueAsBytes(data);
+        } catch (Exception e) {
+            throw new SerializationException(
+                "Error serializing object to JSON", e);
         }
     }
 }
 ----
 
-*Avro Serialization*:
+*Apache Avro with Schema Registry*:
 
-Use Apache Avro with schema registry for versioned, efficient serialization.
-
-NOTE: This example uses Confluent's Kafka Avro serializer. Add the following dependency to your project:
+[NOTE]
+====
+This example uses Confluent's Kafka Avro serializer. Add the following dependencies:
 
 [source,xml]
 ----
@@ -2090,162 +3795,488 @@ NOTE: This example uses Confluent's Kafka Avro serializer. Add the following dep
     <artifactId>kafka-avro-serializer</artifactId>
     <version>7.5.0</version>
 </dependency>
+<dependency>
+    <groupId>org.apache.avro</groupId>
+    <artifactId>avro</artifactId>
+    <version>1.11.3</version>
+</dependency>
 ----
+====
 
 Configuration:
 
 [source,properties]
 ----
+# Avro serialization with schema registry
+mp.messaging.outgoing.orders.value.serializer=io.confluent.kafka.serializers.KafkaAvroSerializer
 mp.messaging.incoming.orders.value.deserializer=io.confluent.kafka.serializers.KafkaAvroDeserializer
-mp.messaging.incoming.orders.schema.registry.url=http://localhost:8081
+mp.messaging.connector.smallrye-kafka.schema.registry.url=http://localhost:8081
+
+# Auto-register schemas
+mp.messaging.outgoing.orders.auto.register.schemas=true
 ----
 
-Alternatively, developers can use Apache Avro's standard serializer with a custom implementation for schema management.
-
-*Protocol Buffers*:
-
-For gRPC or high-performance scenarios:
+*Protocol Buffers Serialization*:
 
 [source,java]
 ----
-@Incoming("orders")
-public void processOrder(byte[] data) {
-    Order order = Order.parseFrom(data);
-    // Process order
+import com.google.protobuf.Message;
+import org.apache.kafka.common.serialization.Serializer;
+
+public class ProtobufSerializer<T extends Message> implements Serializer<T> {
+    
+    @Override
+    public byte[] serialize(String topic, T data) {
+        if (data == null) {
+            return null;
+        }
+        return data.toByteArray();
+    }
+}
+
+public class ProtobufDeserializer<T extends Message> implements Deserializer<T> {
+    
+    private final Parser<T> parser;
+    
+    public ProtobufDeserializer(Parser<T> parser) {
+        this.parser = parser;
+    }
+    
+    @Override
+    public T deserialize(String topic, byte[] data) {
+        if (data == null) {
+            return null;
+        }
+        
+        try {
+            return parser.parseFrom(data);
+        } catch (InvalidProtocolBufferException e) {
+            throw new SerializationException("Error deserializing protobuf", e);
+        }
+    }
 }
 ----
 
-=== Deployment Considerations
+=== Production Deployment Considerations
 
-*Resource Limits*:
-
-Configure thread pools and buffers appropriately:
+*Resource Configuration*:
 
 [source,properties]
 ----
-# Thread pool for @Blocking operations
-smallrye.messaging.worker.pool-size=10
+# Worker thread pool for @Blocking operations
+smallrye.messaging.worker.pool-size=20
+smallrye.messaging.worker.max-pool-size=50
 
-# Buffer sizes
+# Channel buffer sizes
 mp.messaging.incoming.orders.buffer-size=1000
+mp.messaging.incoming.events.buffer-size=500
+
+# Kafka consumer configuration
+mp.messaging.incoming.orders.fetch.min.bytes=10240
+mp.messaging.incoming.orders.fetch.max.wait.ms=500
+mp.messaging.incoming.orders.max.poll.records=500
+mp.messaging.incoming.orders.session.timeout.ms=30000
+mp.messaging.incoming.orders.heartbeat.interval.ms=3000
+----
+
+*Horizontal Scaling with Consumer Groups*:
+
+[source,properties]
+----
+# Same group.id across instances for load balancing
+mp.messaging.incoming.orders.group.id=order-service
+mp.messaging.incoming.orders.client.id=${HOSTNAME:default}
+
+# Partition assignment strategy
+mp.messaging.incoming.orders.partition.assignment.strategy=org.apache.kafka.clients.consumer.CooperativeStickyAssignor
+----
+
+Deploy multiple instances with the same `group.id`. Kafka automatically distributes partitions across instances for parallel processing.
+
+*Security Configuration*:
+
+[source,properties]
+----
+# SSL/TLS configuration
+mp.messaging.connector.smallrye-kafka.security.protocol=SSL
+mp.messaging.connector.smallrye-kafka.ssl.truststore.location=/app/config/truststore.jks
+mp.messaging.connector.smallrye-kafka.ssl.truststore.password=${TRUSTSTORE_PASSWORD}
+mp.messaging.connector.smallrye-kafka.ssl.keystore.location=/app/config/keystore.jks
+mp.messaging.connector.smallrye-kafka.ssl.keystore.password=${KEYSTORE_PASSWORD}
+mp.messaging.connector.smallrye-kafka.ssl.key.password=${KEY_PASSWORD}
+
+# SASL authentication
+mp.messaging.connector.smallrye-kafka.security.protocol=SASL_SSL
+mp.messaging.connector.smallrye-kafka.sasl.mechanism=SCRAM-SHA-512
+mp.messaging.connector.smallrye-kafka.sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required \
+  username="${KAFKA_USERNAME}" \
+  password="${KAFKA_PASSWORD}";
 ----
 
 *Monitoring and Observability*:
 
-* Enable metrics for throughput, latency, and errors
-* Implement health checks for messaging infrastructure
-* Use distributed tracing to track message flows
+[source,properties]
+----
+# Enable metrics
+mp.metrics.tags=app=${APP_NAME:order-service},env=${ENV:production}
 
-*Scaling Strategies*:
+# Health check configuration
+mp.health.disable-default-procedures=false
 
-* *Horizontal Scaling*: Deploy multiple instances with load balancing
-* *Partition-Based Scaling*: Use message broker partitions for parallel processing
-* *Consumer Groups*: Distribute message processing across instances
+# OpenTelemetry tracing
+quarkus.otel.exporter.otlp.endpoint=http://jaeger:4317
+quarkus.otel.sdk.enabled=true
+----
 
-*Configuration Management*:
-
-Externalize all environment-specific configurations:
+*Graceful Shutdown*:
 
 [source,properties]
 ----
-mp.messaging.connector.smallrye-kafka.bootstrap.servers=${KAFKA_BOOTSTRAP_SERVERS}
-mp.messaging.incoming.orders.topic=${ORDER_TOPIC:orders}
-mp.messaging.incoming.orders.group.id=${CONSUMER_GROUP:order-service}
+# Allow time for in-flight messages to complete
+quarkus.shutdown.timeout=30s
+
+# Kafka consumer close timeout
+mp.messaging.incoming.orders.graceful-shutdown=true
 ----
 
-*Security*:
-
-[source,properties]
-----
-# Kafka SSL configuration
-mp.messaging.connector.smallrye-kafka.security.protocol=SSL
-mp.messaging.connector.smallrye-kafka.ssl.truststore.location=/path/to/truststore.jks
-mp.messaging.connector.smallrye-kafka.ssl.truststore.password=${TRUSTSTORE_PASSWORD}
-mp.messaging.connector.smallrye-kafka.ssl.keystore.location=/path/to/keystore.jks
-mp.messaging.connector.smallrye-kafka.ssl.keystore.password=${KEYSTORE_PASSWORD}
-
-# SASL authentication
-mp.messaging.connector.smallrye-kafka.sasl.mechanism=PLAIN
-mp.messaging.connector.smallrye-kafka.sasl.jaas.config=${SASL_JAAS_CONFIG}
-----
+Following these best practices ensures your reactive messaging applications are reliable, scalable, maintainable, and production-ready.
 
 == Summary
 
-// Updated for MicroProfile Reactive Messaging 3.0.1 specification
 MicroProfile Reactive Messaging 3.0.1 provides a powerful, standardized approach to building event-driven microservices. By leveraging reactive streams, CDI integration, and declarative annotations, developers can create scalable, resilient messaging applications with minimal boilerplate code.
 
-Key takeaways from this chapter:
+*Key Concepts Covered in This Chapter*:
 
-* *Event-Driven Architecture* enables loose coupling, scalability, and real-time processing
-* *Reactive Streams* provide backpressure management and efficient stream processing
-* *CDI Integration* simplifies dependency injection and lifecycle management; the specification mandates support for `@ApplicationScoped` and `@Dependent` beans
-* *Declarative Messaging* with @Incoming and @Outgoing reduces boilerplate
-* *@OnOverflow* controls Emitter backpressure behavior, with `BUFFER` (128 elements) as the default strategy
-* *Backpressure Handling* prevents resource exhaustion in high-throughput scenarios
-* *Acknowledgments and Error Handling* ensure reliable message processing
-* *Assembly Validation* detects misconfigured channels at startup and throws `DeploymentException`
-* *Automatic Metrics* are produced per channel when MicroProfile Metrics is available
-* *Integration with MicroProfile* specifications enhances observability and resilience
-* *Connectors* bridge messaging channels with external brokers like Kafka
-* *Best Practices* include testing strategies, idempotency, and proper serialization
+* *Event-Driven Architecture*: Enables loose coupling between microservices, horizontal scalability, and real-time event processing across distributed systems.
 
-For more information, refer to the https://download.eclipse.org/microprofile/microprofile-reactive-messaging-3.0.1/microprofile-reactive-messaging-spec-3.0.1.html[MicroProfile Reactive Messaging 3.0.1 Specification].
+* *Reactive Streams Foundation*: The Publisher/Subscriber model with request-based backpressure prevents resource exhaustion and ensures efficient stream processing even under high load.
 
-By mastering these concepts and patterns, developers can build modern, reactive microservices that handle high-volume data streams efficiently and reliably in production environments.
+* *CDI Integration*: Seamless dependency injection and lifecycle management. The specification mandates support for `@ApplicationScoped` and `@Dependent` scopes, enabling messaging beans to integrate naturally with other Jakarta EE components.
 
-// Updated for MicroProfile Reactive Messaging 3.0.1 specification
+* *Declarative Messaging*: The `@Incoming` and `@Outgoing` annotations eliminate boilerplate code for message routing and transformation, allowing developers to focus on business logic rather than infrastructure.
+
+* *Programmatic Control*: `@Channel` and `@Emitter` provide imperative message sending when declarative patterns are insufficient, such as bridging REST endpoints to message streams.
+
+* *Backpressure Management*: Automatic backpressure propagation through reactive operators, configurable buffer sizes, and `@OnOverflow` strategies (with `BUFFER` defaulting to 128 elements) prevent overwhelming downstream consumers.
+
+* *Reliable Message Processing*: Acknowledgment strategies (`POST_PROCESSING`, `PRE_PROCESSING`, `MANUAL`, `NONE`) and error handling patterns ensure messages are processed exactly as required, with support for dead letter queues and retry policies.
+
+* *Graph Validation*: The runtime validates the complete message flow graph at startup, throwing `DeploymentException` for misconfigured channels, ensuring failures are detected before production deployment rather than at runtime.
+
+* *Observability*: Automatic metrics are produced per channel when MicroProfile Metrics is available (`mp.messaging.message.count`), complemented by integration with MicroProfile Health for liveness and readiness probes.
+
+* *MicroProfile Integration*: Seamless integration with Fault Tolerance (retry, circuit breaker, timeout), Config (externalized configuration), Metrics (automatic and custom), Health (Kubernetes readiness), and OpenAPI (REST documentation).
+
+* *Connector Ecosystem*: Connectors for Kafka, AMQP, JMS, and other brokers handle protocol-specific details, serialization, and connection management, allowing applications to focus on message processing logic.
+
+* *Production Patterns*: Testing strategies with in-memory connectors, idempotent message processing, proper serialization (JSON-B, Avro, Protocol Buffers), and deployment considerations for security, scaling, and monitoring.
+
+* *Event Sourcing*: Patterns for storing state changes as immutable events, rebuilding state through event replay, and using MicroProfile Reactive Messaging to publish and consume domain events.
+
+*Next Steps*:
+
+To continue your journey with MicroProfile Reactive Messaging:
+
+1. **Explore the Specification**: Read the complete https://download.eclipse.org/microprofile/microprofile-reactive-messaging-3.0.1/microprofile-reactive-messaging-spec-3.0.1.html[MicroProfile Reactive Messaging 3.0.1 Specification] for detailed API documentation and conformance requirements.
+
+2. **Study Connector Documentation**: Review connector-specific features for your chosen message broker (Kafka, AMQP, JMS) in your runtime's documentation.
+
+3. **Build Sample Applications**: Start with simple producer-consumer patterns, then progress to complex stream transformations and multi-service architectures.
+
+4. **Implement Production Patterns**: Apply the best practices covered in this chapter: idempotent processing, proper error handling, comprehensive monitoring, and security configurations.
+
+5. **Integrate with Other Specifications**: Leverage MicroProfile Fault Tolerance for resilience, Config for externalization, Metrics for observability, and Health for container orchestration.
+
+By mastering these concepts and patterns, you can build modern, reactive microservices that handle high-volume data streams efficiently and reliably in production environments, taking full advantage of the reactive programming model to create responsive, resilient, and scalable distributed systems.
+
 == What's New in MicroProfile Reactive Messaging 3.0.1
 
-This section summarizes the changes introduced in MicroProfile Reactive Messaging 3.0 and the 3.0.1 patch release, and their impact on existing applications.
+This section summarizes the changes introduced in MicroProfile Reactive Messaging 3.0 and the 3.0.1 patch release, helping you understand the migration path from earlier versions and the impact on existing applications.
 
-=== Jakarta EE 9.1 Alignment
+=== Jakarta EE 9.1 Namespace Migration
 
-MicroProfile Reactive Messaging 3.0.1 aligns with Jakarta EE 9.1. All `javax.*` package imports must be updated to their `jakarta.*` equivalents. Applications that depend on `javax.enterprise`, `javax.inject`, or other `javax.*` packages are not compatible with this version without migration.
+MicroProfile Reactive Messaging 3.0.1 aligns with Jakarta EE 9.1, which represents the most significant change in this release. The entire Jakarta EE ecosystem migrated from the `javax.*` namespace to `jakarta.*` due to trademark and licensing considerations following Oracle's transfer of Java EE to the Eclipse Foundation.
 
-*Migration action*: Replace all `javax.*` imports with `jakarta.*` counterparts throughout the application.
+*What Changed*:
 
-=== API Fix: Message.of(T, ack, nack) Default Acknowledgement
+All API dependencies that previously used `javax.*` packages now use `jakarta.*`:
 
-MicroProfile Reactive Messaging 3.0 includes a fix for an issue where acknowledgement did not work correctly when using the three-argument `Message.of(T, ack, nack)` factory method (issue https://github.com/eclipse/microprofile-reactive-messaging/issues/143[#143]). In prior versions, the default acknowledgement logic could be silently ignored in certain processing scenarios.
+* `javax.enterprise.*` → `jakarta.enterprise.*` (CDI)
+* `javax.inject.*` → `jakarta.inject.*` (Dependency Injection)
+* `javax.ws.rs.*` → `jakarta.ws.rs.*` (JAX-RS)
+* `javax.persistence.*` → `jakarta.persistence.*` (JPA)
+* `javax.transaction.*` → `jakarta.transaction.*` (JTA)
 
-*Migration action*: Review all usage of `Message.of(T, Supplier<CompletionStage<Void>>, Function<Throwable, CompletionStage<Void>>)`. Verify that acknowledgement and negative-acknowledgement callbacks execute as expected with the updated implementation.
+*Impact on Your Code*:
+
+[source,java]
+----
+// Before (MicroProfile Reactive Messaging 2.0)
+import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
+import org.eclipse.microprofile.reactive.messaging.Incoming;
+
+@ApplicationScoped
+public class OrderProcessor {
+    @Inject
+    OrderService orderService;
+    
+    @Incoming("orders")
+    public void process(Order order) {
+        orderService.process(order);
+    }
+}
+
+// After (MicroProfile Reactive Messaging 3.0.1)
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import org.eclipse.microprofile.reactive.messaging.Incoming;
+
+@ApplicationScoped
+public class OrderProcessor {
+    @Inject
+    OrderService orderService;
+    
+    @Incoming("orders")
+    public void process(Order order) {
+        orderService.process(order);
+    }
+}
+----
+
+*Migration Action*:
+
+1. Update all `javax.*` imports to `jakarta.*` throughout your application
+2. Update Maven/Gradle dependencies to Jakarta EE 9.1+ compatible versions
+3. If using IDE automated refactoring, verify the changes before committing
+4. Update any custom annotations or reflection code that references `javax.*` packages
+
+This is a **breaking change**. Applications using `javax.*` packages cannot run on MicroProfile Reactive Messaging 3.0.1-compliant runtimes without migration.
+
+=== Message.of(T, ack, nack) Acknowledgement Fix
+
+MicroProfile Reactive Messaging 3.0 includes a critical bug fix for the three-argument `Message.of(T, ack, nack)` factory method (issue https://github.com/eclipse/microprofile-reactive-messaging/issues/143[#143]).
+
+*The Problem*:
+
+In prior versions (1.0, 2.0), when creating a `Message` with custom acknowledgment and negative-acknowledgment functions, the default acknowledgement logic could be silently ignored in certain processing scenarios. This could lead to messages not being properly acknowledged even when the provided callbacks were invoked.
+
+*Example of Affected Code*:
+
+[source,java]
+----
+@Incoming("payments")
+@Outgoing("processed-payments")
+public Message<Payment> processPayment(Payment payment) {
+    return Message.of(
+        payment,
+        () -> {
+            log.info("Payment acknowledged");
+            return CompletableFuture.completedFuture(null);
+        },
+        throwable -> {
+            log.error("Payment failed", throwable);
+            return CompletableFuture.completedFuture(null);
+        }
+    );
+}
+----
+
+*What Changed*:
+
+The implementation now correctly invokes the provided acknowledgment and negative-acknowledgment callbacks in all processing scenarios. This may change the observed behavior in applications that worked around the bug or made assumptions about when callbacks would execute.
+
+*Migration Action*:
+
+1. Identify all uses of `Message.of(T, Supplier<CompletionStage<Void>>, Function<Throwable, CompletionStage<Void>>)` in your codebase
+2. Review the acknowledgment and negative-acknowledgment callback implementations
+3. Verify that callbacks execute as expected with the corrected implementation
+4. Test message acknowledgment behavior thoroughly, especially in error scenarios
+5. Remove any workarounds implemented to compensate for the previous bug
+
+This is a **bug fix** that may change runtime behavior. Test thoroughly before deploying to production.
 
 === Emitter.send() Return Type Clarification
 
-The `Emitter` interface defines two distinct `send` overloads with different return types:
+The `Emitter` interface defines two distinct `send` overloads with different return types, which has caused confusion in previous releases.
 
-* `send(T payload)` returns `CompletionStage<Void>`, which completes when the message is acknowledged or fails exceptionally when processing fails.
-* `send(Message<T> message)` returns `void`. Use this overload when supplying custom acknowledgement functions on the `Message` object.
+*API Clarification*:
 
-*Migration action*: Update any code that calls `send(Message<T>)` and incorrectly assigns or chains its return value as a `CompletionStage`.
+[source,java]
+----
+public interface Emitter<T> {
+    // Returns CompletionStage that completes when message is acknowledged
+    CompletionStage<Void> send(T payload);
+    
+    // Returns void - use when Message has custom ack/nack functions
+    void send(Message<T> message);
+}
+----
 
-=== TCK Compatibility with CDI 4
+*Why Two Different Return Types*:
 
-The Technology Compatibility Kit (TCK) tests were updated to be compatible with CDI 4. This change does not affect the public API but is relevant for runtime implementors and for applications running on runtimes that support MicroProfile 7.1 (which requires CDI 4).
+* `send(T payload)`: The framework creates a `Message` wrapper and returns a `CompletionStage` that completes when the downstream acknowledges the message. This allows the caller to react to acknowledgment or failure.
 
-=== Breaking Changes
+* `send(Message<T> message)`: When you provide a complete `Message` with custom acknowledgment functions, there's no need for an additional `CompletionStage` — your custom functions already handle acknowledgment. Therefore, this method returns `void`.
 
-The sole breaking change in this release is the required Jakarta EE 9.1 namespace migration. Applications that use the `javax.*` namespace cannot run on a MicroProfile Reactive Messaging 3.0.1-compliant runtime without code changes.
+*Common Mistake*:
 
-=== Impact on Existing Applications
+[source,java]
+----
+// WRONG - send(Message<T>) returns void, not CompletionStage
+@Inject
+@Channel("orders")
+Emitter<Order> orderEmitter;
 
-[cols="1,1,1"]
+public void submitOrder(Order order) {
+    Message<Order> message = Message.of(order, this::ackOrder, this::nackOrder);
+    
+    // This won't compile - send(Message<T>) returns void
+    orderEmitter.send(message)
+        .thenAccept(v -> log.info("Order sent"));  // ERROR
+}
+
+// CORRECT - use send(T) if you need CompletionStage
+public void submitOrder(Order order) {
+    orderEmitter.send(order)
+        .thenAccept(v -> log.info("Order sent"))
+        .exceptionally(throwable -> {
+            log.error("Order failed", throwable);
+            return null;
+        });
+}
+
+// CORRECT - use send(Message<T>) with custom ack/nack
+public void submitOrder(Order order) {
+    Message<Order> message = Message.of(
+        order,
+        () -> {
+            log.info("Order acknowledged");
+            return CompletableFuture.completedFuture(null);
+        },
+        throwable -> {
+            log.error("Order failed", throwable);
+            return CompletableFuture.completedFuture(null);
+        }
+    );
+    
+    orderEmitter.send(message);  // Returns void - no chaining
+}
+----
+
+*Migration Action*:
+
+1. Search for all calls to `emitter.send(Message<T>)` in your codebase
+2. Remove any code that attempts to chain methods on the return value (since it returns `void`)
+3. If you need `CompletionStage` feedback, use `send(T payload)` instead
+4. If you need custom acknowledgment logic, use `send(Message<T>)` and handle acknowledgment in the `Message` callbacks
+
+This is an **API clarification**. Code that incorrectly chains on `send(Message<T>)` will fail to compile after migration.
+
+=== TCK Compatibility with CDI 4.0
+
+The Technology Compatibility Kit (TCK) for MicroProfile Reactive Messaging 3.0.1 was updated to be compatible with CDI 4.0, which is part of Jakarta EE 10 and required by MicroProfile 7.1.
+
+*What This Means*:
+
+* The public API did not change
+* Runtime implementors must ensure their implementations pass the updated TCK
+* Applications running on MicroProfile 7.1-compliant runtimes benefit from CDI 4.0 features
+* No application code changes are required due to this update
+
+*For Runtime Implementors*:
+
+Ensure your MicroProfile Reactive Messaging implementation:
+
+* Passes the updated TCK test suite
+* Correctly integrates with CDI 4.0 containers
+* Maintains backward compatibility with applications written for earlier versions
+
+*For Application Developers*:
+
+No action required. This change is transparent to application code.
+
+=== Summary of Changes and Migration Impact
+
+[cols="2,1,3"]
 |===
-|Change |Impact |Action Required
+|Change |Impact Level |Required Action
 
-|Jakarta EE 9.1 namespace
-|Breaking
-|Migrate all `javax.*` imports to `jakarta.*`
+|Jakarta EE 9.1 namespace migration
+|**Breaking**
+|Replace all `javax.*` imports with `jakarta.*`. Update dependencies to Jakarta EE 9.1+ versions. This is mandatory for running on MicroProfile Reactive Messaging 3.0.1.
 
-|`Message.of(T, ack, nack)` fix
-|Bug fix; may change behavior
-|Verify acknowledgement logic in affected methods
+|`Message.of(T, ack, nack)` acknowledgement fix
+|**Behavioral**
+|Review and test all usage of the three-argument `Message.of()` factory. Verify acknowledgment callbacks execute correctly. Remove workarounds for the previous bug.
 
-|`Emitter.send(Message<T>)` returns `void`
-|API clarification
-|Remove incorrect `CompletionStage` chaining on `send(Message<T>)` calls
+|`Emitter.send(Message<T>)` return type clarification
+|**Compilation**
+|Remove any code that chains methods on `send(Message<T>)` return value. Use `send(T)` if you need `CompletionStage` feedback.
 
-|TCK CDI 4 compatibility
-|Runtime/implementor only
-|No application code changes required
+|TCK compatibility with CDI 4.0
+|**None**
+|No application code changes required. Relevant only for runtime implementors.
 |===
+
+=== Migration Checklist
+
+Use this checklist to migrate from MicroProfile Reactive Messaging 2.0 to 3.0.1:
+
+**Phase 1: Dependency Updates**
+☐ Update `microprofile-reactive-messaging-api` dependency to version 3.0.1
+☐ Update runtime to a MicroProfile 7.1-compliant version (Quarkus 3.x, Open Liberty 23.x, Payara 6.x)
+☐ Update all Jakarta EE dependencies to 9.1 or 10 versions
+
+**Phase 2: Namespace Migration**
+☐ Replace `javax.enterprise.*` with `jakarta.enterprise.*`
+☐ Replace `javax.inject.*` with `jakarta.inject.*`
+☐ Replace `javax.ws.rs.*` with `jakarta.ws.rs.*`
+☐ Replace `javax.persistence.*` with `jakarta.persistence.*`
+☐ Update any custom annotations or reflection code referencing `javax.*`
+
+**Phase 3: API Updates**
+☐ Review all `Message.of(T, ack, nack)` usage
+☐ Test acknowledgment behavior in normal and error scenarios
+☐ Fix any code that chains on `Emitter.send(Message<T>)` return value
+☐ Update to use `send(T)` if `CompletionStage` feedback is needed
+
+**Phase 4: Testing**
+☐ Run full test suite with updated dependencies
+☐ Verify message acknowledgment behavior
+☐ Test error handling and negative acknowledgment paths
+☐ Perform integration testing with message brokers
+☐ Load test to verify backpressure handling
+
+**Phase 5: Deployment**
+☐ Deploy to staging environment
+☐ Monitor metrics and health checks
+☐ Verify connector behavior with production message volumes
+☐ Plan rollback strategy before production deployment
+
+=== Compatibility with MicroProfile 7.1
+
+MicroProfile Reactive Messaging 3.0.1 is part of the MicroProfile 7.1 platform release, which includes:
+
+* MicroProfile Config 3.1
+* MicroProfile Fault Tolerance 4.1
+* MicroProfile Health 4.0
+* MicroProfile Metrics 5.1
+* MicroProfile OpenAPI 4.0
+* MicroProfile Rest Client 4.0
+* MicroProfile Telemetry 2.0
+
+All these specifications have also migrated to the Jakarta EE 9.1+ namespace. When upgrading to MicroProfile Reactive Messaging 3.0.1, ensure your entire MicroProfile stack is upgraded consistently to avoid namespace conflicts.
+
+For detailed information about the complete MicroProfile 7.1 platform, refer to the https://github.com/eclipse/microprofile/releases/tag/7.1[MicroProfile 7.1 release notes].
+
+=== Resources and Further Reading
+
+* https://download.eclipse.org/microprofile/microprofile-reactive-messaging-3.0.1/microprofile-reactive-messaging-spec-3.0.1.html[MicroProfile Reactive Messaging 3.0.1 Specification]
+* https://github.com/eclipse/microprofile-reactive-messaging[MicroProfile Reactive Messaging GitHub Repository]
+* https://www.reactive-streams.org/[Reactive Streams Specification]
+* https://smallrye.io/smallrye-reactive-messaging/[SmallRye Reactive Messaging Documentation] (reference implementation)
+* https://github.com/eclipse/microprofile/releases/tag/7.1[MicroProfile 7.1 Platform Release]
+* https://jakarta.ee/specifications/platform/9.1/[Jakarta EE 9.1 Platform Specification]
+
+By following this migration guide and understanding the changes in MicroProfile Reactive Messaging 3.0.1, you can smoothly upgrade your existing applications and take advantage of the improved API reliability and Jakarta EE ecosystem alignment.
