@@ -1,10 +1,10 @@
-= Chapter 13: MicroProfile Reactive Messaging
+= MicroProfile Reactive Messaging
 
-This directory contains code examples for Chapter 13: MicroProfile Reactive Messaging.
+This directory contains code examples for MicroProfile Reactive Messaging.
 
 == Overview
 
-The examples in this chapter demonstrate how to build event-driven microservices using MicroProfile Reactive Messaging 3.0, including:
+The code builds an event-driven microservices using MicroProfile Reactive Messaging 3.0, including:
 
 * Event-Driven Architecture patterns
 * Reactive Streams implementation
@@ -14,18 +14,34 @@ The examples in this chapter demonstrate how to build event-driven microservices
 * Integration with message brokers (Kafka, AMQP)
 * Best practices for reactive microservices
 
+== Overall Scenario
+
+This code implements a simple event-driven e-commerce flow built on the existing store application. A client submits an order to the `order` service, which publishes the order to a Reactive Messaging channel instead of blocking on downstream work. The order event is then consumed asynchronously by the payment step, and high-value orders can be filtered for additional handling.
+
+The dedicated `payment` service demonstrates the same pattern from the payment side. It accepts a REST request, publishes a payment request to an internal channel, and processes that message asynchronously with a reactive consumer. Together, these services show how MicroProfile Reactive Messaging helps decouple services, keep APIs responsive, and implement workflows using channels and events.
+
 == Code Examples
 
-=== reactive-messaging-example/
+=== order/
 
-A comprehensive example project demonstrating:
+A store-order service with the following features:
 
 * **PriceConverter** - Basic message transformation with `@Incoming` and `@Outgoing`
 * **OrderResource** - Programmatic message emission using `@Emitter` and `@Channel`
-* **OrderProcessor** - Async message processing with manual acknowledgment
+* **PaymentRequestHandler** - Async payment processing with manual acknowledgment
 * **OrderFilter** - Stream filtering using reactive operators
 
-See link:reactive-messaging-example/README.adoc[reactive-messaging-example/README.adoc] for detailed documentation and usage instructions.
+See link:order/README.adoc[order/README.adoc] for detailed documentation and usage instructions.
+
+=== payment/
+
+A payment service using Reactive Messaging in a dedicated downstream service:
+
+* **PaymentService** - REST-to-messaging bridge using `@Channel`, `Emitter`, and `@Incoming`
+* **PaymentConfigResource** - Externalized payment configuration with MicroProfile Config
+* **PaymentProductResource** - Supporting REST integration examples for the payment domain
+
+See link:payment/README.adoc[payment/README.adoc] for detailed documentation and usage instructions.
 
 == Prerequisites
 
@@ -42,10 +58,87 @@ Each example directory contains its own README with specific instructions.
 
 [source,bash]
 ----
-cd reactive-messaging-example
+cd order
 mvn clean package
 # Deploy to your MicroProfile 7.1 runtime
+
+cd ../payment
+mvn clean package
+# Deploy the reactive payment service example
 ----
+
+== Verifying the Setup
+
+Use the `order` service to confirm that MicroProfile Reactive Messaging is active.
+
+The verification bean is located at `order/src/main/java/io/microprofile/tutorial/store/order/HelloMessaging.java`:
+
+[source,java]
+----
+import jakarta.annotation.PostConstruct;
+import jakarta.enterprise.context.ApplicationScoped;
+import org.eclipse.microprofile.reactive.messaging.Incoming;
+import org.eclipse.microprofile.reactive.messaging.Outgoing;
+import org.eclipse.microprofile.reactive.streams.operators.PublisherBuilder;
+import org.eclipse.microprofile.reactive.streams.operators.ReactiveStreams;
+
+import java.util.logging.Logger;
+
+@ApplicationScoped
+public class HelloMessaging {
+
+    private static final Logger LOG = Logger.getLogger(HelloMessaging.class.getName());
+
+    @PostConstruct
+    void onStartup() {
+        emit("HelloMessaging initialized - Reactive Messaging is active in the order service.");
+    }
+
+    @Outgoing("hello-in")
+    public PublisherBuilder<String> source() {
+        emit("HelloMessaging source emitted: hello reactive messaging");
+        return ReactiveStreams.of("hello reactive messaging");
+    }
+
+    @Incoming("hello-in")
+    @Outgoing("hello-out")
+    public String process(String message) {
+        String processed = message.toUpperCase();
+        emit("HelloMessaging processed message: " + processed);
+        return processed;
+    }
+
+    @Incoming("hello-out")
+    public void sink(String message) {
+        emit("HelloMessaging final output: " + message);
+    }
+
+    private void emit(String message) {
+        LOG.info(message);
+        System.out.println(message);
+    }
+}
+----
+
+Run the `order` service in dev mode:
+
+[source,bash]
+----
+cd order
+mvn liberty:dev
+----
+
+When the application starts or reloads, you should see log output similar to the following:
+
+[source,text]
+----
+[INFO] HelloMessaging initialized - Reactive Messaging is active in the order service.
+[INFO] HelloMessaging source emitted: hello reactive messaging
+[INFO] HelloMessaging processed message: HELLO REACTIVE MESSAGING
+[INFO] HelloMessaging final output: HELLO REACTIVE MESSAGING
+----
+
+If these messages appear, the Reactive Messaging dependency and internal channel wiring are configured correctly.
 
 == Testing with Different Runtimes
 

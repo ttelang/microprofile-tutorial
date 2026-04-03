@@ -1,0 +1,251 @@
+= Store Order Service with Reactive Messaging
+
+This example demonstrates MicroProfile Reactive Messaging 3.0.1.
+
+== Overview
+
+The existing order creation path is used as the entry point, and Reactive Messaging is introduced so payment and other downstream processing can happen asynchronously.
+
+This project showcases:
+
+* **Message transformation** with `@Incoming` and `@Outgoing` annotations
+* **Programmatic message emission** using `@Emitter` and `@Channel`
+* **Message acknowledgment strategies** with manual control
+* **Async payment hand-off** using `CompletionStage`
+* **Stream filtering** for high-value paid orders
+
+For the full payment-side implementation, see `payment/` service example.
+
+== Project Structure
+
+----
+order/
+├── pom.xml
+└── src/main/java/io/microprofile/tutorial/store/order/
+    ├── OrderApplication.java                  # JAX-RS application
+    ├── entity/
+    │   ├── Order.java                         # Store order entity
+    │   └── OrderStatus.java                   # Order lifecycle states
+    ├── messaging/
+    │   ├── PriceConverter.java                # Basic message transformation
+    │   ├── PaymentRequestHandler.java         # Async payment step with ack/nack
+    │   └── OrderFilter.java                   # High-value paid-order filtering
+    ├── resource/
+    │   └── OrderResource.java                 # Existing order endpoint with Emitter
+└── src/main/resources/META-INF/
+    └── microprofile-config.properties         # Messaging configuration
+----
+
+== Code Examples
+
+=== 1. PriceConverter - Basic Message Transformation
+
+Demonstrates the simplest form of reactive messaging: receiving a message, transforming it, and publishing the result.
+
+[source,java]
+----
+@Incoming("prices-in")
+@Outgoing("prices-out")
+public BigDecimal convertPrice(long priceInCents) {
+    return BigDecimal.valueOf(priceInCents, 2);
+}
+----
+
+=== 2. OrderResource - Programmatic Message Emission
+
+Shows how to use `@Emitter` to programmatically send messages from a REST endpoint.
+
+[source,java]
+----
+@Inject
+@Channel("orders")
+Emitter<Order> orderEmitter;
+
+@POST
+public Response createOrder(Order order) {
+    orderEmitter.send(order);
+    return Response.accepted().build();
+}
+----
+
+=== 3. PaymentRequestHandler - Async Payment Processing with Acknowledgment
+
+Demonstrates manual message acknowledgment while extending the store app's payment step.
+
+[source,java]
+----
+@Incoming("orders")
+@Outgoing("paid-orders")
+@Acknowledgment(Acknowledgment.Strategy.MANUAL)
+public CompletionStage<Order> requestPayment(Message<Order> message) {
+    Order order = message.getPayload();
+    return CompletableFuture.supplyAsync(() -> {
+        order.setStatus(OrderStatus.PAID);
+        return order;
+    }).thenCompose(paidOrder -> message.ack().thenApply(v -> paidOrder));
+}
+----
+
+This handler represents the order service handing work off asynchronously. The equivalent payment authorization logic is now shown in the dedicated `../payment` service example.
+
+=== 4. OrderFilter - Stream Filtering
+
+Shows how to filter message streams using reactive operators.
+
+[source,java]
+----
+@Incoming("paid-orders")
+@Outgoing("large-orders")
+public PublisherBuilder<Order> filterLargeOrders(PublisherBuilder<Order> orders) {
+    return orders.filter(order -> order.getTotalPrice().compareTo(BigDecimal.valueOf(1000.00)) > 0);
+}
+----
+
+== Prerequisites
+
+* JDK 21 or later
+* Maven 3.8+
+* MicroProfile 7.1 compatible runtime (Open Liberty, Quarkus, Payara, etc.)
+
+== Building the Project
+
+[source,bash]
+----
+mvn clean package
+----
+
+== Running with Open Liberty
+
+Run the service with Liberty:
+
+[source,bash]
+----
+mvn liberty:run
+----
+
+Once the application is deployed successfully, the order endpoint is available at:
+
+----
+http://localhost:9080/order/api/orders
+----
+
+== Running with Quarkus
+
+1. Convert to Quarkus project structure
+2. Add SmallRye Reactive Messaging dependencies
+3. Run:
+
+[source,bash]
+----
+mvn quarkus:dev
+----
+
+== Configuration
+
+The example uses in-memory connectors for development. See `microprofile-config.properties` for Kafka configuration examples.
+
+=== Default Internal Channel Configuration
+
+No explicit connector configuration is required for the default demo. The `order` example uses internal channels inside the same application, and the payment gateway URL is supplied through MicroProfile Config.
+
+[source,properties]
+----
+payment.gateway.endpoint=https://mock-payment-gateway.example/authorize
+----
+
+=== Kafka Configuration (Production)
+
+[source,properties]
+----
+mp.messaging.incoming.orders.connector=smallrye-kafka
+mp.messaging.incoming.orders.topic=orders-topic
+mp.messaging.incoming.orders.bootstrap.servers=localhost:9092
+mp.messaging.incoming.orders.group.id=order-processors
+----
+
+== Testing the Example
+
+=== Create an Order via REST API
+
+[source,bash]
+----
+curl -X POST http://localhost:9080/order/api/orders \
+  -H "Content-Type: application/json" \
+  -d '{
+    "orderId": 1001,
+    "userId": 42,
+    "totalPrice": 1500.00,
+    "status": "CREATED"
+  }'
+----
+
+Expected response:
+[source,json]
+----
+{
+  "message": "Order accepted and published for payment processing"
+}
+----
+
+The order will be:
+1. Sent to the `orders` channel via the `Emitter`
+2. Consumed by `PaymentRequestHandler`
+3. Handed off asynchronously toward the dedicated Chapter 13 `payment` service flow
+4. Acknowledged and forwarded to the `paid-orders` channel
+5. Filtered by `OrderFilter` when the total is greater than `$1000`
+6. Published to the `large-orders` channel
+
+== Key Concepts Demonstrated
+
+=== Declarative Messaging
+
+* `@Incoming` - Consumes messages from a channel
+* `@Outgoing` - Produces messages to a channel
+* Method chaining - Same method can have both annotations
+
+=== Programmatic Control
+
+* `@Channel` - Inject a channel
+* `@Emitter` - Programmatically send messages
+* Useful for REST endpoints, scheduled tasks, etc.
+
+=== Message Acknowledgment
+
+* `MANUAL` - Developer controls when to acknowledge
+* `message.ack()` - Acknowledge successful processing
+* `message.nack(throwable)` - Negative acknowledgment on failure
+* `PaymentRequestHandler` acknowledges only after the async payment hand-off completes successfully
+
+=== Reactive Operators
+
+* `filter()` - Select messages based on predicate
+* `map()` - Transform messages
+* `peek()` - Observe messages without modifying
+* `flatMap()` - Transform each message into a stream
+
+=== Backpressure
+
+Automatically handled by the Reactive Streams specification. The framework ensures producers do not overwhelm consumers.
+
+== Integration with Other MicroProfile Specs
+
+The example can be extended with:
+
+* **MicroProfile Fault Tolerance** - Add `@Retry`, `@CircuitBreaker`, `@Timeout` to message processors
+* **MicroProfile Metrics** - Track message throughput and processing time
+* **MicroProfile Health** - Add health checks for messaging connectivity
+* **MicroProfile Config** - Externalize all configuration
+
+== Next Steps
+
+1. Add Kafka connector and test with real Kafka broker
+2. Implement message serialization with JSON-B or Avro
+3. Add fault tolerance annotations for resilience
+4. Integrate with MicroProfile Metrics for monitoring
+5. Add health checks for messaging infrastructure
+
+== References
+
+* link:https://download.eclipse.org/microprofile/microprofile-reactive-messaging-3.0.1/microprofile-reactive-messaging-spec-3.0.1.html[MicroProfile Reactive Messaging 3.0 Specification]
+* link:https://www.reactive-streams.org/[Reactive Streams Specification]
+* link:https://smallrye.io/smallrye-reactive-messaging/[SmallRye Reactive Messaging Documentation]
