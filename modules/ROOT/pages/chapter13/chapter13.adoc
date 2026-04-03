@@ -5,75 +5,44 @@
 
 == Introduction
 
-Modern cloud-native applications often need to handle high-volume, real-time
-data streams and respond to events as they occur, especially in domains such
-as IoT, financial services, and e-commerce. Traditional request-response
-architectures struggle with the demands of event-driven systems that require
+Modern cloud-native applications often need to handle high-volume, real-time data streams and respond to events as they occur, especially in domains such
+as IoT, financial services, and e-commerce. Traditional request-response architectures struggle with the demands of event-driven systems that require
 asynchronous, non-blocking communication between services.
 
-{reactive-messaging-spec-name} simplifies the development of asynchronous,
-message-driven applications by providing a framework for building reactive
-systems that handle backpressure, process continuous data streams, and
-integrate seamlessly with message brokers such as Apache Kafka and RabbitMQ
-(via AMQP). By leveraging reactive streams and CDI beans, developers can
-create scalable, resilient microservices that embrace event-driven
+{reactive-messaging-spec-name} simplifies the development of asynchronous, message-driven applications by providing a framework for building reactive
+systems that handle backpressure, process continuous data streams, and integrate seamlessly with message brokers such as Apache Kafka and RabbitMQ
+(via AMQP). By leveraging reactive streams and CDI beans, developers can create scalable, resilient microservices that embrace event-driven
 architecture patterns.
 
-This chapter covers {reactive-messaging-spec-name}
-{reactive-messaging-spec-version} as part of MicroProfile {mp-version}.
-All examples require JDK 21 or later and a MicroProfile {mp-version}
-compatible runtime such as Open Liberty, Quarkus, or Payara.
-
-{reactive-messaging-spec-name} {reactive-messaging-spec-version} requires the
-`jakarta.*` namespace introduced in Jakarta EE 9.1 and is not compatible with
-applications using the legacy `javax.*` namespace from Java EE or earlier
-Jakarta EE releases.
+This chapter covers {reactive-messaging-spec-name} {reactive-messaging-spec-version} as part of MicroProfile {mp-version}.
+All examples require JDK 21 or later and a MicroProfile {mp-version} compatible runtime such as Open Liberty, Quarkus, or Payara.
 
 == What Topics Will Be Covered
-
-*Foundations and Core Concepts*:
 
 * Event-Driven Architecture Overview
 * Introduction to Reactive Streams
 * Defining Messaging Logic with CDI Beans
-
-*Message Processing Patterns*:
-
 * Declarative Messaging with @Incoming and @Outgoing
 * Programmatic Messaging with @Channel and @Emitter
 * Reactive Stream Operations
-
-*Reliability and Flow Control*:
-
 * Managing Backpressure
 * Message Acknowledgment and Error Handling
 * Assembly and Deployment Validation
-
-*Advanced Topics and Integration*:
-
 * Event Sourcing and State Rebuilding
 * Connector Support and External Integration
 * Integration with MicroProfile Specifications
-
-*Production Readiness*:
-
 * Best Practices and Design Patterns
-* What's New in MicroProfile Reactive Messaging 3.0.1
 * Summary and Next Steps
 
 == Event-Driven Architecture (EDA) Overview
 
-Event-Driven Architecture (EDA) is a software design paradigm where system
-behaviour is driven by events. Events are significant changes in state or
-occurrences that components need to respond to. Unlike traditional
-request-response architectures, components in an event-driven system
-communicate asynchronously by producing and consuming events, decoupling
-producers from consumers and allowing each to scale and evolve independently.
+Event-Driven Architecture (EDA) is a software design paradigm where system behaviour is driven by events. Events are significant changes in state or
+occurrences that components need to respond to. Unlike traditional request-response architectures, components in an event-driven system
+communicate asynchronously by producing and consuming events, decoupling producers from consumers and allowing each to scale and evolve independently.
 
 === Principles and Benefits
 
-Event-Driven Architecture is built on several core principles that
-directly translate into system-level benefits.
+Event-Driven Architecture is built on several core principles that directly translate into system-level benefits.
 
 Asynchronous communication::
   Components communicate through events without waiting for immediate
@@ -103,8 +72,7 @@ Real-time processing::
 
 === Comparison with Request-Response Architecture
 
-Traditional request-response architecture follows a synchronous, call-and-wait
-pattern where a client sends a request and blocks until it receives a response.
+Traditional request-response architecture follows a synchronous, call-and-wait pattern where a client sends a request and blocks until it receives a response.
 This model has significant limitations in distributed systems:
 
 [cols="2,3,3", options="header"]
@@ -151,8 +119,7 @@ block the others, and each can retry independently.
 
 === Common Use Cases
 
-Event-Driven Architecture excels in scenarios requiring high performance,
-scalability, and real-time processing.
+Event-Driven Architecture excels in scenarios requiring high performance, scalability, and real-time processing.
 
 High-frequency event processing::
   Stock trading platforms process millions of trades per second using
@@ -3945,330 +3912,19 @@ Following these best practices ensures your reactive messaging applications are 
 
 MicroProfile Reactive Messaging 3.0.1 provides a powerful, standardized approach to building event-driven microservices. By leveraging reactive streams, CDI integration, and declarative annotations, developers can create scalable, resilient messaging applications with minimal boilerplate code.
 
-*Key Concepts Covered in This Chapter*:
+This chapter explored the foundations of event-driven architecture, which enables loose coupling between microservices, horizontal scalability, and real-time event processing across distributed systems. At the core of reactive messaging is the Reactive Streams specification, which uses the Publisher/Subscriber model with request-based backpressure to prevent resource exhaustion and ensure efficient stream processing even under high load. Through seamless CDI integration, the specification mandates support for `@ApplicationScoped` and `@Dependent` scopes, enabling messaging beans to integrate naturally with other Jakarta EE components and benefit from dependency injection and lifecycle management.
 
-* *Event-Driven Architecture*: Enables loose coupling between microservices, horizontal scalability, and real-time event processing across distributed systems.
+The declarative messaging model with `@Incoming` and `@Outgoing` annotations eliminates boilerplate code for message routing and transformation, allowing developers to focus on business logic rather than infrastructure concerns. When declarative patterns are insufficient, `@Channel` and `@Emitter` provide imperative message sending capabilities, particularly useful for bridging REST endpoints to message streams. The framework handles backpressure automatically through reactive operators, configurable buffer sizes, and `@OnOverflow` strategies, with `BUFFER` defaulting to 128 elements to prevent overwhelming downstream consumers.
 
-* *Reactive Streams Foundation*: The Publisher/Subscriber model with request-based backpressure prevents resource exhaustion and ensures efficient stream processing even under high load.
+Reliable message processing is ensured through multiple acknowledgment strategies including `POST_PROCESSING`, `PRE_PROCESSING`, `MANUAL`, and `NONE`, along with comprehensive error handling patterns that support dead letter queues and retry policies. The runtime performs graph validation at startup, throwing `DeploymentException` for misconfigured channels to ensure failures are detected before production deployment rather than at runtime. When MicroProfile Metrics is available, the implementation automatically produces metrics per channel such as `mp.messaging.message.count`, complemented by integration with MicroProfile Health for liveness and readiness probes.
 
-* *CDI Integration*: Seamless dependency injection and lifecycle management. The specification mandates support for `@ApplicationScoped` and `@Dependent` scopes, enabling messaging beans to integrate naturally with other Jakarta EE components.
+The specification's seamless integration with other MicroProfile specifications enhances the overall capabilities of reactive messaging applications. MicroProfile Fault Tolerance provides retry, circuit breaker, and timeout patterns for resilience; Config enables externalized configuration for different environments; Metrics supports both automatic and custom observability; Health integrates with Kubernetes for readiness probes; and OpenAPI documents REST endpoints that bridge to messaging systems. The connector ecosystem, supporting Kafka, AMQP, JMS, and other brokers, handles protocol-specific details, serialization, and connection management, freeing applications to focus purely on message processing logic.
 
-* *Declarative Messaging*: The `@Incoming` and `@Outgoing` annotations eliminate boilerplate code for message routing and transformation, allowing developers to focus on business logic rather than infrastructure.
+Production readiness requires attention to several critical patterns covered in this chapter. Testing strategies using in-memory connectors enable development without external dependencies, while idempotent message processing ensures correct behavior despite duplicate deliveries. Proper serialization strategies including JSON-B, Avro, and Protocol Buffers provide efficient data exchange, and comprehensive deployment considerations address security, horizontal scaling, and monitoring requirements. The chapter also explored event sourcing patterns for storing state changes as immutable events, rebuilding state through event replay, and using MicroProfile Reactive Messaging to publish and consume domain events in event-driven architectures.
 
-* *Programmatic Control*: `@Channel` and `@Emitter` provide imperative message sending when declarative patterns are insufficient, such as bridging REST endpoints to message streams.
-
-* *Backpressure Management*: Automatic backpressure propagation through reactive operators, configurable buffer sizes, and `@OnOverflow` strategies (with `BUFFER` defaulting to 128 elements) prevent overwhelming downstream consumers.
-
-* *Reliable Message Processing*: Acknowledgment strategies (`POST_PROCESSING`, `PRE_PROCESSING`, `MANUAL`, `NONE`) and error handling patterns ensure messages are processed exactly as required, with support for dead letter queues and retry policies.
-
-* *Graph Validation*: The runtime validates the complete message flow graph at startup, throwing `DeploymentException` for misconfigured channels, ensuring failures are detected before production deployment rather than at runtime.
-
-* *Observability*: Automatic metrics are produced per channel when MicroProfile Metrics is available (`mp.messaging.message.count`), complemented by integration with MicroProfile Health for liveness and readiness probes.
-
-* *MicroProfile Integration*: Seamless integration with Fault Tolerance (retry, circuit breaker, timeout), Config (externalized configuration), Metrics (automatic and custom), Health (Kubernetes readiness), and OpenAPI (REST documentation).
-
-* *Connector Ecosystem*: Connectors for Kafka, AMQP, JMS, and other brokers handle protocol-specific details, serialization, and connection management, allowing applications to focus on message processing logic.
-
-* *Production Patterns*: Testing strategies with in-memory connectors, idempotent message processing, proper serialization (JSON-B, Avro, Protocol Buffers), and deployment considerations for security, scaling, and monitoring.
-
-* *Event Sourcing*: Patterns for storing state changes as immutable events, rebuilding state through event replay, and using MicroProfile Reactive Messaging to publish and consume domain events.
-
-*Next Steps*:
-
-To continue your journey with MicroProfile Reactive Messaging:
-
-1. **Explore the Specification**: Read the complete https://download.eclipse.org/microprofile/microprofile-reactive-messaging-3.0.1/microprofile-reactive-messaging-spec-3.0.1.html[MicroProfile Reactive Messaging 3.0.1 Specification] for detailed API documentation and conformance requirements.
-
-2. **Study Connector Documentation**: Review connector-specific features for your chosen message broker (Kafka, AMQP, JMS) in your runtime's documentation.
-
-3. **Build Sample Applications**: Start with simple producer-consumer patterns, then progress to complex stream transformations and multi-service architectures.
-
-4. **Implement Production Patterns**: Apply the best practices covered in this chapter: idempotent processing, proper error handling, comprehensive monitoring, and security configurations.
-
-5. **Integrate with Other Specifications**: Leverage MicroProfile Fault Tolerance for resilience, Config for externalization, Metrics for observability, and Health for container orchestration.
+To continue your journey with MicroProfile Reactive Messaging, explore the complete https://download.eclipse.org/microprofile/microprofile-reactive-messaging-3.0.1/microprofile-reactive-messaging-spec-3.0.1.html[MicroProfile Reactive Messaging 3.0.1 Specification] for detailed API documentation and conformance requirements. Study connector-specific features for your chosen message broker in your runtime's documentation, and build sample applications starting with simple producer-consumer patterns before progressing to complex stream transformations and multi-service architectures. Apply the best practices covered in this chapter including idempotent processing, proper error handling, comprehensive monitoring, and security configurations. Leverage the integration points with other MicroProfile specifications such as Fault Tolerance for resilience, Config for externalization, Metrics for observability, and Health for container orchestration.
 
 By mastering these concepts and patterns, you can build modern, reactive microservices that handle high-volume data streams efficiently and reliably in production environments, taking full advantage of the reactive programming model to create responsive, resilient, and scalable distributed systems.
-
-== What's New in MicroProfile Reactive Messaging 3.0.1
-
-This section summarizes the changes introduced in MicroProfile Reactive Messaging 3.0 and the 3.0.1 patch release, helping you understand the migration path from earlier versions and the impact on existing applications.
-
-=== Jakarta EE 9.1 Namespace Migration
-
-MicroProfile Reactive Messaging 3.0.1 aligns with Jakarta EE 9.1, which represents the most significant change in this release. The entire Jakarta EE ecosystem migrated from the `javax.*` namespace to `jakarta.*` due to trademark and licensing considerations following Oracle's transfer of Java EE to the Eclipse Foundation.
-
-*What Changed*:
-
-All API dependencies that previously used `javax.*` packages now use `jakarta.*`:
-
-* `javax.enterprise.*` → `jakarta.enterprise.*` (CDI)
-* `javax.inject.*` → `jakarta.inject.*` (Dependency Injection)
-* `javax.ws.rs.*` → `jakarta.ws.rs.*` (JAX-RS)
-* `javax.persistence.*` → `jakarta.persistence.*` (JPA)
-* `javax.transaction.*` → `jakarta.transaction.*` (JTA)
-
-*Impact on Your Code*:
-
-[source,java]
-----
-// Before (MicroProfile Reactive Messaging 2.0)
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
-import org.eclipse.microprofile.reactive.messaging.Incoming;
-
-@ApplicationScoped
-public class OrderProcessor {
-    @Inject
-    OrderService orderService;
-    
-    @Incoming("orders")
-    public void process(Order order) {
-        orderService.process(order);
-    }
-}
-
-// After (MicroProfile Reactive Messaging 3.0.1)
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
-import org.eclipse.microprofile.reactive.messaging.Incoming;
-
-@ApplicationScoped
-public class OrderProcessor {
-    @Inject
-    OrderService orderService;
-    
-    @Incoming("orders")
-    public void process(Order order) {
-        orderService.process(order);
-    }
-}
-----
-
-*Migration Action*:
-
-1. Update all `javax.*` imports to `jakarta.*` throughout your application
-2. Update Maven/Gradle dependencies to Jakarta EE 9.1+ compatible versions
-3. If using IDE automated refactoring, verify the changes before committing
-4. Update any custom annotations or reflection code that references `javax.*` packages
-
-This is a **breaking change**. Applications using `javax.*` packages cannot run on MicroProfile Reactive Messaging 3.0.1-compliant runtimes without migration.
-
-=== Message.of(T, ack, nack) Acknowledgement Fix
-
-MicroProfile Reactive Messaging 3.0 includes a critical bug fix for the three-argument `Message.of(T, ack, nack)` factory method (issue https://github.com/eclipse/microprofile-reactive-messaging/issues/143[#143]).
-
-*The Problem*:
-
-In prior versions (1.0, 2.0), when creating a `Message` with custom acknowledgment and negative-acknowledgment functions, the default acknowledgement logic could be silently ignored in certain processing scenarios. This could lead to messages not being properly acknowledged even when the provided callbacks were invoked.
-
-*Example of Affected Code*:
-
-[source,java]
-----
-@Incoming("payments")
-@Outgoing("processed-payments")
-public Message<Payment> processPayment(Payment payment) {
-    return Message.of(
-        payment,
-        () -> {
-            log.info("Payment acknowledged");
-            return CompletableFuture.completedFuture(null);
-        },
-        throwable -> {
-            log.error("Payment failed", throwable);
-            return CompletableFuture.completedFuture(null);
-        }
-    );
-}
-----
-
-*What Changed*:
-
-The implementation now correctly invokes the provided acknowledgment and negative-acknowledgment callbacks in all processing scenarios. This may change the observed behavior in applications that worked around the bug or made assumptions about when callbacks would execute.
-
-*Migration Action*:
-
-1. Identify all uses of `Message.of(T, Supplier<CompletionStage<Void>>, Function<Throwable, CompletionStage<Void>>)` in your codebase
-2. Review the acknowledgment and negative-acknowledgment callback implementations
-3. Verify that callbacks execute as expected with the corrected implementation
-4. Test message acknowledgment behavior thoroughly, especially in error scenarios
-5. Remove any workarounds implemented to compensate for the previous bug
-
-This is a **bug fix** that may change runtime behavior. Test thoroughly before deploying to production.
-
-=== Emitter.send() Return Type Clarification
-
-The `Emitter` interface defines two distinct `send` overloads with different return types, which has caused confusion in previous releases.
-
-*API Clarification*:
-
-[source,java]
-----
-public interface Emitter<T> {
-    // Returns CompletionStage that completes when message is acknowledged
-    CompletionStage<Void> send(T payload);
-    
-    // Returns void - use when Message has custom ack/nack functions
-    void send(Message<T> message);
-}
-----
-
-*Why Two Different Return Types*:
-
-* `send(T payload)`: The framework creates a `Message` wrapper and returns a `CompletionStage` that completes when the downstream acknowledges the message. This allows the caller to react to acknowledgment or failure.
-
-* `send(Message<T> message)`: When you provide a complete `Message` with custom acknowledgment functions, there's no need for an additional `CompletionStage` — your custom functions already handle acknowledgment. Therefore, this method returns `void`.
-
-*Common Mistake*:
-
-[source,java]
-----
-// WRONG - send(Message<T>) returns void, not CompletionStage
-@Inject
-@Channel("orders")
-Emitter<Order> orderEmitter;
-
-public void submitOrder(Order order) {
-    Message<Order> message = Message.of(order, this::ackOrder, this::nackOrder);
-    
-    // This won't compile - send(Message<T>) returns void
-    orderEmitter.send(message)
-        .thenAccept(v -> log.info("Order sent"));  // ERROR
-}
-
-// CORRECT - use send(T) if you need CompletionStage
-public void submitOrder(Order order) {
-    orderEmitter.send(order)
-        .thenAccept(v -> log.info("Order sent"))
-        .exceptionally(throwable -> {
-            log.error("Order failed", throwable);
-            return null;
-        });
-}
-
-// CORRECT - use send(Message<T>) with custom ack/nack
-public void submitOrder(Order order) {
-    Message<Order> message = Message.of(
-        order,
-        () -> {
-            log.info("Order acknowledged");
-            return CompletableFuture.completedFuture(null);
-        },
-        throwable -> {
-            log.error("Order failed", throwable);
-            return CompletableFuture.completedFuture(null);
-        }
-    );
-    
-    orderEmitter.send(message);  // Returns void - no chaining
-}
-----
-
-*Migration Action*:
-
-1. Search for all calls to `emitter.send(Message<T>)` in your codebase
-2. Remove any code that attempts to chain methods on the return value (since it returns `void`)
-3. If you need `CompletionStage` feedback, use `send(T payload)` instead
-4. If you need custom acknowledgment logic, use `send(Message<T>)` and handle acknowledgment in the `Message` callbacks
-
-This is an **API clarification**. Code that incorrectly chains on `send(Message<T>)` will fail to compile after migration.
-
-=== TCK Compatibility with CDI 4.0
-
-The Technology Compatibility Kit (TCK) for MicroProfile Reactive Messaging 3.0.1 was updated to be compatible with CDI 4.0, which is part of Jakarta EE 10 and required by MicroProfile 7.1.
-
-*What This Means*:
-
-* The public API did not change
-* Runtime implementors must ensure their implementations pass the updated TCK
-* Applications running on MicroProfile 7.1-compliant runtimes benefit from CDI 4.0 features
-* No application code changes are required due to this update
-
-*For Runtime Implementors*:
-
-Ensure your MicroProfile Reactive Messaging implementation:
-
-* Passes the updated TCK test suite
-* Correctly integrates with CDI 4.0 containers
-* Maintains backward compatibility with applications written for earlier versions
-
-*For Application Developers*:
-
-No action required. This change is transparent to application code.
-
-=== Summary of Changes and Migration Impact
-
-[cols="2,1,3"]
-|===
-|Change |Impact Level |Required Action
-
-|Jakarta EE 9.1 namespace migration
-|**Breaking**
-|Replace all `javax.*` imports with `jakarta.*`. Update dependencies to Jakarta EE 9.1+ versions. This is mandatory for running on MicroProfile Reactive Messaging 3.0.1.
-
-|`Message.of(T, ack, nack)` acknowledgement fix
-|**Behavioral**
-|Review and test all usage of the three-argument `Message.of()` factory. Verify acknowledgment callbacks execute correctly. Remove workarounds for the previous bug.
-
-|`Emitter.send(Message<T>)` return type clarification
-|**Compilation**
-|Remove any code that chains methods on `send(Message<T>)` return value. Use `send(T)` if you need `CompletionStage` feedback.
-
-|TCK compatibility with CDI 4.0
-|**None**
-|No application code changes required. Relevant only for runtime implementors.
-|===
-
-=== Migration Checklist
-
-Use this checklist to migrate from MicroProfile Reactive Messaging 2.0 to 3.0.1:
-
-**Phase 1: Dependency Updates**
-☐ Update `microprofile-reactive-messaging-api` dependency to version 3.0.1
-☐ Update runtime to a MicroProfile 7.1-compliant version (Quarkus 3.x, Open Liberty 23.x, Payara 6.x)
-☐ Update all Jakarta EE dependencies to 9.1 or 10 versions
-
-**Phase 2: Namespace Migration**
-☐ Replace `javax.enterprise.*` with `jakarta.enterprise.*`
-☐ Replace `javax.inject.*` with `jakarta.inject.*`
-☐ Replace `javax.ws.rs.*` with `jakarta.ws.rs.*`
-☐ Replace `javax.persistence.*` with `jakarta.persistence.*`
-☐ Update any custom annotations or reflection code referencing `javax.*`
-
-**Phase 3: API Updates**
-☐ Review all `Message.of(T, ack, nack)` usage
-☐ Test acknowledgment behavior in normal and error scenarios
-☐ Fix any code that chains on `Emitter.send(Message<T>)` return value
-☐ Update to use `send(T)` if `CompletionStage` feedback is needed
-
-**Phase 4: Testing**
-☐ Run full test suite with updated dependencies
-☐ Verify message acknowledgment behavior
-☐ Test error handling and negative acknowledgment paths
-☐ Perform integration testing with message brokers
-☐ Load test to verify backpressure handling
-
-**Phase 5: Deployment**
-☐ Deploy to staging environment
-☐ Monitor metrics and health checks
-☐ Verify connector behavior with production message volumes
-☐ Plan rollback strategy before production deployment
-
-=== Compatibility with MicroProfile 7.1
-
-MicroProfile Reactive Messaging 3.0.1 is part of the MicroProfile 7.1 platform release, which includes:
-
-* MicroProfile Config 3.1
-* MicroProfile Fault Tolerance 4.1
-* MicroProfile Health 4.0
-* MicroProfile Metrics 5.1
-* MicroProfile OpenAPI 4.0
-* MicroProfile Rest Client 4.0
-* MicroProfile Telemetry 2.0
-
-All these specifications have also migrated to the Jakarta EE 9.1+ namespace. When upgrading to MicroProfile Reactive Messaging 3.0.1, ensure your entire MicroProfile stack is upgraded consistently to avoid namespace conflicts.
-
-For detailed information about the complete MicroProfile 7.1 platform, refer to the https://github.com/eclipse/microprofile/releases/tag/7.1[MicroProfile 7.1 release notes].
 
 === Resources and Further Reading
 
