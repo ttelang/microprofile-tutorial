@@ -5,62 +5,35 @@
 
 == Introduction
 
-Modern cloud-native applications often need to handle high-volume, real-time data streams and respond to events as they occur. Traditional request-response architectures struggle with the demands of event-driven systems that require asynchronous, non-blocking communication between services.
+Modern cloud-native applications handle high-volume, real-time data streams and respond to events as they occur. Traditional request-response architectures struggle to support asynchronous, non-blocking communication between services.
 
-{reactive-messaging-spec-name} simplifies the development of asynchronous, message-driven applications by providing a framework for building reactive systems that handle backpressure, process continuous data streams, and integrate seamlessly with message brokers such as Apache Kafka and RabbitMQ (via AMQP). By leveraging reactive streams, developers can create scalable, resilient microservices that embrace event-driven architecture patterns.
+{reactive-messaging-spec-name} provides a framework to build asynchronous, message-driven applications. It supports reactive systems that can handle backpressure, process continuous data streams, and integrate with message brokers such as Apache Kafka and RabbitMQ (via AMQP). 
+
+Using reactive streams, developers can create scalable and resilient microservices that follow event-driven architecture patterns.
 
 == What Topics Will Be Covered
 
-* Event-Driven Architecture (EDA) Overview
-* Introduction to Reactive Streams
-* Adding MicroProfile Reactive Messaging Dependency
-* Channels and Wiring
-* Declarative Messaging with `@Incoming` and `@Outgoing`
-* Supported Method Signatures
-* Programmatic Messaging with `@Channel` and `Emitter`
-* Message Acknowledgment and Error Handling
-* Managing Backpressure
-* Connector Support and Assembly Validation
-* Reactive Stream Operations 
-* Event Sourcing
-* Integration with Other MicroProfile Specifications
-* Summary
+* Event-driven architecture (EDA) overview
+* Reactive Streams fundamentals
+* Adding dependencies
+* Channels and wiring
+* Declarative messaging
+* Supported method signatures
+* Programmatic messaging
+* Message acknowledgment and error handling
+* Backpressure management
+* Connector configuration
+* Reactive stream operations
+* Integration with other MicroProfile specifications
 
 == Event-Driven Architecture (EDA) Overview
 
-Event-Driven Architecture (EDA) is a software design paradigm where system behaviour is driven by events. Events are significant changes in state or occurrences that components need to respond to. 
+Event-Driven Architecture (EDA) is a software design paradigm where system behaviour is driven by events. 
 
-Unlike traditional request-response architectures, components in an event-driven system communicate asynchronously by producing and consuming events, decoupling producers from consumers and allowing each to scale and evolve independently.
+An event represents a change in system state that components can observe and process.
 
-=== Principles and Benefits
+Components communicate asynchronously by producing and consuming events. This makes the system more flexible, scalable, and resilient compared to traditional request-response architectures. EDA is particularly well-suited for distributed systems, microservices, and real-time applications.
 
-Event-Driven Architecture is built on several core principles that directly translate into system-level benefits.
-
-Asynchronous communication::
-  Components communicate through events without waiting for immediate
-  responses, enabling non-blocking operations and allowing systems to
-  handle more concurrent requests with improved responsiveness.
-
-Loose coupling::
-  Producers emit events without knowing who will consume them, and
-  consumers react without knowing the event origin. This independence
-  allows new consumers to be added without modifying existing producers,
-  making the system more adaptable to changing requirements.
-
-Scalability::
-  EDA naturally supports horizontal scaling. Multiple consumers can
-  process events in parallel, each at its own pace, optimising resource
-  utilisation without introducing contention between components.
-
-Resilience::
-  Because components are loosely coupled and communicate asynchronously,
-  failures in one component do not directly cascade to others. Message
-  brokers can persist events, allowing consumers to process them once
-  they recover.
-
-Real-time processing::
-  Events can be processed as they occur, enabling real-time analytics,
-  monitoring, and responsive user experiences.
 
 === Comparison with Request-Response Architecture
 
@@ -80,8 +53,8 @@ This model has significant limitations in distributed systems:
 |Loose coupling between producers and consumers
 
 |Scalability
-|Limited by synchronous dependencies
-|Highly scalable with parallel processing
+|Limited by synchronous calls and blocking threads
+|Highly scalable with asynchronous processing and backpressure
 
 |Failure handling
 |Failures directly impact the caller
@@ -91,64 +64,20 @@ This model has significant limitations in distributed systems:
 |Point-to-point
 |Publish-subscribe or streaming
 
-|Latency
-|Lower latency for simple operations
-|Optimised for high throughput and batch processing
 |===
 
-.Order processing: request-response vs event-driven
-====
-In a request-response model, when a user places an order, the order service
-synchronously calls the payment service, inventory service, and shipping
-service in sequence. If any service is slow or fails, the entire operation
-is delayed or fails.
+== Reactive Streams
 
-In an event-driven model, placing an order emits an `OrderCreated` event.
-The payment, inventory, and shipping services independently consume this
-event and process it asynchronously. If one service is slow, it does not
-block the others, and each can retry independently.
-====
+Reactive Streams defines a standard for asynchronous stream processing with backpressure. It enables producers and consumers to coordinate data flow safely.
 
-=== Common Use Cases
+Backpressure prevents producers from overwhelming consumers. Consumers request only the data they can process.
 
-Event-Driven Architecture excels in scenarios requiring high performance, scalability, and real-time processing.
+MicroProfile Reactive Messaging builds on this specification and provides an annotation-driven programming model.
 
-High-frequency event processing::
-  Stock trading platforms process millions of trades per second using
-  non-blocking, asynchronous event pipelines. Gaming backends apply the
-  same pattern to handle real-time player actions and state updates across
-  distributed game servers.
-
-Real-time data processing::
-  IoT deployments collect and analyse data from thousands of sensors as
-  events arrive. Live analytics dashboards aggregate and visualise metrics
-  from streaming data, and fraud detection systems analyse transaction
-  events in real time to identify suspicious patterns before they escalate.
-
-Microservices communication::
-  Order processing systems coordinate multiple services: inventory,
-  payment, and shipping. This happens through a shared event stream rather than synchronous service calls. 
-  
-  Notification systems use the same pattern to broadcast events to multiple subscribers such as email, SMS, and push notification services.
-
-Data integration::
-  Change data capture streams database changes to analytics platforms or
-  search indexes as they occur. ETL pipelines apply transformations to
-  data streams between systems without batch windows or scheduled jobs.
-
-== Introduction to Reactive Streams
-
-Reactive Streams is a specification that provides a standard for asynchronous stream processing with non-blocking backpressure. It defines a minimal set of interfaces, methods, and protocols to enable different libraries and tools to interoperate while handling streams of data efficiently.
-
-The Reactive Streams specification addresses a critical challenge in stream processing: how to handle scenarios where data producers generate data faster than consumers can process it. Without proper flow control, this mismatch can lead to out-of-memory errors, dropped messages, or system instability.
-
-The core interfaces defined by the Reactive Streams specification are:
-
-MicroProfile Reactive Messaging builds on the Reactive Streams specification, providing a higher-level, annotation-driven API that leverages these concepts while hiding much of the complexity through CDI integration. Developers work with simple annotated methods rather than implementing these interfaces directly.
 
 === Maven Dependency
 
-For Maven projects, add the MicroProfile Reactive Messaging API dependency to your `pom.xml`:
+Add the following dependency to your `pom.xml`:
 
 [source,xml]
 ----
@@ -160,11 +89,9 @@ For Maven projects, add the MicroProfile Reactive Messaging API dependency to yo
 </dependency>
 ----
 
-The `provided` scope indicates that the runtime environment (such as Open Liberty, Quarkus, or Payara) will supply the implementation. If you're building a standalone application, change the scope to `compile`.
-
 === Gradle Dependency
 
-For Gradle projects, add the dependency to your `build.gradle`:
+Add the following dependency to your `build.gradle`:
 
 [source,groovy]
 ----
@@ -197,13 +124,13 @@ mp.messaging.incoming.orders.connector=liberty-kafka
 mp.messaging.incoming.orders.topic=order-topic
 ----
 
-This chapter focuses on Kafka-based connector configuration because Kafka supports communication across separate services and multiple server instances. Use the Kafka configuration patterns in the following sections when wiring the `order` and `payment` services together.
+This chapter uses Kafka-based connectors because they support communication across services.
 
-Consult your runtime's documentation for the current connector artifact coordinates and configuration details.
+Refer to your runtime's documentation for the current connector artifact coordinates and configuration details.
 
 == Defining Messaging Logic with CDI Beans
 
-MicroProfile Reactive Messaging leverages Contexts and Dependency Injection (CDI) to provide a declarative, annotation-based approach to building reactive messaging applications. By using CDI beans, developers can define message processing logic in a clean, maintainable way without dealing with low-level messaging APIs or manually implementing Reactive Streams interfaces.
+MicroProfile Reactive Messaging leverages Contexts and Dependency Injection (CDI) to provide a declarative, annotation-based approach to building Reactive Messaging applications. By using CDI beans, developers can define message processing logic in a clean, maintainable way without dealing with low-level messaging APIs or manually implementing Reactive Streams interfaces.
 
 === Basic Structure of Messaging Beans
 
@@ -213,7 +140,7 @@ A messaging bean in MicroProfile Reactive Messaging is a standard CDI bean with 
 
 * *CDI Managed*: Beans are managed by the CDI container, enabling dependency injection and lifecycle management.
 * *Annotation-Driven*: Methods are annotated with `@Incoming`, `@Outgoing`, or both to define message flows.
-* *Flexible Scopes*: Beans can use various CDI scopes (@ApplicationScoped, @RequestScoped, etc.) based on requirements.
+* *Flexible Scopes*: Beans can use various CDI scopes (@ApplicationScoped, @RequestScoped, @Dependent) based on requirements.
 
 *Basic Bean Structure*:
 
@@ -304,7 +231,7 @@ A typical flow in the MicroProfile e-commerce store application now looks like t
 *Channel Types*:
 
 * *Internal Channels*: Connect components within the same application when methods are wired together by channel name.
-* *External Channels*: Connected to external message brokers (Kafka, AMQP, JMS, etc.) via connectors configured through MicroProfile Config.
+* *External Channels*: Connected to external message brokers (Kafka, AMQP, JMS) via connectors configured through MicroProfile Config.
 
 *Channel Configuration*:
 
@@ -367,7 +294,7 @@ public class PaymentRequestHandler {
 }
 ----
 
-In the store application, the method receives the `Order` payload published after order creation and hands it off to the payment step asynchronously. The message is automatically acknowledged after the method completes successfully. If an exception is thrown, the message is negatively acknowledged and can be retried based on the connector's retry policy.
+In the store application, the method receives the `Order` payload published after order creation and hands it off to the payment step asynchronously. The runtime automatically acknowledges messages after the method completes successfully. If an exception is thrown, the message is negatively acknowledged and can be retried based on the connector's retry policy.
 
 The consumer can delegate the actual payment step to the payment service:
 
@@ -411,7 +338,7 @@ MicroProfile Reactive Messaging supports various method signatures to accommodat
 ----
 @Incoming("items")
 public void process(String item) {
-    // Process the item
+    // Process item
     // Message is automatically acknowledged after method returns
 }
 ----
@@ -458,10 +385,10 @@ public Multi<String> process(Multi<String> items) {
 
 The choice of signature depends on your processing requirements:
 
-* Use simple payload for synchronous, blocking operations
-* Use `CompletionStage` for asynchronous operations
-* Use `Message` wrapper when you need manual acknowledgment control or access to metadata
-* Use reactive types (`Multi`, `Publisher`) for stream transformations
+* Use a simple payload for synchronous, blocking operations.
+* Use `CompletionStage` for asynchronous operations.
+* Use `Message` wrapper when you need manual acknowledgment control or access to metadata.
+* Use reactive types (`Multi`, `Publisher`) for stream transformations.
 
 === Accessing Message Metadata
 
@@ -826,7 +753,7 @@ public class OrderResource {
 }
 ----
 
-This pattern decouples the REST layer from the processing layer, enabling asynchronous processing and better scalability. The REST endpoint returns immediately while the order processing happens asynchronously in a separate messaging pipeline.
+This pattern decouples the REST layer from the processing layer. It enables asynchronous processing and better scalability. The REST endpoint returns immediately while the order processing happens asynchronously in a separate messaging pipeline.
 
 For fine-grained control over backpressure behavior when using emitters, see the "Controlling Backpressure with @OnOverflow" sub-section within "Managing Backpressure" section.
 
@@ -839,7 +766,7 @@ Backpressure is one of the most critical challenges in reactive systems. It occu
 In a messaging system, backpressure scenarios arise from:
 
 * *Fast Producer, Slow Consumer*: A Kafka topic receives thousands of messages per second, but the consumer can only process 100 per second due to database write latency.
-* *Bursty Traffic*: Periodic spikes in message volume (e.g., end-of-month batch jobs, flash sales) overwhelm downstream processors.
+* *Bursty Traffic*: Periodic spikes in message volume (for example, end-of-month batch jobs, flash sales) overwhelm downstream processors.
 * *Resource Constraints*: Limited database connections, network bandwidth, or CPU capacity become bottlenecks during message processing.
 
 *Traditional Approaches and Their Problems*:
@@ -1057,7 +984,7 @@ Emitter<Order> orderEmitter;
 * *`DROP` or `LATEST`*: Appropriate for high-frequency sensor data, metrics, or real-time dashboards where missing some values is acceptable and recent data is more valuable than complete history.
 * *`FAIL`*: Use when any backpressure indicates a system problem that should halt processing and trigger alerts. Appropriate for critical systems where degraded performance should stop operations.
 * *`THROW_EXCEPTION`*: Provides immediate feedback to the caller that the system is overloaded. Useful in REST endpoints to return HTTP 503 Service Unavailable when the system cannot accept more requests.
-* *`UNBOUNDED_BUFFER`*: Rarely recommended. Only use in controlled environments with guaranteed bounded input (e.g., processing a fixed-size file).
+* *`UNBOUNDED_BUFFER`*: Rarely recommended. Only use in controlled environments with guaranteed bounded input (for example, processing a fixed-size file).
 
 *Strategy Examples by Use Case*:
 
@@ -1360,7 +1287,7 @@ mp.messaging.incoming.metrics.failure-strategy=ignore
 ----
 
 * *Behavior*: Failed messages are logged and discarded. Processing continues with the next message.
-* *Use when*: Individual message failures should not stop the stream (e.g., best-effort metrics collection).
+* *Use when*: Individual message failures should not stop the stream (for example, best-effort metrics collection).
 * *Risk*: Failed messages are permanently lost.
 
 *3. Failure Strategy: dead-letter-queue*:
@@ -2689,7 +2616,7 @@ public class OrderProcessor {
 
 [NOTE]
 ====
-The `@Blocking` annotation is not defined in the MicroProfile Reactive Messaging 3.0.1 specification. It is an extension provided by the SmallRye Reactive Messaging implementation (used by Quarkus and other runtimes). Other implementations may provide equivalent mechanisms through different annotations or configuration. Consult your runtime's documentation for portability guidance.
+The `@Blocking` annotation is not defined in the MicroProfile Reactive Messaging 3.0.1 specification. It is an extension provided by the SmallRye Reactive Messaging implementation (used by Quarkus and other runtimes). Other implementations may provide equivalent mechanisms through different annotations or configuration. Refer to your runtime's documentation for portability guidance.
 ====
 
 By default, MicroProfile Reactive Messaging processes messages on event loop threads, which must not be blocked. For blocking operations such as database calls, file I/O, or synchronous HTTP requests, use `@Blocking` to offload processing to a worker thread pool:
@@ -3414,7 +3341,7 @@ One of the powerful features of event sourcing is the ability to rebuild applica
 
 For systems with long event histories, replaying every event can be time-consuming. Snapshots periodically capture the current state at a specific event sequence number, allowing rebuilding to start from the snapshot and replay only subsequent events. This dramatically reduces recovery time for aggregates with thousands of events.
 
-The snapshot strategy balances storage costs against replay performance. Common approaches include snapshotting every N events (e.g., every 100 events) or after significant state changes (e.g., order completion).
+The snapshot strategy balances storage costs against replay performance. Common approaches include snapshotting every N events (for example, every 100 events) or after significant state changes (for example, order completion).
 
 *Example*: An order management system stores events in sequence:
 
@@ -3442,7 +3369,7 @@ This combination of MicroProfile specifications enables robust, observable event
 
 == Summary
 
-MicroProfile Reactive Messaging 3.0.1 provides a powerful, standardized approach to building event-driven microservices. By leveraging reactive streams, CDI integration, and declarative annotations, developers can create scalable, resilient messaging applications with minimal boilerplate code.
+MicroProfile Reactive Messaging 3.0.1 provides a powerful, standardized approach to building Event-Driven microservices. By leveraging reactive streams, CDI integration, and declarative annotations, developers can create scalable, resilient messaging applications with minimal boilerplate code.
 
 This chapter explored the foundations of event-driven architecture, which enables loose coupling between microservices, horizontal scalability, and real-time event processing across distributed systems. At the core of reactive messaging is the Reactive Streams specification, which uses the Publisher/Subscriber model with request-based backpressure to prevent resource exhaustion and ensure efficient stream processing even under high load. Through seamless CDI integration, the specification mandates support for `@ApplicationScoped` and `@Dependent` scopes, enabling messaging beans to integrate naturally with other Jakarta EE components and benefit from dependency injection and lifecycle management.
 
@@ -3452,7 +3379,7 @@ Reliable message processing is ensured through multiple acknowledgment strategie
 
 The specification's seamless integration with other MicroProfile specifications enhances the overall capabilities of reactive messaging applications. MicroProfile Fault Tolerance provides retry, circuit breaker, and timeout patterns for resilience; Config enables externalized configuration for different environments; Metrics supports both automatic and custom observability; Health integrates with Kubernetes for readiness probes; and OpenAPI documents REST endpoints that bridge to messaging systems. The connector ecosystem, supporting Kafka, AMQP, JMS, and other brokers, handles protocol-specific details, serialization, and connection management, freeing applications to focus purely on message processing logic.
 
-Production readiness requires attention to several critical patterns covered in this chapter. Testing strategies using Kafka-based integration environments help validate real inter-service flows, while idempotent message processing ensures correct behavior despite duplicate deliveries. Proper serialization strategies including JSON-B, Avro, and Protocol Buffers provide efficient data exchange, and comprehensive deployment considerations address security, horizontal scaling, and monitoring requirements. The chapter also explored event sourcing patterns for storing state changes as immutable events, rebuilding state through event replay, and using MicroProfile Reactive Messaging to publish and consume domain events in event-driven architectures.
+Production readiness requires attention to several critical patterns covered in this chapter. Testing strategies using Kafka-based integration environments help validate real inter-service flows, while idempotent message processing ensures correct behavior despite duplicate deliveries. Proper serialization strategies including JSON-B, Avro, and Protocol Buffers provide efficient data exchange, and comprehensive deployment considerations address security, horizontal scaling, and monitoring requirements. The chapter also explored event sourcing patterns for storing state changes as immutable events, rebuilding state through event replay, and using MicroProfile Reactive Messaging to publish and consume domain events in Event-Driven architectures.
 
 To continue your journey with MicroProfile Reactive Messaging, explore the complete https://download.eclipse.org/microprofile/microprofile-reactive-messaging-3.0.1/microprofile-reactive-messaging-spec-3.0.1.html[MicroProfile Reactive Messaging 3.0.1 Specification] for detailed API documentation and conformance requirements. Study connector-specific features for your chosen message broker in your runtime's documentation, and build sample applications starting with simple producer-consumer patterns before progressing to complex stream transformations and multi-service architectures. Apply the best practices covered in this chapter including idempotent processing, proper error handling, comprehensive monitoring, and security configurations. Leverage the integration points with other MicroProfile specifications such as Fault Tolerance for resilience, Config for externalization, Metrics for observability, and Health for container orchestration.
 
