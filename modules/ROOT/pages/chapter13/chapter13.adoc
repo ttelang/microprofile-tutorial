@@ -5,11 +5,11 @@
 
 == Introduction
 
-Modern cloud-native applications handle high-volume, real-time data streams and respond to events as they occur. Traditional request-response architectures struggle to support asynchronous, non-blocking communication between services.
+Modern cloud-native applications often need to process high-volume, real-time data and react to events as they occur. Traditional request-response communication is not well-suited for long-running, asynchronous interactions between services.
 
-{reactive-messaging-spec-name} provides a framework to build asynchronous, message-driven applications. It supports reactive systems that can handle backpressure, process continuous data streams, and integrate with message brokers such as Apache Kafka and RabbitMQ (via AMQP). 
+{reactive-messaging-spec-name} provides an annotation-driven programming model for building asynchronous, message-driven applications with support for backpressure. In practice, applications connect to brokers such as Kafka or AMQP-based systems by using runtime-specific connectors.
 
-Using reactive streams, developers can create scalable and resilient microservices that follow event-driven architecture patterns.
+Using this model, developers can build scalable and resilient microservices that communicate through events rather than tightly coupled synchronous calls.
 
 == What Topics Will Be Covered
 
@@ -28,12 +28,11 @@ Using reactive streams, developers can create scalable and resilient microservic
 
 == Event-Driven Architecture (EDA) Overview
 
-Event-Driven Architecture (EDA) is a software design paradigm where system behaviour is driven by events. 
+Event-Driven Architecture (EDA) is a software design paradigm in which system behavior is driven by events.
 
-An event represents a change in system state that components can observe and process.
+An event represents a meaningful change in state that other components can observe and process. For example, when an order is placed, one service can emit an event that payment, inventory, and shipping services react to independently.
 
-Components communicate asynchronously by producing and consuming events. This makes the system more flexible, scalable, and resilient compared to traditional request-response architectures. EDA is particularly well-suited for distributed systems, microservices, and real-time applications.
-
+Components communicate asynchronously by producing and consuming events. This loose coupling makes the system more flexible, scalable, and resilient than a purely request-response approach. EDA is particularly well-suited to distributed systems, microservices, and real-time applications.
 
 === Comparison with Request-Response Architecture
 
@@ -58,22 +57,23 @@ This model has significant limitations in distributed systems:
 
 |Failure handling
 |Failures directly impact the caller
-|Failures are isolated; events can be reprocessed
+|Failures are more isolated; messages can often be retried or reprocessed depending on the broker and configuration
 
 |Data flow
-|Point-to-point
-|Publish-subscribe or streaming
+|Point-to-point request/response
+|Publish-subscribe, queues, or streams
 
 |===
 
 == Reactive Streams
 
-Reactive Streams defines a standard for asynchronous stream processing with backpressure. It enables producers and consumers to coordinate data flow safely.
+Reactive Streams defines a standard for asynchronous stream processing with backpressure. It enables producers and consumers to coordinate data flow safely and efficiently.
 
-Backpressure prevents producers from overwhelming consumers. Consumers request only the data they can process.
+Backpressure prevents producers from overwhelming consumers by allowing consumers to request only the amount of data they are ready to process.
 
-MicroProfile Reactive Messaging builds on this specification and provides an annotation-driven programming model.
+MicroProfile Reactive Messaging builds on this model and provides an annotation-driven programming style using concepts such as channels, `@Incoming`, and `@Outgoing`.
 
+For learning, local development, and testing, many runtimes provide an internal in-memory connector. This connector allows messages to flow between channels within the same application, without requiring an external broker. For production systems, use a messaging provider such as Apache Kafka or RabbitMQ.
 
 === Maven Dependency
 
@@ -84,10 +84,12 @@ Add the following dependency to your `pom.xml`:
 <dependency>
     <groupId>org.eclipse.microprofile.reactive.messaging</groupId>
     <artifactId>microprofile-reactive-messaging-api</artifactId>
-    <version>3.0.1</version>
+    <version>${reactive-messaging-spec-version}</version>           
     <scope>provided</scope>
 </dependency>
 ----
+
+This dependency provides the MicroProfile Reactive Messaging API. The `provided` scope indicates that the implementation is supplied by your MicroProfile-compatible runtime or application server rather than bundled inside your application.
 
 === Gradle Dependency
 
@@ -96,26 +98,17 @@ Add the following dependency to your `build.gradle`:
 [source,groovy]
 ----
 dependencies {
-    providedCompile 'org.eclipse.microprofile.reactive.messaging:microprofile-reactive-messaging-api:3.0.1'
+    compileOnly "org.eclipse.microprofile.reactive.messaging:microprofile-reactive-messaging-api:3.0.1"
 }
 ----
 
-=== Adding Connector Dependencies
+This dependency provides the MicroProfile Reactive Messaging API. The `compileOnly` configuration indicates that the implementation is supplied by your MicroProfile-compatible runtime or application server rather than bundled inside your application.
 
-MicroProfile Reactive Messaging requires connectors to integrate with messaging systems like Apache Kafka, AMQP, or JMS. The connector dependencies vary by runtime:
+=== Connector Dependencies
 
-*For Open Liberty*:
+MicroProfile Reactive Messaging requires connectors to integrate with messaging systems such as Apache Kafka, AMQP, or JMS. Connectors are runtime-specific implementations that handle communication with the underlying messaging infrastructure. They allow your application to produce and consume messages without dealing directly with low-level protocol details.
 
-Open Liberty uses the SmallRye Reactive Messaging implementation. Enable the feature in `server.xml`:
-
-[source,xml]
-----
-<featureManager>
-    <feature>mpReactiveMessaging-3.0</feature>
-</featureManager>
-----
-
-To connect to an external Kafka broker, you must also place the `kafka-clients` JAR on the Liberty server classpath (for example, in the shared library or application WAR). Configure the channel connector in `microprofile-config.properties`:
+The exact connector dependency depends on the runtime you are using. For example, when using Open Liberty with Kafka, configure the connector in `microprofile-config.properties`:
 
 [source,properties]
 ----
@@ -124,23 +117,23 @@ mp.messaging.incoming.orders.connector=liberty-kafka
 mp.messaging.incoming.orders.topic=order-topic
 ----
 
-This chapter uses Kafka-based connectors because they support communication across services.
+Depending on your runtime and packaging model, you may also need to make the Kafka client libraries available to the server or application.
 
-Refer to your runtime's documentation for the current connector artifact coordinates and configuration details.
+Refer to your runtime's documentation for the correct connector artifact coordinates, supported brokers, and configuration details.
 
 == Defining Messaging Logic with CDI Beans
 
-MicroProfile Reactive Messaging leverages Contexts and Dependency Injection (CDI) to provide a declarative, annotation-based approach to building Reactive Messaging applications. By using CDI beans, developers can define message processing logic in a clean, maintainable way without dealing with low-level messaging APIs or manually implementing Reactive Streams interfaces.
+MicroProfile Reactive Messaging leverages Contexts and Dependency Injection (CDI) to define message processing logic through declarative annotations on CDI beans. This approach keeps messaging code clean and maintainable without requiring developers to work directly with low-level messaging APIs or manually implement Reactive Streams interfaces.
 
 === Basic Structure of Messaging Beans
 
-A messaging bean in MicroProfile Reactive Messaging is a standard CDI bean with methods annotated to indicate how they participate in message processing. These beans are automatically discovered and initialized by the CDI container.
+A messaging bean in MicroProfile Reactive Messaging is a standard CDI bean with methods annotated to indicate how they participate in message processing. These beans are discovered by CDI, and the reactive messaging runtime wires the annotated methods into the message flow.
 
 *Key Characteristics*:
 
 * *CDI Managed*: Beans are managed by the CDI container, enabling dependency injection and lifecycle management.
 * *Annotation-Driven*: Methods are annotated with `@Incoming`, `@Outgoing`, or both to define message flows.
-* *Flexible Scopes*: Beans can use various CDI scopes (@ApplicationScoped, @RequestScoped, @Dependent) based on requirements.
+* *Flexible Scopes*: Beans can use various CDI scopes such as `@ApplicationScoped`, `@RequestScoped`, or `@Dependent`, depending on the use case.
 
 *Basic Bean Structure*:
 
@@ -157,7 +150,7 @@ public class PaymentRequestHandler {
 
     @Incoming("orders")
     @Outgoing("paid-orders")
-    public Order requestPayment(Order order) {
+    public Order processPayment(Order order) {
         order.setStatus(OrderStatus.PAID);
         return order;
     }
@@ -166,9 +159,9 @@ public class PaymentRequestHandler {
 
 In this example:
 
-* The bean is application-scoped, meaning one instance exists for the entire application.
-* The `requestPayment` method receives `Order` messages from the `orders` channel.
-* It performs a simple domain-specific transformation by updating the order status to `PAID`.
+* The bean is application-scoped, so one instance serves the application.
+* The `processPayment` method receives `Order` messages from the `orders` channel.
+* It performs a simple transformation by updating the order status to `PAID`.
 * It sends the updated order to the `paid-orders` channel for downstream processing.
 
 === Leveraging CDI for Dependency Injection and Scope Management
