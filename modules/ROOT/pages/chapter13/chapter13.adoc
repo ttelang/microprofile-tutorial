@@ -3226,7 +3226,6 @@ public class ProtobufDeserializer<T extends Message> implements Deserializer<T> 
 }
 ----
 
-
 == Data Streaming and Event Sourcing
 
 Modern applications often need to handle continuous flows of data and maintain
