@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<server description="Payment Service Server">
+
+    <featureManager>
+        <platform>microProfile-7.1</platform>
+        <platform>jakartaEE-10.0</platform>
+        <feature>restfulWS</feature>
+        <feature>jsonp</feature>
+        <feature>jsonb</feature>
+        <feature>cdi</feature>
+        <feature>mpConfig</feature>
+        <feature>mpOpenAPI-4.1</feature>
+        <feature>mpJwt</feature>
+        <feature>mpRestClient-4.0</feature>
+        <feature>mpReactiveMessaging-3.0</feature>
+    </featureManager>
+
+    <httpEndpoint id="defaultHttpEndpoint"
+                  httpPort="${http.port}"
+                  httpsPort="${https.port}" />
+
+    <webApplication location="payment.war" contextRoot="/payment">
+        <classloader apiTypeVisibility="+third-party"/>
+    </webApplication>
+
+    <variable name="http.port" defaultValue="9080"/>
+    <variable name="https.port" defaultValue="9443"/>
+
+    <logging consoleLogLevel="INFO" consoleFormat="simple"/>
+</server>

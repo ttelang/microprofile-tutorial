@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<server description="Simple Producer Consumer Server">
+
+    <featureManager>
+        <feature>servlet-6.0</feature>
+        <feature>cdi-4.0</feature>
+        <feature>mpReactiveMessaging-3.0</feature>
+    </featureManager>
+
+    <httpEndpoint id="defaultHttpEndpoint"
+                  httpPort="${http.port}"
+                  httpsPort="${https.port}" />
+
+    <logging consoleLogLevel="INFO"
+             traceSpecification="*=info" />
+
+    <webApplication location="simple-producer-consumer.war" contextRoot="/"/>
+
+    <variable name="http.port" defaultValue="9085"/>
+    <variable name="https.port" defaultValue="9443"/>
+</server>

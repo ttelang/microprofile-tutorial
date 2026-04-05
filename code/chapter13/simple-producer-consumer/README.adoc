@@ -1,0 +1,92 @@
+= Simple Producer/Consumer Demo
+
+A minimal Open Liberty project that demonstrates MicroProfile Reactive Messaging with a producer using `@Outgoing` and a consumer using `@Incoming`.
+
+This project shows a linear three-stage message pipeline inside one application. A producer emits a single message to the `greetings-in` channel, a processor transforms it and forwards it to the `greetings-out` channel, and a consumer logs the final message to the server console.
+
+== How it works
+
+[source,text]
+----
++---------------------------------------+
+| SimpleMessageBean                     |
+|                                       |
+| @Outgoing("greetings-in")             |
+| produce(): PublisherBuilder<String>   |
++------------------+--------------------+
+                   |
+                   v
+          +----------------+
+          | greetings-in   |
+          |   channel      |
+          +-------+--------+
+                  |
+                  v
++------------------------------------------+
+| SimpleMessageBean                        |
+|                                          |
+| @Incoming("greetings-in")               |
+| @Outgoing("greetings-out")              |
+| process(String): String (toUpperCase)    |
++------------------+-----------------------+
+                   |
+                   v
+          +----------------+
+          | greetings-out  |
+          |   channel      |
+          +-------+--------+
+                  |
+                  v
++---------------------------------------+
+| SimpleMessageBean                     |
+|                                       |
+| @Incoming("greetings-out")            |
+| consume(String message)               |
++---------------------------------------+
+----
+
+== Project structure
+
+[source,text]
+----
+src/
+└── main/
+    ├── java/
+    │   └── com/example/simple/
+    │       └── SimpleMessageBean.java        # producer, processor, and consumer methods
+    ├── liberty/
+    │   └── config/
+    │       └── server.xml                    # Open Liberty runtime configuration
+    ├── resources/
+    │   └── META-INF/
+    │       └── microprofile-config.properties  # messaging configuration notes
+    └── webapp/
+        └── WEB-INF/
+            └── beans.xml                     # CDI bean discovery
+----
+
+== Run the project
+
+[source,bash]
+----
+mvn clean package
+mvn liberty:run
+----
+
+By default, this demo starts on port `9085` to avoid conflicts with other tutorial projects that commonly use `9080`.
+
+When the application starts, check the server console output. You should see log entries similar to the following:
+
+[source,text]
+----
+[INFO] [INFO    ] Sending message: Hello, MicroProfile Reactive Messaging
+[INFO] [INFO    ] Processing message: Hello, MicroProfile Reactive Messaging
+[INFO] [INFO    ] Received message: HELLO, MICROPROFILE REACTIVE MESSAGING
+----
+
+== What it shows
+
+* `@Outgoing("greetings-in")` on `produce()` returns a `PublisherBuilder<String>` wrapping a single message. Using `PublisherBuilder` ensures the stream completes after one item, preventing an infinite generator loop.
+* `@Incoming("greetings-in")` + `@Outgoing("greetings-out")` on `process()` demonstrates the processor pattern — consuming from one channel, transforming the payload to uppercase, and publishing to a different channel.
+* `@Incoming("greetings-out")` on `consume()` is the terminal consumer that logs the final transformed message.
+* Using distinct channel names (`greetings-in`, `greetings-out`) avoids a loopback anti-pattern where the same bean both produces and consumes on the same channel.
