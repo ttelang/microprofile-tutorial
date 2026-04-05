@@ -25,7 +25,7 @@ Using this model, developers can build scalable and resilient microservices that
 * Managing backpressure in reactive messaging
 * Integration with other MicroProfile specifications
 * Reactive stream operations
-* Best practices and production patterns
+* Graph Validation and Deployment Checks
 
 == Event-Driven Architecture (EDA) Overview
 
