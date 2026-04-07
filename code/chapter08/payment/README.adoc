@@ -7,15 +7,13 @@
 
 toc::[]
 
-This microservice demonstrates MicroProfile Fault Tolerance patterns for building resilient payment processing services. It is part of the Jakarta EE 10 and MicroProfile based e-commerce tutorial.
+This microservice demonstrates MicroProfile Fault Tolerance patterns for building resilient payment processing services. It is part of the Jakarta EE and MicroProfile based e-commerce tutorial.
 
 == Features
 
 * **Payment Authorization** with Retry, Timeout, and Fallback
 * **Gateway Health Checks** with Circuit Breaker protection
 * **Async Notifications** with Bulkhead resource isolation
-* **Configuration Externalization** via MicroProfile Config
-* **Metrics Integration** for observability
 
 == MicroProfile Fault Tolerance Implementation
 

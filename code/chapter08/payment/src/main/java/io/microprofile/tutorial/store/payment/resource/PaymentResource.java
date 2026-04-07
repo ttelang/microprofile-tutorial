@@ -6,8 +6,6 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 
 import io.microprofile.tutorial.store.payment.entity.PaymentDetails;
-import io.microprofile.tutorial.store.payment.exception.CriticalPaymentException;
-import io.microprofile.tutorial.store.payment.exception.PaymentProcessingException;
 import io.microprofile.tutorial.store.payment.service.PaymentService;
 import jakarta.enterprise.context.RequestScoped;
 import jakarta.inject.Inject;
