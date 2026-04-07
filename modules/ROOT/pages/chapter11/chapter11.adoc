@@ -19,11 +19,10 @@ This chapter introduces MicroProfile Rest Client 4.0, a type-safe framework for 
 
 == What's New in MicroProfile Rest Client 4.0
 
-MicroProfile Rest Client 4.0 aligns with Jakarta EE 10 and includes these key changes:
+MicroProfile Rest Client 4.0 includes these key changes:
 
 * **Mandatory `@RestClient` qualifier** - Required for CDI injection to prevent ambiguous bean resolution
-* **Enhanced `RestClientBuilder`** - New `baseUri(String)` method accepts a String directly without `URI.create()`
-* **Namespace migration** - All `javax.*` packages migrated to `jakarta.*`
+* **Enhanced `RestClientBuilder`** - Added a new `baseUri(String)` method that accepts a String directly without `URI.create()` and a new `header(String, Object)` method for adding headers ot the REST Client. 
 
 NOTE: Version 4.0 requires Jakarta EE 10 and is not compatible with earlier Jakarta EE or Java EE versions.
 
