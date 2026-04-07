@@ -608,7 +608,7 @@ public class LoggingFilter implements ClientResponseFilter {
 [source,java]
 ----
 @RegisterRestClient(configKey = "product-service")
-@RegisterProvider(value = AuthenticationFilter.class, priority = 1000)
+@RegisterProvider(value = AuthenticationFilter.class)
 @RegisterProvider(LoggingFilter.class)
 @Path("/products")
 public interface ProductServiceClient {
