@@ -1,11 +1,11 @@
 = MicroProfile Rest Client
 :rest-client-spec-name: MicroProfile Rest Client
-:rest-client-spec-version: 3.1
+:rest-client-spec-version: 4.0
 :idvar: id
 
 In microservices architecture, developers often face the cumbersome task of implementing boilerplate code to consume REST APIs - manually constructing HTTP requests, parsing responses, and handling errors. The MicroProfile Rest Client specification addresses this by leveraging Jakarta RESTful Web Services (formerly JAX-RS) annotations to create type-safe Rest client interfaces. Instead of writing low-level HTTP logic, developers define Java interfaces that mirror the target service’s endpoints. At runtime, MicroProfile Rest Client dynamically generates an implementation of these interfaces, automating HTTP communication with compile-time type safety.
 
-This chapter introduces MicroProfile Rest Client 4.0, a type-safe framework aligned with Jakarta EE 10 for simplifying service-to-service communication.  You'll learn to define and inject REST client interfaces, configure clients with MicroProfile Config, handle errors with `ResponseExceptionMapper`, and implement custom filters.
+This chapter introduces MicroProfile Rest Client 4.0, a type-safe framework for simplifying service-to-service communication. It is now alginemd with with Jakarta RESTful Web Services 3.1 to be compatible with Jakarta EE 10. You'll learn to define and inject REST client interfaces, configure clients with MicroProfile Config, handle errors with `ResponseExceptionMapper`, and implement custom filters.
 
 == Topics to be covered:
 
