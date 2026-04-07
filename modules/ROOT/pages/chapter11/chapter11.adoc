@@ -149,7 +149,7 @@ public class ProductService {
 
 **Requirements:**
 
-* Both `@Inject` and `@RestClient` are required in MicroProfile 4.0
+* Both `@Inject` and `@RestClient` are required in MicroProfile Rest Client
 * The container manages the client lifecycle automatically
 * Clients are automatically closed when the bean is destroyed
 
