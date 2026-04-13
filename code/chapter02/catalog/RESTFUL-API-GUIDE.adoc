@@ -1,0 +1,321 @@
+= Building a RESTful API with Jakarta EE and MicroProfile
+:toc:
+:icons: font
+:source-highlighter: highlight.js
+:experimental:
+
+== Introduction
+
+Creating a RESTful API is a fundamental skill in modern application development. When you build a REST API, you typically start by defining a domain model or entity class that represents the resource data. Then you define a REST resource endpoint that exposes the resource over HTTP. Each resource is identified by a unique URI, and you define the operations that can be performed on each resource—typically CRUD operations: create, read, update, and delete.
+
+This guide walks you through creating a RESTful API to manage a list of products for an e-commerce store. The API allows client applications to access products stored as resources on the server. The API is implemented using Jakarta EE and follows the REST architectural style.
+
+In this section, you will implement read-only operations for the Product API:
+
+* `GET /api/products` – Retrieves a list of all products
+* `GET /api/products/{id}` – Retrieves a single product with the specified ID
+
+Later, you can extend this API with create, update, and delete operations (`POST`, `PUT`, `DELETE`) to implement full CRUD functionality.
+
+== Creating an Entity Class
+
+The entity class (also called a domain model or POJO—Plain Old Java Object) represents a specific REST resource. In this case, it models a product with properties like ID, name, description, and price.
+
+When designing an entity class for JSON serialization, remember these key principles:
+
+* Declare a default (no-argument) constructor for the JSON binding provider
+* Use object wrapper types (`Long`, `Double`, `String`) instead of primitives (`long`, `double`), since wrappers can be `null` and JSON-B cannot serialize primitives
+* Provide getters and setters for all fields to enable automatic serialization and deserialization
+
+Here is a simple Product entity class:
+
+[source,java]
+----
+package io.microprofile.tutorial.store.product.entity;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Product {
+    private Long id;
+    private String name;
+    private String description;
+    private Double price;
+}
+----
+
+The `@Data` annotation from Lombok automatically generates getters, setters, `toString()`, `equals()`, and `hashCode()` methods. The `@NoArgsConstructor` generates a default constructor, and `@AllArgsConstructor` generates a constructor that accepts all fields.
+
+If you prefer not to use Lombok, you can write the getters and setters explicitly:
+
+[source,java]
+----
+public class Product {
+    private Long id;
+    private String name;
+    private String description;
+    private Double price;
+
+    // Default constructor
+    public Product() {
+    }
+
+    // Parameterized constructor
+    public Product(Long id, String name, String description, Double price) {
+        this.id = id;
+        this.name = name;
+        this.description = description;
+        this.price = price;
+    }
+
+    // Getters and setters
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public Double getPrice() {
+        return price;
+    }
+
+    public void setPrice(Double price) {
+        this.price = price;
+    }
+}
+----
+
+== Creating a Service Class
+
+A service class contains the business logic and data access for your resources. It includes methods for creating, updating, deleting, and retrieving (CRUD) operations on the resources. The service manages the collection of products and provides methods for accessing them.
+
+Here is a ProductService class that holds the product data and provides retrieval methods:
+
+[source,java]
+----
+package io.microprofile.tutorial.store.product.service;
+
+import io.microprofile.tutorial.store.product.entity.Product;
+import jakarta.enterprise.context.ApplicationScoped;
+import java.util.*;
+
+@ApplicationScoped
+public class ProductService {
+    private List<Product> products = new ArrayList<>();
+
+    public ProductService() {
+        // Initialize with sample products
+        products.add(new Product(1L, "Laptop", "High-performance laptop", 999.99));
+        products.add(new Product(2L, "Mouse", "Wireless mouse", 29.99));
+        products.add(new Product(3L, "Keyboard", "Mechanical keyboard", 149.99));
+    }
+
+    /**
+     * Retrieve all products
+     */
+    public List<Product> getProducts() {
+        return products;
+    }
+
+    /**
+     * Retrieve a product by ID
+     */
+    public Optional<Product> getProductById(Long id) {
+        return products.stream()
+                .filter(p -> p.getId().equals(id))
+                .findFirst();
+    }
+}
+----
+
+The `@ApplicationScoped` annotation ensures that the service class is instantiated once and exists for the lifetime of the application. This is important for maintaining a single, consistent view of the product database.
+
+== Creating a Resource Class
+
+The REST resource class maps HTTP requests to Java methods. It is responsible for handling incoming HTTP requests and returning appropriate responses. This is where the JAX-RS annotations bring the REST API to life.
+
+[source,java]
+----
+package io.microprofile.tutorial.store.product.resource;
+
+import io.microprofile.tutorial.store.product.entity.Product;
+import io.microprofile.tutorial.store.product.service.ProductService;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+
+@Path("/products")
+@Produces(MediaType.APPLICATION_JSON)
+public class ProductResource {
+
+    @Inject
+    private ProductService productService;
+
+    /**
+     * GET /products - Returns all products as JSON
+     */
+    @GET
+    public Response getAll() {
+        return Response.ok(productService.getProducts()).build();
+    }
+
+    /**
+     * GET /products/{id} - Returns a single product by ID
+     */
+    @GET
+    @Path("/{id}")
+    public Response getById(@PathParam("id") Long id) {
+        return productService.getProductById(id)
+                .map(product -> Response.ok(product).build())
+                .orElse(Response.status(Response.Status.NOT_FOUND).build());
+    }
+}
+----
+
+Key annotations used in the resource class:
+
+* `@Path("/products")` – Defines the URI path for this resource (e.g., `/api/products`)
+* `@GET` – Maps the method to the HTTP GET method
+* `@Path("/{id}")` – Defines a path parameter (e.g., `/api/products/1`)
+* `@PathParam("id")` – Extracts the ID value from the URL
+* `@Produces(MediaType.APPLICATION_JSON)` – Specifies that the endpoint returns JSON
+
+== Understanding Media Types
+
+RESTful web services can produce and consume many different media types, including JSON, XML, and HTML. The `@Produces` and `@Consumes` annotations specify the media type that a method handles.
+
+Here are some common media types:
+
+[cols="3,3,2"]
+|===
+|Media Type |Constant Field |HTTP ContentType
+
+|JSON
+|`MediaType.APPLICATION_JSON`
+|`application/json`
+
+|XML
+|`MediaType.APPLICATION_XML`
+|`application/xml`
+
+|HTML
+|`MediaType.TEXT_HTML`
+|`text/html`
+
+|Plain Text
+|`MediaType.TEXT_PLAIN`
+|`text/plain`
+|===
+
+For example, if you want a method to consume JSON and produce XML:
+
+[source,java]
+----
+@POST
+@Consumes(MediaType.APPLICATION_JSON)
+@Produces(MediaType.APPLICATION_XML)
+public Response createProduct(Product product) {
+    // Process the JSON input and return XML output
+    return Response.ok(product).build();
+}
+----
+
+== Testing the API
+
+Once your REST API endpoints are defined and the application is running, you can test them using various tools.
+
+=== Using Your Browser
+
+For GET requests, you can simply type the URL in your browser's address bar:
+
+----
+http://localhost:9080/api/products
+----
+
+The response will be a JSON array of product objects.
+
+=== Using curl
+
+For testing all HTTP methods, use the `curl` command-line utility:
+
+[source,bash]
+----
+# Get all products
+curl http://localhost:9080/api/products
+
+# Get a single product with ID 1
+curl http://localhost:9080/api/products/1
+----
+
+The output will display the JSON response in your terminal:
+
+[source,json]
+----
+[
+  {
+    "id": 1,
+    "name": "Laptop",
+    "description": "High-performance laptop",
+    "price": 999.99
+  },
+  {
+    "id": 2,
+    "name": "Mouse",
+    "description": "Wireless mouse",
+    "price": 29.99
+  },
+  {
+    "id": 3,
+    "name": "Keyboard",
+    "description": "Mechanical keyboard",
+    "price": 149.99
+  }
+]
+----
+
+=== Using Postman
+
+Postman is a popular GUI client for testing REST APIs. You can create requests for each endpoint, set headers, and view responses in a user-friendly interface.
+
+== Next Steps
+
+This guide has shown you how to implement read-only operations for a REST API. In the coming chapters, you will extend this API with:
+
+* `POST /api/products` – Create a new product
+* `PUT /api/products/{id}` – Update an existing product
+* `DELETE /api/products/{id}` – Delete a product
+
+These operations will complete the full CRUD (Create, Read, Update, Delete) functionality and give your API the ability to manage the complete lifecycle of product resources.
+
+== Summary
+
+Building a RESTful API with Jakarta EE involves three main components:
+
+1. **Entity Class** – Represents the data model using plain Java objects with wrapper types
+2. **Service Class** – Contains business logic and data access operations
+3. **Resource Class** – Maps HTTP requests to service methods using JAX-RS annotations
+
+By separating concerns into these layers, your code becomes more maintainable, testable, and follows established design patterns. Start with read-only operations to establish the foundation, then build upon it with write operations to achieve full CRUD functionality.

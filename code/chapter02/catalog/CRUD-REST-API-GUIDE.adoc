@@ -1,0 +1,769 @@
+= Updating Product Data Using REST APIs
+:toc:
+:icons: font
+:source-highlighter: highlight.js
+:experimental:
+
+== Introduction
+
+While GET operations demonstrate the fundamentals of REST architecture, a production-ready API requires the ability to modify data as well. In this guide, you'll learn how to implement write operations on REST resources using proper HTTP methods and best practices.
+
+Previously, you implemented read-only operations:
+
+* `GET /api/products` – Retrieves a list of all products
+* `GET /api/products/{id}` – Retrieves a single product with the specified ID
+
+Now you'll extend your API with write and additional operations:
+
+* `POST /api/products` – Creates a new product
+* `PUT /api/products/{id}` – Replaces an existing product
+* `PATCH /api/products/{id}` – Partially updates an existing product
+* `DELETE /api/products/{id}` – Deletes a product
+* `HEAD /api/products/{id}` – Checks if a product exists without fetching the body
+* `OPTIONS /api/products` – Discovers the HTTP methods allowed on the resource
+
+Beyond simply adding these operations, you'll learn REST best practices including proper HTTP status codes, error handling, input validation, and comprehensive testing strategies.
+
+== Understanding HTTP Methods and Status Codes
+
+Each HTTP method serves a specific purpose in a RESTful API:
+
+[cols="2,1,2,2"]
+|===
+|Method |Purpose |Status Codes |Response Headers
+
+|GET
+|Retrieve a resource
+|200 (OK) - Resource retrieved successfully; 404 (Not Found) - Resource doesn't exist
+|`Content-Type: application/json`; `ETag`; `Cache-Control`
+
+|POST
+|Create a new resource
+|201 (Created) - Resource successfully created; 400 (Bad Request) - Invalid input data; 409 (Conflict) - Resource already exists
+|`Location` with URI of created resource; `Content-Type: application/json`
+
+|PUT
+|Replace an entire resource
+|200 (OK) - Resource updated successfully; 204 (No Content) - Resource updated with no response body; 400 (Bad Request) - Invalid input data; 404 (Not Found) - Resource doesn't exist
+|`Content-Type: application/json`; `ETag`
+
+|PATCH
+|Partially update a resource
+|200 (OK) - Resource partially updated; 204 (No Content) - Resource updated with no response body; 400 (Bad Request) - Invalid input data; 404 (Not Found) - Resource doesn't exist
+|`Content-Type: application/json`; `ETag`
+
+|DELETE
+|Delete a resource
+|204 (No Content) - Resource successfully deleted; 404 (Not Found) - Resource doesn't exist
+|`Cache-Control: no-cache`
+
+|HEAD
+|Check resource existence and metadata
+|200 (OK) - Resource exists; 404 (Not Found) - Resource doesn't exist
+|Same headers as GET but no body; `Content-Type`; `ETag`
+
+|OPTIONS
+|Discover communication options
+|200 (OK) - Returns allowed methods in Allow header
+|`Allow` with comma-separated list of supported methods; `Content-Type: application/json`
+|===
+
+== Common HTTP Status Codes
+
+Here's a quick reference for HTTP status codes used in REST APIs:
+
+* **200 OK** – Request succeeded; response contains the requested resource
+* **201 Created** – Resource successfully created; response includes Location header
+* **204 No Content** – Request succeeded; no response body (typically for DELETE, PUT without response)
+* **400 Bad Request** – Client sent invalid data or malformed request
+* **404 Not Found** – Requested resource doesn't exist
+* **409 Conflict** – Request conflicts with existing resource state
+
+== Common Response Headers
+
+Understanding and using the right response headers is crucial for REST API development. Here are the most common headers used:
+
+[cols="2,3"]
+|===
+|Header |Purpose and Example
+
+|**Location**
+|Used in POST responses to indicate the URI of the newly created resource. Example: `Location: http://localhost:9080/api/products/4`
+
+|**Content-Type**
+|Specifies the media type of the response body. Example: `Content-Type: application/json`
+
+|**Cache-Control**
+|Instructs caches and clients how to cache the response. Examples: `cache-control: no-cache`, `cache-control: max-age=3600`
+
+|**ETag**
+|Provides a unique identifier for a specific version of a resource, used for versioning and concurrent updates. Example: `ETag: "33a64df551425fcc55e4d42a148795d9f25f89d4"`
+
+|**Last-Modified**
+|Indicates the last date/time the resource was modified. Example: `Last-Modified: Wed, 21 Oct 2024 07:28:00 GMT`
+
+|**Allow**
+|Lists the HTTP methods allowed for a resource. Example: `Allow: GET, POST, PUT, DELETE, HEAD, OPTIONS, PATCH`
+
+|**Content-Length**
+|Specifies the size of the response body in bytes. Example: `Content-Length: 1234`
+
+|**Access-Control-Allow-Methods**
+|For CORS responses, lists the methods allowed for cross-origin requests. Example: `Access-Control-Allow-Methods: GET, POST, PUT, DELETE`
+
+|**Access-Control-Allow-Headers**
+|For CORS responses, lists the headers allowed for cross-origin requests. Example: `Access-Control-Allow-Headers: Content-Type, Authorization`
+
+|**Access-Control-Max-Age**
+|Specifies how long CORS preflight results can be cached. Example: `Access-Control-Max-Age: 3600`
+|===
+
+== Additional HTTP Methods
+
+Beyond the standard CRUD operations, REST APIs often use additional HTTP methods to provide more functionality:
+
+=== HEAD Request
+
+The HEAD method is identical to GET, except the server returns only the headers without the response body. This is useful for:
+
+* Checking if a resource exists without downloading its data
+* Getting metadata about a resource (content type, size, last modified)
+* Verifying authentication without fetching the full resource
+
+==== Response Headers for HEAD
+
+The following headers should be included in the HEAD response (same as GET but with no body):
+
+* **Content-Type** – Indicates the media type (e.g., `application/json`)
+* **Content-Length** – The size the response body would have been (for GET)
+* **ETag** – Entity tag for caching purposes
+* **Last-Modified** – The date the resource was last modified
+* **Cache-Control** – Caching directives for the resource
+
+[source,java]
+----
+/**
+ * HEAD /products/{id} - Check if a product exists
+ * @param id The product ID
+ * @return Response with status and headers, no body
+ */
+@HEAD
+@Path("/{id}")
+public Response headProduct(@PathParam("id") Long id) {
+    return productService.getProductById(id)
+            .map(product -> Response.ok()
+                    .header("Content-Type", "application/json")
+                    .build())
+            .orElse(Response.status(Response.Status.NOT_FOUND).build());
+}
+----
+
+=== OPTIONS Request
+
+The OPTIONS method describes the available communication options for a resource or server. It's useful for:
+
+* Discovering what HTTP methods are allowed on a resource
+* Handling CORS (Cross-Origin Resource Sharing) preflight requests
+* Improving API discoverability
+
+==== Response Headers for OPTIONS
+
+The following headers should be included in the OPTIONS response:
+
+* **Allow** – Required; comma-separated list of HTTP methods supported by the resource (e.g., `GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS`)
+* **Content-Type** – Set to `application/json` if response includes additional information
+* **Access-Control-Allow-Methods** – For CORS preflight; lists the methods allowed for cross-origin requests
+* **Access-Control-Allow-Headers** – For CORS preflight; lists the headers allowed for cross-origin requests
+* **Access-Control-Max-Age** – Optional; specifies how long CORS preflight results can be cached (in seconds)
+
+[source,java]
+----
+/**
+ * OPTIONS /products - Describe available operations
+ * @return Response with Allow header listing supported methods
+ */
+@OPTIONS
+public Response optionsProducts() {
+    return Response.ok()
+            .header("Allow", "GET, POST, PUT, DELETE, HEAD, OPTIONS, PATCH")
+            .header("Content-Type", "application/json")
+            .header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS")
+            .header("Access-Control-Max-Age", "3600")
+            .build();
+}
+
+/**
+ * OPTIONS /products/{id} - Describe available operations for a specific product
+ * @param id The product ID
+ * @return Response with Allow header
+ */
+@OPTIONS
+@Path("/{id}")
+public Response optionsProduct(@PathParam("id") Long id) {
+    return Response.ok()
+            .header("Allow", "GET, PUT, DELETE, HEAD, OPTIONS, PATCH")
+            .build();
+}
+----
+
+=== PATCH Request
+
+The PATCH method applies partial modifications to a resource. Unlike PUT (which replaces the entire resource), PATCH only updates the fields provided in the request:
+
+* Use PUT for complete replacement of a resource
+* Use PATCH for partial updates of a resource
+* PATCH bodies typically contain only the changed fields
+
+==== Response Headers for PATCH
+
+The following headers should be included in the PATCH response:
+
+* **Content-Type** – Set to `application/json` to indicate JSON response
+* **ETag** – Optional but recommended for versioning after partial updates
+* **Cache-Control** – Set to `must-revalidate` for updated resources
+
+[source,java]
+----
+/**
+ * PATCH /products/{id} - Partially update a product
+ * @param id The product ID
+ * @param partialProduct Partial product data with only fields to update
+ * @return Response with updated product
+ */
+@PATCH
+@Path("/{id}")
+@Consumes(MediaType.APPLICATION_JSON)
+public Response patchProduct(@PathParam("id") Long id, Product partialProduct) {
+    if (id == null || id <= 0) {
+        return Response.status(Response.Status.BAD_REQUEST)
+                .entity("Invalid product ID")
+                .build();
+    }
+
+    try {
+        Product updatedProduct = productService.patchProduct(id, partialProduct);
+        return Response.ok(updatedProduct).build();
+    } catch (IllegalArgumentException e) {
+        return Response.status(Response.Status.NOT_FOUND)
+                .entity("Product with ID " + id + " does not exist")
+                .build();
+    }
+}
+----
+
+=== Service Layer Implementation for PATCH
+
+[source,java]
+----
+public Product patchProduct(Long id, Product partialProduct) {
+    return products.stream()
+            .filter(p -> p.getId().equals(id))
+            .findFirst()
+            .map(product -> {
+                // Only update fields that are not null
+                if (partialProduct.getName() != null && !partialProduct.getName().isEmpty()) {
+                    product.setName(partialProduct.getName());
+                }
+                if (partialProduct.getDescription() != null) {
+                    product.setDescription(partialProduct.getDescription());
+                }
+                if (partialProduct.getPrice() != null) {
+                    product.setPrice(partialProduct.getPrice());
+                }
+                return product;
+            })
+            .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+}
+----
+
+== HTTP Methods Comparison
+
+[cols="2,2,3"]
+|===
+|Method |Use Case |Request Body
+
+|GET
+|Retrieve resource(s)
+|No
+
+|POST
+|Create a new resource
+|Yes (required)
+
+|PUT
+|Replace entire resource
+|Yes (required)
+
+|PATCH
+|Partially update resource
+|Yes (partial updates)
+
+|DELETE
+|Remove resource
+|No
+
+|HEAD
+|Check resource existence/metadata
+|No
+
+|OPTIONS
+|Discover allowed operations
+|No
+|===
+
+== Testing PATCH and OPTIONS with curl
+
+[source,bash]
+----
+# Check if product exists (HEAD request)
+curl -I http://localhost:9080/api/products/1
+
+# Discover available operations (OPTIONS request)
+curl -X OPTIONS http://localhost:9080/api/products
+
+# Partially update a product (only update name)
+curl -X PATCH http://localhost:9080/api/products/1 \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Updated Product Name"}'
+----
+
+
+The POST operation creates a new product resource on the server. When successful, the server returns a 201 (Created) status code along with a Location header pointing to the newly created resource.
+
+=== Response Headers for POST
+
+The following headers should be included in the POST response:
+
+* **Location** – The URI of the newly created resource (required); e.g., `http://localhost:9080/api/products/4`
+* **Content-Type** – Set to `application/json` to indicate JSON response
+* **Cache-Control** – Typically set to `no-cache` or `no-store` for POST responses
+
+=== Implementation
+
+[source,java]
+----
+package io.microprofile.tutorial.store.product.resource;
+
+import io.microprofile.tutorial.store.product.entity.Product;
+import io.microprofile.tutorial.store.product.service.ProductService;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
+import jakarta.ws.rs.core.Context;
+import java.net.URI;
+
+@Path("/products")
+@Produces(MediaType.APPLICATION_JSON)
+public class ProductResource {
+
+    @Inject
+    private ProductService productService;
+
+    // ...existing GET methods...
+
+    /**
+     * POST /products - Creates a new product
+     * @param product The product data from the request body
+     * @param uriInfo Used to build the Location header
+     * @return Response with 201 Created status and Location header
+     */
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response createProduct(Product product, @Context UriInfo uriInfo) {
+        // Validate input
+        if (product == null || product.getName() == null || product.getName().isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("Product name is required")
+                    .build();
+        }
+
+        // Add the product to the service
+        Product createdProduct = productService.createProduct(product);
+
+        // Build the URI for the new resource (/products/{id})
+        URI location = uriInfo.getAbsolutePathBuilder()
+                .path(String.valueOf(createdProduct.getId()))
+                .build();
+
+        // Return 201 Created with Location header
+        return Response.created(location)
+                .entity(createdProduct)
+                .build();
+    }
+}
+----
+
+=== Key Points
+
+* **@POST** – Maps the method to HTTP POST requests
+* **@Consumes(MediaType.APPLICATION_JSON)** – Specifies that the method accepts JSON input
+* **@Context UriInfo** – Injects URI information to build the Location header
+* **Response.created(location)** – Returns 201 (Created) status with Location header pointing to the new resource
+* **Input Validation** – Always validate data before processing
+
+=== UriInfo and Location Header
+
+The `@Context` annotation injects context objects like `UriInfo`. The Location header tells the client where to find the newly created resource. This follows REST best practices and enables clients to immediately access the created resource.
+
+[source,java]
+----
+// Example Location header after POST
+Location: http://localhost:9080/api/products/4
+----
+
+== Updating a Product: PUT Operation
+
+The PUT operation updates an existing product resource. Unlike POST (which creates), PUT modifies an existing resource identified by its ID.
+
+=== Response Headers for PUT
+
+The following headers should be included in the PUT response:
+
+* **Content-Type** – Set to `application/json` to indicate JSON response
+* **ETag** – Optional but recommended for versioning and concurrency control
+* **Cache-Control** – Set to `must-revalidate` or `private` for updated resources
+
+=== Implementation
+
+[source,java]
+----
+/**
+ * PUT /products/{id} - Updates an existing product
+ * @param id The product ID
+ * @param product The updated product data
+ * @return Response with appropriate status code
+ */
+@PUT
+@Path("/{id}")
+@Consumes(MediaType.APPLICATION_JSON)
+public Response updateProduct(@PathParam("id") Long id, Product product) {
+    // Validate input
+    if (product == null || product.getName() == null || product.getName().isEmpty()) {
+        return Response.status(Response.Status.BAD_REQUEST)
+                .entity("Product name is required")
+                .build();
+    }
+
+    // Attempt to update the product
+    try {
+        Product updatedProduct = productService.updateProduct(id, product);
+        return Response.ok(updatedProduct).build();
+    } catch (IllegalArgumentException e) {
+        return Response.status(Response.Status.NOT_FOUND)
+                .entity("Product with ID " + id + " does not exist")
+                .build();
+    }
+}
+----
+
+=== Service Layer Implementation
+
+The service layer should handle the business logic:
+
+[source,java]
+----
+public Product updateProduct(Long id, Product updatedProduct) {
+    return products.stream()
+            .filter(p -> p.getId().equals(id))
+            .findFirst()
+            .map(product -> {
+                product.setName(updatedProduct.getName());
+                product.setDescription(updatedProduct.getDescription());
+                product.setPrice(updatedProduct.getPrice());
+                return product;
+            })
+            .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+}
+----
+
+=== Key Points
+
+* **@PUT** – Maps the method to HTTP PUT requests
+* **@Path("/{id}")** – Specifies the path parameter for the product ID
+* **@PathParam("id")** – Extracts the ID from the URL
+* **200 (OK)** – Return this when update is successful
+* **404 (Not Found)** – Return this when the product doesn't exist
+* **Idempotency** – Repeated PUT requests with the same data should have the same result
+
+== Deleting a Product: DELETE Operation
+
+The DELETE operation removes a resource from the server. When successful, it returns a 204 (No Content) status code.
+
+=== Response Headers for DELETE
+
+The following headers should be included in the DELETE response:
+
+* **Cache-Control** – Set to `no-cache` to ensure clients don't cache the deleted resource
+* **Content-Length** – Set to `0` since there's no response body with 204 status
+
+=== Implementation
+
+[source,java]
+----
+/**
+ * DELETE /products/{id} - Deletes a product
+ * @param id The product ID
+ * @return Response with appropriate status code
+ */
+@DELETE
+@Path("/{id}")
+public Response deleteProduct(@PathParam("id") Long id) {
+    // Validate input
+    if (id == null || id <= 0) {
+        return Response.status(Response.Status.BAD_REQUEST)
+                .entity("Invalid product ID")
+                .build();
+    }
+
+    // Attempt to delete the product
+    try {
+        productService.deleteProduct(id);
+        return Response.noContent().build();
+    } catch (IllegalArgumentException e) {
+        return Response.status(Response.Status.NOT_FOUND)
+                .entity("Product with ID " + id + " does not exist")
+                .build();
+    }
+}
+----
+
+=== Service Layer Implementation
+
+[source,java]
+----
+public void deleteProduct(Long id) {
+    boolean removed = products.removeIf(p -> p.getId().equals(id));
+    if (!removed) {
+        throw new IllegalArgumentException("Product not found");
+    }
+}
+----
+
+=== Key Points
+
+* **@DELETE** – Maps the method to HTTP DELETE requests
+* **204 (No Content)** – Returned when deletion is successful (no response body)
+* **404 (Not Found)** – Returned when the product doesn't exist
+* **Input Validation** – Validate the ID before attempting deletion
+
+== Testing Write Operations
+
+Testing write operations requires a REST client since browsers can't send POST, PUT, or DELETE requests. Here are several options:
+
+=== Using curl
+
+[source,bash]
+----
+# Create a product
+curl -X POST http://localhost:9080/api/products \
+  -H "Content-Type: application/json" \
+  -d '{"id":4,"name":"Monitor","description":"4K Display","price":299.99}'
+
+# Update a product
+curl -X PUT http://localhost:9080/api/products/1 \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Updated Laptop","description":"High-performance laptop","price":1299.99}'
+
+# Delete a product
+curl -X DELETE http://localhost:9080/api/products/1
+----
+
+=== Using Postman
+
+Postman is a popular GUI client for testing REST APIs:
+
+1. **Create Request** – Click "New" → "Request"
+2. **Select Method** – Choose POST, PUT, or DELETE from the dropdown
+3. **Enter URL** – Type your API endpoint
+4. **Set Headers** – Add `Content-Type: application/json`
+5. **Add Body** – For POST/PUT, select "raw" and provide JSON data
+6. **Send Request** – Click "Send" to execute
+
+Postman displays the response status, headers, and body, making it ideal for API development and testing.
+
+=== Using IntelliJ IDEA
+
+IntelliJ IDEA Ultimate Edition includes an HTTP Client tool:
+
+[source]
+----
+### Create a product
+POST http://localhost:9080/api/products
+Content-Type: application/json
+
+{
+  "id": 4,
+  "name": "Monitor",
+  "description": "4K Display",
+  "price": 299.99
+}
+
+### Update a product
+PUT http://localhost:9080/api/products/1
+Content-Type: application/json
+
+{
+  "name": "Updated Laptop",
+  "description": "High-performance laptop",
+  "price": 1299.99
+}
+
+### Delete a product
+DELETE http://localhost:9080/api/products/1
+----
+
+== Complete Resource Class Example
+
+Here's a complete resource class with all CRUD operations:
+
+[source,java]
+----
+package io.microprofile.tutorial.store.product.resource;
+
+import io.microprofile.tutorial.store.product.entity.Product;
+import io.microprofile.tutorial.store.product.service.ProductService;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
+import jakarta.ws.rs.core.Context;
+import java.net.URI;
+
+@Path("/products")
+@Produces(MediaType.APPLICATION_JSON)
+public class ProductResource {
+
+    @Inject
+    private ProductService productService;
+
+    @GET
+    public Response getAll() {
+        return Response.ok(productService.getProducts()).build();
+    }
+
+    @GET
+    @Path("/{id}")
+    public Response getById(@PathParam("id") Long id) {
+        return productService.getProductById(id)
+                .map(product -> Response.ok(product).build())
+                .orElse(Response.status(Response.Status.NOT_FOUND).build());
+    }
+
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response createProduct(Product product, @Context UriInfo uriInfo) {
+        if (product == null || product.getName() == null || product.getName().isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("Product name is required")
+                    .build();
+        }
+
+        Product createdProduct = productService.createProduct(product);
+        URI location = uriInfo.getAbsolutePathBuilder()
+                .path(String.valueOf(createdProduct.getId()))
+                .build();
+
+        return Response.created(location)
+                .entity(createdProduct)
+                .build();
+    }
+
+    @PUT
+    @Path("/{id}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response updateProduct(@PathParam("id") Long id, Product product) {
+        if (product == null || product.getName() == null || product.getName().isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("Product name is required")
+                    .build();
+        }
+
+        try {
+            Product updatedProduct = productService.updateProduct(id, product);
+            return Response.ok(updatedProduct).build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("Product with ID " + id + " does not exist")
+                    .build();
+        }
+    }
+
+    @DELETE
+    @Path("/{id}")
+    public Response deleteProduct(@PathParam("id") Long id) {
+        if (id == null || id <= 0) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("Invalid product ID")
+                    .build();
+        }
+
+        try {
+            productService.deleteProduct(id);
+            return Response.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("Product with ID " + id + " does not exist")
+                    .build();
+        }
+    }
+}
+----
+
+== REST API Best Practices
+
+=== 1. Consistent Status Codes
+
+Always use the appropriate HTTP status code to indicate the outcome of the request.
+
+=== 2. Input Validation
+
+Validate all inputs before processing. Return 400 (Bad Request) for invalid data.
+
+=== 3. Error Messages
+
+Provide meaningful error messages that help clients understand what went wrong.
+
+=== 4. Idempotency
+
+Design PUT and DELETE operations to be idempotent—repeated calls with the same data should produce the same result.
+
+=== 5. Location Header
+
+Include the Location header when creating resources (POST). This tells clients where to find the new resource.
+
+=== 6. Consistent Response Format
+
+Use a consistent JSON structure for all responses, including error responses.
+
+=== 7. Resource Representation
+
+Return the created or updated resource in the response body when appropriate, allowing clients to immediately get the complete resource data.
+
+== Moving Toward Production
+
+The code demonstrated here uses in-memory storage for simplicity. In a production system, you would:
+
+* Use a database to persist data
+* Implement proper transaction management
+* Add comprehensive input validation and sanitization
+* Implement authentication and authorization
+* Add logging and monitoring
+* Use OpenAPI/Swagger for API documentation
+* Implement rate limiting and caching
+* Add distributed tracing for microservices
+
+By implementing the features from the latest MicroProfile and Jakarta EE standards in upcoming chapters, you can build a robust, cloud-ready microservice that handles these concerns properly. You'll also learn how to containerize, scale, deploy, and manage your application in production environments.
+
+== Summary
+
+You've now learned how to implement a complete CRUD REST API:
+
+* **POST** – Create new resources with 201 Created status
+* **GET** – Retrieve resources with 200 OK status
+* **PUT** – Update resources with 200 OK or 204 No Content
+* **DELETE** – Remove resources with 204 No Content
+
+Each operation follows REST conventions using appropriate HTTP methods, status codes, and headers. Combined with proper input validation and error handling, these operations form the foundation of a production-ready REST API. In the next chapters, you'll enhance this API with persistence, transactions, security, and other enterprise features.

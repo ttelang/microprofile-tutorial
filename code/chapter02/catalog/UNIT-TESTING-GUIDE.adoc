@@ -1,0 +1,277 @@
+= Writing Unit Tests for REST API Service Classes
+:toc:
+:icons: font
+:source-highlighter: highlight.js
+:experimental:
+
+== Introduction
+
+Unit testing is a critical practice in software development that ensures your code works as expected and helps catch bugs early. When building REST APIs with Jakarta EE and MicroProfile, you should write unit tests for your service classes to validate business logic and data access operations.
+
+This guide demonstrates how to write unit tests for the `ProductService` class using JUnit 5, the standard testing framework for Java applications. You'll learn how to test the core functionality of your service layer, including retrieving all products and finding products by ID.
+
+== Setting Up JUnit 5
+
+JUnit 5 is the latest version of the popular Java testing framework. It provides modern features like lambda expressions, improved assertions, and better integration with build tools.
+
+To use JUnit 5 in your Maven project, ensure your `pom.xml` includes the following dependencies:
+
+[source,xml]
+----
+<dependency>
+    <groupId>org.junit.jupiter</groupId>
+    <artifactId>junit-jupiter</artifactId>
+    <version>5.10.0</version>
+    <scope>test</scope>
+</dependency>
+----
+
+The JUnit Jupiter engine provides annotations like `@Test`, `@BeforeEach`, and `@AfterEach` that you'll use to structure your tests.
+
+== Understanding the ProductService Class
+
+Before writing tests, let's review the `ProductService` class we're testing:
+
+[source,java]
+----
+package io.microprofile.tutorial.store.product.service;
+
+import io.microprofile.tutorial.store.product.entity.Product;
+import jakarta.enterprise.context.ApplicationScoped;
+import java.util.*;
+
+@ApplicationScoped
+public class ProductService {
+    private List<Product> products = new ArrayList<>();
+
+    public ProductService() {
+        products.add(new Product(1L, "product 1", "", 0.0));
+        products.add(new Product(2L, "product 2", "", 0.0));
+    }
+
+    public List<Product> getProducts() {
+        return products;
+    }
+
+    public Optional<Product> getProductById(Long id) {
+        return products.stream()
+                .filter(p -> p.getId().equals(id))
+                .findFirst();
+    }
+}
+----
+
+The service initializes with two sample products and provides methods to retrieve all products or find a specific product by ID.
+
+== Writing Unit Tests
+
+Here's a complete unit test class for `ProductService`:
+
+[source,java]
+----
+package io.microprofile.tutorial.store.product.service;
+
+import io.microprofile.tutorial.store.product.entity.Product;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class ProductServiceTest {
+
+    private ProductService productService;
+
+    @BeforeEach
+    void setUp() {
+        productService = new ProductService();
+    }
+
+    @AfterEach
+    void tearDown() {
+        productService = null;
+    }
+
+    @Test
+    void testGetProducts() {
+        List<Product> products = productService.getProducts();
+
+        assertNotNull(products);
+        assertEquals(2, products.size());
+
+        // Verify first product details
+        Product firstProduct = products.get(0);
+        assertEquals(1L, firstProduct.getId());
+        assertEquals("product 1", firstProduct.getName());
+        assertEquals("", firstProduct.getDescription());
+        assertEquals(0.0, firstProduct.getPrice());
+    }
+
+    @Test
+    void testGetProductById_ExistingProduct() {
+        Optional<Product> product = productService.getProductById(1L);
+
+        assertTrue(product.isPresent());
+        assertEquals(1L, product.get().getId());
+        assertEquals("product 1", product.get().getName());
+        assertEquals("", product.get().getDescription());
+        assertEquals(0.0, product.get().getPrice());
+    }
+
+    @Test
+    void testGetProductById_NonExistingProduct() {
+        Optional<Product> product = productService.getProductById(999L);
+        assertFalse(product.isPresent());
+    }
+
+    @Test
+    void testGetProductById_SecondProduct() {
+        Optional<Product> product = productService.getProductById(2L);
+
+        assertTrue(product.isPresent());
+        assertEquals(2L, product.get().getId());
+        assertEquals("product 2", product.get().getName());
+        assertEquals("", product.get().getDescription());
+        assertEquals(0.0, product.get().getPrice());
+    }
+}
+----
+
+=== Test Structure Explanation
+
+* **`@BeforeEach setUp()`** – Creates a fresh `ProductService` instance before each test method runs. This ensures test isolation and prevents state from one test affecting another.
+
+* **`@AfterEach tearDown()`** – Cleans up after each test by setting the service reference to `null`. While not strictly necessary in JUnit 5 (garbage collection handles this), it's a good practice for explicit cleanup.
+
+* **`testGetProducts()`** – Tests the `getProducts()` method by verifying:
+  - The returned list is not null
+  - The list contains the expected number of products (3)
+  - The first product's details match the expected values
+
+* **`testGetProductById_ExistingProduct()`** – Tests retrieving an existing product by ID, verifying all product properties.
+
+* **`testGetProductById_NonExistingProduct()`** – Tests the behavior when requesting a non-existent product ID, ensuring an empty `Optional` is returned.
+
+* **`testGetProductById_SecondProduct()`** – Provides additional coverage by testing retrieval of a different product.
+
+=== JUnit 5 Assertions
+
+JUnit 5 provides a rich set of assertions in the `org.junit.jupiter.api.Assertions` class:
+
+* `assertNotNull(object)` – Verifies an object is not null
+* `assertEquals(expected, actual)` – Verifies two values are equal
+* `assertTrue(condition)` – Verifies a condition is true
+* `assertFalse(condition)` – Verifies a condition is false
+
+For floating-point comparisons, you can use `assertEquals(expected, actual, delta)` to account for precision issues.
+
+== Running Unit Tests
+
+=== Using Maven
+
+Run all tests in your project:
+
+[source,bash]
+----
+mvn test
+----
+
+Run a specific test class:
+
+[source,bash]
+----
+mvn test -Dtest=ProductServiceTest
+----
+
+=== Using Your IDE
+
+Most modern IDEs have excellent JUnit 5 integration:
+
+* **IntelliJ IDEA**: Right-click the test class and select "Run ProductServiceTest"
+* **Eclipse**: Right-click the test class and select "Run As" → "JUnit Test"
+* **VS Code**: Use the Java Test Runner extension to run tests directly from the editor
+
+When you run the tests, you'll see output showing which tests passed or failed, along with any error messages for failed assertions.
+
+=== Test Results
+
+A successful test run will show:
+
+[source,text]
+----
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+----
+
+If a test fails, you'll see detailed information about which assertion failed and what the expected vs. actual values were.
+
+== Best Practices for Unit Testing
+
+=== 1. Test One Thing at a Time
+
+Each test method should focus on a single behavior or scenario. This makes it easier to identify what's broken when a test fails.
+
+=== 2. Use Descriptive Test Names
+
+Test method names should clearly describe what they're testing. Use the pattern `test[MethodName]_[Scenario]()`.
+
+=== 3. Keep Tests Independent
+
+Tests should not depend on each other. The `@BeforeEach` method ensures each test starts with a clean state.
+
+=== 4. Test Edge Cases
+
+Don't just test the happy path. Test boundary conditions, error cases, and unexpected inputs.
+
+=== 5. Use Appropriate Assertions
+
+Choose the right assertion for what you're testing. Use `assertTrue`/`assertFalse` for boolean conditions, `assertEquals` for value comparisons, etc.
+
+=== 6. Maintain Test Code Quality
+
+Treat test code with the same care as production code. Keep it clean, readable, and well-documented.
+
+== Testing Other Service Methods
+
+As you add more methods to your service classes (like `createProduct()`, `updateProduct()`, `deleteProduct()`), you'll want to write corresponding tests. For example:
+
+[source,java]
+----
+@Test
+void testCreateProduct() {
+    Product newProduct = new Product(4L, "Monitor", "4K Display", 299.99);
+
+    // Assuming you add a createProduct method
+    Product created = productService.createProduct(newProduct);
+
+    assertNotNull(created);
+    assertEquals(4L, created.getId());
+    assertEquals("Monitor", created.getName());
+
+    // Verify it was added to the list
+    List<Product> allProducts = productService.getProducts();
+    assertEquals(4, allProducts.size());
+}
+----
+
+== Integration with CI/CD
+
+Unit tests should be part of your continuous integration pipeline. Configure your build tool to run tests automatically on every commit, ensuring code quality and preventing regressions.
+
+== Summary
+
+Writing unit tests for your service classes is essential for maintaining code quality and catching bugs early. JUnit 5 provides a modern, expressive testing framework that makes it easy to write comprehensive tests.
+
+Key takeaways:
+
+* Use `@BeforeEach` and `@AfterEach` for test setup and cleanup
+* Write focused tests that validate specific behaviors
+* Test both successful operations and error conditions
+* Run tests frequently during development
+* Integrate tests into your build and deployment pipeline
+
+By following these practices, you'll build more reliable REST APIs and develop with greater confidence.
