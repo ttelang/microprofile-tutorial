@@ -314,11 +314,14 @@ jobs:
           echo "🔍 Looking for generated PDF files..."
           PDF_FOUND=false
           
-          # Search for PDF files in common locations
+          # Search for PDF files in all possible locations
+          # PDF extension creates pdf/ subdirectory in the assembler output
           PDF_LOCATIONS=(
+            "./build/assembler/pdf/microprofile-tutorial/6.1/_exports/index.pdf"
+            "./build/assembler/pdf/microprofile-tutorial/7.1/_exports/index.pdf"
             "./build/assembler/microprofile-tutorial/6.1/_exports/index.pdf"
-            "./build/site/microprofile-tutorial/6.1/_exports/index.pdf"
             "./build/assembler/microprofile-tutorial/7.1/_exports/index.pdf"
+            "./build/site/microprofile-tutorial/6.1/_exports/index.pdf"
             "./build/site/microprofile-tutorial/7.1/_exports/index.pdf"
           )
           
@@ -344,8 +347,9 @@ jobs:
           if [ "$PDF_FOUND" = false ]; then
             echo "⚠️ WARNING: No PDF files found in expected locations"
             echo "Searching for any PDF files in build directory..."
-            find ./build -name "*.pdf" -type f 2>/dev/null || echo "No PDF files found"
-            echo "This is often expected when PDF generation is disabled or in progress"
+            find ./build -name "*.pdf" -type f 2>/dev/null | head -10 || echo "No PDF files found"
+            echo ""
+            echo "PDF generation is often delayed or disabled in some configurations"
           fi
           
       # Copy assembler directory to site for PDF access via UI bundle
