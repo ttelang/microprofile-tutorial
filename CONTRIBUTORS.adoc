@@ -67,6 +67,58 @@ kill <PID>
 Replace `<PID>` with the process ID shown in the output.
 ====
 
+## Cleaning Up Build Artifacts
+
+Over time, the `build/` directory can accumulate files and may consume significant disk space. You may also want to clean up the build when switching between branches or before deploying a fresh build.
+
+### Removing Build Artifacts
+
+To remove all build artifacts, run:
+
+```bash
+rm -rf build
+```
+
+This removes the entire `build/` directory including:
+- `build/site/` - The generated HTML documentation site
+- `build/assembler/` - Temporary Antora processing files
+- All PDFs and other generated assets
+
+### Selective Cleanup
+
+If you want to keep certain files (such as generated PDFs for archival), you can remove just the site:
+
+```bash
+rm -rf build/site
+```
+
+Or keep only the site and remove intermediate files:
+
+```bash
+rm -rf build/assembler
+```
+
+### When to Clean Up
+
+- **Before a fresh build**: Run `rm -rf build` before rebuilding to ensure a clean state
+- **When switching branches**: Clean up after switching to a different version branch
+- **To free disk space**: Remove old builds if disk space is limited
+- **Before deployment**: Ensure you're deploying a fresh build with no stale files
+
+### Automated Cleanup During Build
+
+You can combine cleanup with the build command for a fresh build:
+
+```bash
+rm -rf build && antora antora-assembler.yml && ./fix-edit-links.sh
+```
+
+Or as a one-liner with the complete build process:
+
+```bash
+rm -rf build && ./update-repo-url.sh && antora antora-assembler.yml && ./fix-edit-links.sh
+```
+
 ## Development Workflow
 
 To streamline the development process, a development server script is included that can automatically rebuild the documentation when files change.
