@@ -14,7 +14,7 @@ SITE_DIR="/workspaces/microprofile-tutorial/build/site"
 
 # GitHub repository information
 REPO_URL="https://github.com/ttelang/microprofile-tutorial"
-BRANCH="v7.0"
+BRANCH="v7.1"
 PATH_PREFIX="modules/ROOT/pages/"
 
 # Check if the site directory exists
