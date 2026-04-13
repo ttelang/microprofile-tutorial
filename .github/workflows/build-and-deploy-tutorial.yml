@@ -43,6 +43,13 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    # Environment variables for this job
+    env:
+      # Opt into Node.js 24 early to prepare for mandatory migration on June 2, 2026
+      # GitHub will force Node.js 24 for all GitHub Actions on that date
+      # This allows testing and validation with Node.js 24 now
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
     # Minimal permissions needed for PR validation
     permissions:
       contents: read   # Required to read repository contents
@@ -81,8 +88,22 @@ jobs:
         run: ./update-repo-url.sh
       
       # Generate the documentation site to validate it builds correctly
+      # Retry logic: Attempts up to 3 times to handle transient network issues or timeouts
       - name: Validate Site Generation
-        run: npx antora --fetch --stacktrace antora-assembler.yml
+        run: |
+          for attempt in 1 2 3; do
+            echo "Attempt $attempt to generate site..."
+            if npx antora --fetch --stacktrace antora-assembler.yml; then
+              echo "✅ Site generation successful"
+              exit 0
+            fi
+            if [ $attempt -lt 3 ]; then
+              echo "⏳ Retrying in 30 seconds..."
+              sleep 30
+            fi
+          done
+          echo "❌ Failed after 3 attempts"
+          exit 1
 
       # Verify the build output exists and includes all versions
       - name: Verify Build Output
@@ -142,6 +163,13 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    # Environment variables for this job
+    env:
+      # Opt into Node.js 24 early to prepare for mandatory migration on June 2, 2026
+      # GitHub will force Node.js 24 for all GitHub Actions on that date
+      # This allows testing and validation with Node.js 24 now
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
     # GitHub token permissions required for this workflow
     permissions:
       id-token: write  # Required for OIDC authentication to GitHub Pages
@@ -192,8 +220,22 @@ jobs:
       # --fetch: Downloads remote content sources defined in playbook (all branches specified in antora-assembler.yml)
       # --stacktrace: Shows detailed error information for troubleshooting
       # This command will fetch and build all versions specified in antora-assembler.yml branches array
+      # Retry logic: Attempts up to 3 times to handle transient network issues or timeouts
       - name: Generate Site with Antora
-        run: npx antora --fetch --stacktrace antora-assembler.yml
+        run: |
+          for attempt in 1 2 3; do
+            echo "Attempt $attempt to generate site..."
+            if npx antora --fetch --stacktrace antora-assembler.yml; then
+              echo "✅ Site generation successful"
+              exit 0
+            fi
+            if [ $attempt -lt 3 ]; then
+              echo "⏳ Retrying in 30 seconds..."
+              sleep 30
+            fi
+          done
+          echo "❌ Failed after 3 attempts"
+          exit 1
 
       # Verify multi-version deployment: check that all configured versions were generated
       - name: Verify Multi-Version Documentation
