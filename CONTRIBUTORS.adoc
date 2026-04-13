@@ -311,6 +311,98 @@ This ensures that both the Antora configuration and the fix-edit-links script us
 
 When you clone the repository or switch branches, run this script to update the configuration automatically.
 
+## Multi-Version Documentation Consistency
+
+When maintaining multiple versions of the documentation (e.g., 6.1 and 7.1), certain configuration files must remain consistent across all branches to ensure proper version selection and navigation.
+
+### Critical Consistency Requirements
+
+The following configuration **must be identical across all branches** (`main`, `6.1`, `v7.1`, etc.):
+
+#### 1. Antora Assembler Configuration
+
+The `antora-assembler.yml` file must specify **all** versions in the `branches` array:
+
+[source,yaml]
+----
+content:
+  sources:
+    - url: https://github.com/microprofile/microprofile-tutorial.git
+      branches: [6.1, v7.1]  # List all version branches here
+      start_path: /
+----
+
+**Important**: This configuration should be identical on every branch. Even when working on the `6.1` branch, the `antora-assembler.yml` file should still reference both `6.1` and `v7.1` branches.
+
+**Reason**: This ensures that the version dropdown selector displays all available versions regardless of which version is currently selected. Users viewing version 6.1 need to see version 7.1 available in the dropdown, and vice versa.
+
+#### 2. Branch-Specific Antora Component Configuration
+
+The `antora.yml` file defines the version and should be **different on each branch**:
+
+[source,yaml]
+----
+# On the 6.1 branch
+name: microprofile-tutorial
+version: 6.1
+edit_url: https://github.com/microprofile/microprofile-tutorial/tree/6.1/modules/ROOT/pages/{path}
+
+# On the v7.1 branch
+name: microprofile-tutorial
+version: 7.1
+edit_url: https://github.com/microprofile/microprofile-tutorial/tree/v7.1/modules/ROOT/pages/{path}
+----
+
+**Reason**: Each branch represents a different version, so the version number and edit URL should reflect which branch it is.
+
+### Maintaining Consistency
+
+#### When Adding a New Version
+
+If you plan to add a new version (e.g., version 8.0):
+
+1. Create the new version branch (e.g., `v8.0`)
+2. Create the corresponding `antora.yml` with `version: 8.0`
+3. Update `antora-assembler.yml` on **all existing branches** to include the new version:
++
+[source,yaml]
+----
+branches: [6.1, v7.1, v8.0]  # Add the new version
+----
+4. Update the same configuration through a pull request or by updating each branch
+
+#### When Deprecating a Version
+
+If you need to remove an older version:
+
+1. Remove it from the `branches` array in `antora-assembler.yml` on **all branches**
+2. Optionally keep the branch in Git for historical reference, but exclude it from Antora builds
+
+#### Verification Steps
+
+After updating configurations:
+
+1. Rebuild the site: `npm run build` or `antora antora-assembler.yml`
+2. Verify that the version dropdown shows all expected versions
+3. Test switching between versions to ensure cross-version navigation works
+4. Commit and push changes to all affected branches
+
+### Troubleshooting Version Selection Issues
+
+**Problem**: When viewing version 6.1, the version dropdown only shows 6.1 (version 7.1 is missing)
+
+**Solution**: Verify that `antora-assembler.yml` on the 6.1 branch includes both versions:
+```yaml
+branches: [6.1, v7.1]
+```
+
+**Problem**: Version dropdown is not appearing at all
+
+**Solution**: 
+- Ensure the UI bundle supports version selection (check `ui.bundle.url`)
+- Verify that `antora-assembler.yml` specifies multiple branches
+- Confirm both versions have proper `antora.yml` files with different version numbers
+
 ## Customizing the Documentation Site
 
 The MicroProfile Tutorial documentation site can be customized in various ways to enhance its appearance and functionality. Here are the key customization options:
