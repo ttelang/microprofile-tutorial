@@ -1,4 +1,4 @@
-package io.microprofile.tutorial.graphql.product;
+package io.microprofile.tutorial.graphql.product.entity;
 
 import org.eclipse.microprofile.graphql.Type;
 import org.eclipse.microprofile.graphql.Description;
@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Review {
+public class ProductReview implements Identifiable {
     
     @Description("Unique review identifier")
     private Long id;

@@ -1,4 +1,4 @@
-package io.microprofile.tutorial.graphql.product;
+package io.microprofile.tutorial.graphql.product.dto;
 
 import org.eclipse.microprofile.graphql.Input;
 import org.eclipse.microprofile.graphql.Description;
