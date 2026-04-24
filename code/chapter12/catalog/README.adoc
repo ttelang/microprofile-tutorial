@@ -1,0 +1,437 @@
+= MicroProfile GraphQL Catalog Service
+:toc: macro
+:toclevels: 3
+:icons: font
+:source-highlighter: highlight.js
+:experimental:
+
+toc::[]
+
+== Overview
+
+The MicroProfile GraphQL Catalog Service demonstrates the key features of MicroProfile GraphQL 2.0. This service provides a GraphQL API for product catalog management with reviews, computed fields, and batch loading to prevent N+1 queries.
+
+This project showcases:
+
+* GraphQL queries and mutations
+* Field resolvers with `@Source`
+* Batch loading to optimize performance
+* Custom error handling
+* Integration with MicroProfile Config
+* Computed fields and derived data
+
+== MicroProfile Features Implemented
+
+=== MicroProfile GraphQL 2.0
+
+The application exposes a GraphQL API at `/graphql` with the following capabilities:
+
+==== Queries
+
+* `products` - Retrieve all products
+* `product(id)` - Get a specific product by ID
+* `searchProducts(searchTerm, category)` - Search products
+* `productCount` - Get total number of products
+* `averagePrice` - Get average product price
+* `categories` - Get all categories
+
+==== Mutations
+
+* `createProduct(input)` - Create a new product
+* `updateProduct(id, input)` - Update an existing product
+* `deleteProduct(id)` - Delete a product
+
+==== Field Resolvers
+
+* `reviews` - Get reviews for a product (with batch loading)
+* `topReviews(limit)` - Get top reviews with a limit
+* `averageRating` - Computed average rating
+* `priceCategory` - Computed price category
+* `priceWithTax` - Computed price including tax
+* `availabilityStatus` - Computed stock status
+
+=== MicroProfile Config
+
+Configuration is externalized using MicroProfile Config:
+
+[source,properties]
+----
+product.max.results=100
+product.currency=USD
+mp.graphql.defaultErrorMessage=An error occurred processing your request
+----
+
+== Prerequisites
+
+* Java 21 or later
+* Maven 3.8 or later
+
+== Building the Application
+
+To build the application:
+
+[source,bash]
+----
+mvn clean package
+----
+
+== Running the Application
+
+To run the application using Liberty Maven plugin:
+
+[source,bash]
+----
+mvn liberty:dev
+----
+
+The application will start on:
+
+* HTTP: `http://localhost:5060`
+* Context root: `/graphql-catalog`
+
+== Accessing GraphQL
+
+=== GraphQL Endpoint
+
+The GraphQL endpoint is available at:
+
+----
+http://localhost:5060/graphql-catalog/graphql
+----
+
+=== GraphQL UI (GraphiQL)
+
+Most MicroProfile GraphQL implementations provide a GraphQL UI for interactive exploration:
+
+----
+http://localhost:5060/graphql-catalog/graphql-ui
+----
+
+Or:
+
+----
+http://localhost:5060/graphql-catalog/graphiql
+----
+
+== Example GraphQL Queries
+
+=== Query All Products
+
+[source,graphql]
+----
+query {
+  products {
+    id
+    name
+    price
+    category
+    stockQuantity
+  }
+}
+----
+
+=== Query Product with Reviews
+
+[source,graphql]
+----
+query {
+  product(id: 1) {
+    id
+    name
+    description
+    price
+    priceWithTax
+    priceCategory
+    availabilityStatus
+    reviews {
+      id
+      reviewerName
+      rating
+      comment
+      createdAt
+    }
+    averageRating
+  }
+}
+----
+
+=== Search Products
+
+[source,graphql]
+----
+query {
+  searchProducts(searchTerm: "laptop", category: "Electronics") {
+    id
+    name
+    price
+    stockQuantity
+  }
+}
+----
+
+=== Query with Top Reviews
+
+[source,graphql]
+----
+query {
+  products {
+    id
+    name
+    price
+    topReviews(limit: 3) {
+      reviewerName
+      rating
+      comment
+    }
+  }
+}
+----
+
+=== Create Product Mutation
+
+[source,graphql]
+----
+mutation {
+  createProduct(input: {
+    name: "Tablet"
+    description: "10-inch tablet with stylus"
+    price: 299.99
+    category: "Electronics"
+    stockQuantity: 25
+  }) {
+    id
+    name
+    price
+    priceWithTax
+  }
+}
+----
+
+=== Update Product Mutation
+
+[source,graphql]
+----
+mutation {
+  updateProduct(
+    id: 1
+    input: {
+      name: "Gaming Laptop"
+      description: "High-performance gaming laptop with RTX graphics"
+      price: 1299.99
+      category: "Electronics"
+      stockQuantity: 30
+    }
+  ) {
+    id
+    name
+    price
+    stockQuantity
+  }
+}
+----
+
+=== Delete Product Mutation
+
+[source,graphql]
+----
+mutation {
+  deleteProduct(id: 5)
+}
+----
+
+=== Query Statistics
+
+[source,graphql]
+----
+query {
+  productCount
+  averagePrice
+  categories
+}
+----
+
+=== Complex Query with Multiple Fields
+
+[source,graphql]
+----
+query {
+  products {
+    id
+    name
+    price
+    priceWithTax
+    priceCategory
+    availabilityStatus
+    category
+    reviews {
+      reviewerName
+      rating
+    }
+    averageRating
+  }
+  productCount
+  averagePrice
+}
+----
+
+== Batch Loading Example
+
+The service demonstrates how to prevent N+1 queries using batch loading. When you query multiple products with their reviews:
+
+[source,graphql]
+----
+query {
+  products {
+    id
+    name
+    reviews {
+      rating
+      comment
+    }
+  }
+}
+----
+
+Instead of making one query per product (N+1 queries), the batched resolver fetches all reviews in a single query.
+
+== Error Handling
+
+The service includes custom error handling. Try querying a non-existent product:
+
+[source,graphql]
+----
+query {
+  product(id: 999) {
+    id
+    name
+  }
+}
+----
+
+Response:
+
+[source,json]
+----
+{
+  "data": {
+    "product": null
+  },
+  "errors": [
+    {
+      "message": "Product not found",
+      "extensions": {
+        "productId": 999,
+        "errorCode": "PRODUCT_NOT_FOUND",
+        "classification": "DataFetchingException"
+      }
+    }
+  ]
+}
+----
+
+== Project Structure
+
+----
+catalog/
+├── pom.xml
+├── README.adoc
+└── src/
+    └── main/
+        ├── java/
+        │   └── io/microprofile/tutorial/graphql/product/
+        │       ├── Product.java                    # Product entity
+        │       ├── ProductInput.java               # Input type for mutations
+        │       ├── Review.java                     # Review entity
+        │       ├── ProductService.java             # Business logic
+        │       ├── ReviewService.java              # Review operations
+        │       ├── ProductGraphQLApi.java          # GraphQL API
+        │       └── ProductNotFoundException.java   # Custom exception
+        ├── liberty/
+        │   └── config/
+        │       └── server.xml                      # Liberty configuration
+        └── resources/
+            └── META-INF/
+                └── microprofile-config.properties  # Configuration
+----
+
+== Key Implementation Details
+
+=== @GraphQLApi Annotation
+
+The `ProductGraphQLApi` class is marked with `@GraphQLApi` to expose it as a GraphQL endpoint:
+
+[source,java]
+----
+@GraphQLApi
+@ApplicationScoped
+@Description("Product management GraphQL API")
+public class ProductGraphQLApi {
+    // Queries and mutations
+}
+----
+
+=== Field Resolvers with @Source
+
+Field resolvers add additional fields to types:
+
+[source,java]
+----
+@Description("Reviews for this product")
+public List<Review> reviews(@Source Product product) {
+    return reviewService.findByProductId(product.getId());
+}
+----
+
+=== Batch Loading
+
+Batch loading prevents N+1 queries by accepting a list:
+
+[source,java]
+----
+public CompletionStage<List<Review>> reviews(@Source List<Product> products) {
+    List<Long> productIds = products.stream()
+        .map(Product::getId)
+        .collect(Collectors.toList());
+    return CompletableFuture.supplyAsync(() -> 
+        reviewService.findByProductIds(productIds));
+}
+----
+
+=== Computed Fields
+
+Computed fields are defined directly in the entity:
+
+[source,java]
+----
+public Double getPriceWithTax() {
+    return price != null ? price * 1.08 : null;
+}
+----
+
+=== Custom Error Handling
+
+Custom exceptions extend `GraphQLException`:
+
+[source,java]
+----
+public class ProductNotFoundException extends GraphQLException {
+    public ProductNotFoundException(Long productId) {
+        super("Product not found", ExceptionType.DataFetchingException);
+        getExtensions().put("productId", productId);
+        getExtensions().put("errorCode", "PRODUCT_NOT_FOUND");
+    }
+}
+----
+
+== Development Tips
+
+* Use GraphiQL to interactively explore the schema and test queries
+* The schema is automatically generated from your Java classes
+* Use `@Description` annotations to document your API
+* Leverage batch loading for related data to improve performance
+* Use `@DefaultValue` for optional parameters
+* Return `CompletionStage` from field resolvers for async/batch operations
+
+== Stopping the Application
+
+To stop the development server, press `Ctrl+C` or type `q` and press Enter in the Liberty dev mode console.
