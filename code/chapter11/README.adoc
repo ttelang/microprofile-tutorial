@@ -7,15 +7,8 @@
 
 == Overview
 
-This project demonstrates a microservices-based e-commerce application built with Jakarta EE and MicroProfile, running on Open Liberty runtime. The application is composed of multiple independent services that work together to provide a complete e-commerce solution.
-
-[.lead]
-A practical demonstration of MicroProfile capabilities for building cloud-native Java microservices.
-
-[IMPORTANT]
-====
-This project is part of the official MicroProfile API Tutorial.
-====
+This project demonstrates a microservices-based e-commerce application built with Jakarta EE and MicroProfile, running on Open Liberty runtime. 
+The application is composed of multiple independent services that work together to provide a complete e-commerce solution.
 
 == Services
 
@@ -50,7 +43,7 @@ The application is split into the following microservices:
 == Technology Stack
 
 * *Jakarta EE 10.0*: For enterprise Java standardization
-* *MicroProfile 7.0*: For cloud-native APIs
+* *MicroProfile 7.x*: For cloud-native APIs
 * *MicroProfile Rest Client 4.0*: Type-safe REST service consumption
 * *Open Liberty*: Lightweight, flexible runtime for Java microservices
 * *Maven*: For project management and builds
@@ -59,8 +52,8 @@ The application is split into the following microservices:
 
 === Prerequisites
 
-* JDK 17 or later
-* Maven 3.6 or later
+* JDK 21 or later
+* Maven 3.9 or later
 * Docker (optional for containerized deployment)
 
 === Running the Application
@@ -69,8 +62,8 @@ The application is split into the following microservices:
 +
 [source,bash]
 ----
-git clone https://github.com/your-username/liberty-rest-app.git
-cd liberty-rest-app
+git clone https://github.com/microprofile/microprofile-tutorial.git
+cd code/chapter11
 ----
 
 2. Start each microservice individually:
@@ -680,10 +673,10 @@ Access the OpenAPI documentation to see all available endpoints:
 [source,bash]
 ----
 # Payment Service OpenAPI documentation
-open http://localhost:9050/payment/openapi/ui/
+open http://localhost:9050/openapi/ui/
 
 # Or view the OpenAPI JSON spec
-curl http://localhost:9050/payment/openapi
+curl http://localhost:9050/openapi
 ----
 
 === Debugging Tips
@@ -1032,30 +1025,30 @@ curl -X POST http://localhost:9050/payment/catalog/builder/products/batch-check 
 * [ProductClientBuilderService.java](src/main/java/io/microprofile/tutorial/store/payment/service/ProductClientBuilderService.java) - Programmatic client creation examples
 * [ProductClient.java](src/main/java/io/microprofile/tutorial/store/payment/client/ProductClient.java) - Note `extends AutoCloseable`
 
-=== Learning Objectives Verification Checklist
+=== Learning Objective
 
 After completing these examples, you should understand:
 
-- [ ] How to define a REST client interface with `@RegisterRestClient`
-- [ ] How to configure REST clients using MicroProfile Config properties
-- [ ] How to inject REST clients with `@Inject` and `@RestClient` in CDI beans
-- [ ] How to use parameter annotations (`@PathParam`, `@QueryParam`, `@HeaderParam`)
-- [ ] How to implement `ResponseExceptionMapper` for custom error handling
-- [ ] The difference between checked and unchecked exceptions in exception mappers
-- [ ] How to register exception mappers with `@RegisterProvider`
-- [ ] How to extract error messages from JSON response bodies
-- [ ] How CDI bean discovery works with `beans.xml`
-- [ ] How to test REST clients in a microservices environment
-- [ ] How to implement custom `ClientRequestFilter` for request interception
-- [ ] How to implement custom `ClientResponseFilter` for response logging
-- [ ] How to use `@Priority` to control filter execution order
-- [ ] How to register filters using `@RegisterProvider` annotation
-- [ ] How to separate cross-cutting concerns (auth, logging, tracing) from business logic
-- [ ] How to create REST clients programmatically using `RestClientBuilder`
-- [ ] How to use the `baseUri(String)` method in MicroProfile Rest Client 4.0
-- [ ] When to use `RestClientBuilder` vs CDI injection
-- [ ] How to use try-with-resources with `AutoCloseable` REST clients
-- [ ] How to dynamically configure REST clients at runtime
+- How to define a REST client interface with `@RegisterRestClient`
+- How to configure REST clients using MicroProfile Config properties
+- How to inject REST clients with `@Inject` and `@RestClient` in CDI beans
+- How to use parameter annotations (`@PathParam`, `@QueryParam`, `@HeaderParam`)
+- How to implement `ResponseExceptionMapper` for custom error handling
+- The difference between checked and unchecked exceptions in exception mappers
+- How to register exception mappers with `@RegisterProvider`
+- How to extract error messages from JSON response bodies
+- How CDI bean discovery works with `beans.xml`
+- How to test REST clients in a microservices environment
+- How to implement custom `ClientRequestFilter` for request interception
+- How to implement custom `ClientResponseFilter` for response logging
+- How to use `@Priority` to control filter execution order
+- How to register filters using `@RegisterProvider` annotation
+- How to separate cross-cutting concerns (auth, logging, tracing) from business logic
+- How to create REST clients programmatically using `RestClientBuilder`
+- How to use the `baseUri(String)` method in MicroProfile Rest Client 4.0
+- When to use `RestClientBuilder` vs CDI injection
+- How to use try-with-resources with `AutoCloseable` REST clients
+- How to dynamically configure REST clients at runtime
 
 === Troubleshooting Common Issues
 
@@ -1116,13 +1109,3 @@ service/
 * *Metrics*: Performance monitoring
 * *OpenAPI*: API documentation
 * *Rest Client*: Type-safe REST clients
-
-== Development
-
-=== Adding a New Service
-
-1. Create a new directory for your service
-2. Copy the basic structure from an existing service
-3. Update the `pom.xml` file with appropriate details
-4. Implement your service-specific functionality
-5. Configure the Liberty server in `src/main/liberty/config/`
