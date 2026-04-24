@@ -1,39 +1,31 @@
 package io.microprofile.tutorial.store.product.entity;
 
-import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
-import java.math.BigDecimal;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 /**
  * Product entity representing a product in the catalog.
- * This entity is mapped to the PRODUCTS table in the database.
+ * Demonstrates Bean Validation integration with OpenAPI documentation.
  */
-@Entity
-@Table(name = "PRODUCTS")
-@NamedQueries({
-    @NamedQuery(name = "Product.findAll", query = "SELECT p FROM Product p"),
-    @NamedQuery(name = "Product.findById", query = "SELECT p FROM Product p WHERE p.id = :id")
-})
+@Schema(name = "Product", description = "Product information")
 public class Product {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ID")
+    @Schema(description = "Product ID", example = "1")
     private Long id;
 
     @NotNull(message = "Product name cannot be null")
     @NotBlank(message = "Product name cannot be blank")
     @Size(min = 1, max = 100, message = "Product name must be between 1 and 100 characters")
-    @Column(name = "NAME", nullable = false, length = 100)
+    @Schema(description = "Product name", example = "Laptop", required = true)
     private String name;
 
     @Size(max = 500, message = "Product description cannot exceed 500 characters")
-    @Column(name = "DESCRIPTION", length = 500)
+    @Schema(description = "Product description", example = "High-performance laptop", nullable = true)
     private String description;
 
     @NotNull(message = "Product price cannot be null")
-    @DecimalMin(value = "0.0", inclusive = false, message = "Product price must be greater than 0")
-    @Column(name = "PRICE", nullable = false, precision = 10, scale = 2)
+    @DecimalMin(value = "0.01", message = "Product price must be greater than 0")
+    @Schema(description = "Product price", example = "999.99", required = true, minimum = "0.01")
     private Double price;
 
     // Default constructor

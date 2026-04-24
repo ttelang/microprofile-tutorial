@@ -101,10 +101,18 @@ public class ProductResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(summary = "Create a new product", description = "Creates a new product")
-    @APIResponses({
-        @APIResponse(responseCode = "201", description = "Product created", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Product.class)))
-    })
-    public Response createProduct(Product product) {
+    @APIResponse(responseCode = "201", description = "Product created", 
+                 content = @Content(mediaType = "application/json", 
+                                  schema = @Schema(implementation = Product.class)))
+    public Response createProduct(
+        @org.eclipse.microprofile.openapi.annotations.parameters.RequestBody(
+            description = "Product to create",
+            required = true,
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = Product.class)
+            )
+        ) Product product) {
         LOGGER.info("REST: Creating product: " + product);
         Product createdProduct = productService.createProduct(product);
         return Response.status(Response.Status.CREATED).entity(createdProduct).build();
@@ -119,6 +127,7 @@ public class ProductResource {
         @APIResponse(responseCode = "200", description = "Product updated", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Product.class))),
         @APIResponse(responseCode = "404", description = "Product not found")
     })
+    @org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement(name = "bearerAuth")
     public Response updateProduct(@PathParam("id") Long id, Product updatedProduct) {
         LOGGER.info("REST: Updating product with id: " + id);
         Product updated = productService.updateProduct(id, updatedProduct);
@@ -137,6 +146,7 @@ public class ProductResource {
         @APIResponse(responseCode = "204", description = "Product deleted"),
         @APIResponse(responseCode = "404", description = "Product not found")
     })
+    @org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement(name = "bearerAuth")
     public Response deleteProduct(@PathParam("id") Long id) {
         LOGGER.info("REST: Deleting product with id: " + id);
         boolean deleted = productService.deleteProduct(id);
@@ -155,9 +165,24 @@ public class ProductResource {
         @APIResponse(responseCode = "200", description = "Search results", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Product.class)))
     })
     public Response searchProducts(
+            @org.eclipse.microprofile.openapi.annotations.parameters.Parameter(
+                description = "Product name to search (partial match, case-insensitive)", 
+                example = "Laptop")
             @QueryParam("name") String name,
+            
+            @org.eclipse.microprofile.openapi.annotations.parameters.Parameter(
+                description = "Product description to search (partial match, case-insensitive)", 
+                example = "gaming")
             @QueryParam("description") String description,
+            
+            @org.eclipse.microprofile.openapi.annotations.parameters.Parameter(
+                description = "Minimum price filter", 
+                example = "100.0")
             @QueryParam("minPrice") Double minPrice,
+            
+            @org.eclipse.microprofile.openapi.annotations.parameters.Parameter(
+                description = "Maximum price filter", 
+                example = "1000.0")
             @QueryParam("maxPrice") Double maxPrice) {
         LOGGER.info("REST: Searching products with criteria");
         List<Product> results = productService.searchProducts(name, description, minPrice, maxPrice);
@@ -273,5 +298,47 @@ public class ProductResource {
             .entity("{\"message\": \"Processing initiated\", \"requestId\": \"" + 
                    java.util.UUID.randomUUID() + "\"}")
             .build();
+    }
+    
+    @POST
+    @Path("/conditional")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(
+        summary = "Create product with conditional validation",
+        description = "Demonstrates @DependentRequired annotation - if discount is provided, discountReason is required"
+    )
+    @APIResponse(
+        responseCode = "201",
+        description = "Product created",
+        content = @Content(
+            mediaType = "application/json",
+            schema = @Schema(implementation = io.microprofile.tutorial.store.product.entity.ConditionalProduct.class)
+        )
+    )
+    @APIResponse(
+        responseCode = "400",
+        description = "Invalid request - discount provided without discountReason"
+    )
+    public Response createConditionalProduct(
+        @RequestBody(
+            description = "Product with conditional validation",
+            required = true,
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = io.microprofile.tutorial.store.product.entity.ConditionalProduct.class)
+            )
+        ) io.microprofile.tutorial.store.product.entity.ConditionalProduct product
+    ) {
+        LOGGER.info("REST: Creating conditional product with validation");
+        
+        // Demonstrate the conditional validation
+        if (product.getDiscount() != null && product.getDiscountReason() == null) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                .entity("{\"error\": \"discountReason is required when discount is provided\"}")
+                .build();
+        }
+        
+        return Response.status(Response.Status.CREATED).entity(product).build();
     }
 }
