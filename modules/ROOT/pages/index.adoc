@@ -109,7 +109,7 @@ we assume you have a basic understanding of RESTful Web Services.
 ** Understand the role of JPA and JSON-B in MicroProfile for handling data operations in microservices.
 * Monitoring, Observability and Tracing:
 ** Implement monitoring strategies using MicroProfile Metrics.
-** Learn distributed tracing concepts and trace microservice interactions using OpenTracing and MicroProfile Telemetry for enhanced observability.
+** Learn distributed tracing concepts and trace microservice interactions using MicroProfile Telemetry for enhanced observability.
 * Collaborative Learning and Community Engagement:
 ** Participate in Q&A sessions, forums, and interactive discussions.
 ** Engage with the MicroProfile community to stay current with evolving specifications and best practices.
