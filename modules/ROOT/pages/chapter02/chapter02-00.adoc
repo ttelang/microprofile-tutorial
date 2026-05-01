@@ -207,7 +207,7 @@ To kickstart your MicroProfile project, use the MicroProfile Starter to generate
 
 TIP: Its recommended convention is to start your `groupId` with the reverse domain name of your organization (for example, `io.microprofile`).
 
-* Enter the 'artifactID', which is the name of your project (e.g., 'mp-ecomm-store').
+* Enter the `artifactID`, which is the name of your project (e.g., `mp-ecomm-store`).
 
 * Select the *Java SE version* your project will use.
 
