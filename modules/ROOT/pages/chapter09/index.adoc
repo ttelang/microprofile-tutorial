@@ -108,7 +108,6 @@ To enable tracing and exporting of telemetry data, include the MicroProfile Tele
 <dependency>
    <groupId>org.eclipse.microprofile.telemetry</groupId>
    <artifactId>microprofile-telemetry-api</artifactId>
-   <type>pom</type>
    <version>2.1</version>
    <scope>provided</scope>
 </dependency>
@@ -224,6 +223,9 @@ https://www.jaegertracing.io/[Jaeger] is an open-source distributed tracing syst
 
 One of Jaeger’s key capabilities is service dependency analysis, which helps identify how microservices interact, providing insights into latency, failures, and request propagation. It also supports adaptive sampling strategies, allowing developers to control the volume of traces collected to optimize performance without overwhelming storage and processing resources. Additionally, Jaeger offers built-in storage options, allowing trace data to be stored in Elasticsearch, Cassandra, or Kafka, making it scalable and flexible for various deployment environments.
 
+
+*Note*: While Jaeger excels at distributed tracing, for comprehensive observability that covers logs, metrics, and traces, consider using the LGTM stack (described in the "Verify the Traces" section) as an integrated solution that combines Logs (Loki), Grafana, Traces (Tempo), and Metrics (Prometheus).
+
 === Zipkin
 
 https://zipkin.io/[Zipkin] is a distributed tracing system designed to help developers visualize and diagnose latency issues in microservices-based applications. It provides a lightweight and fast tracing solution, making it ideal for quick deployment with minimal resource usage. Its simplicity and efficiency make it a popular choice for teams looking to implement tracing without significant infrastructure overhead.
@@ -278,27 +280,309 @@ OTLP is the native standard for OpenTelemetry. It allows developers to use multi
 
 After enabling tracing and configuring the exporter, verify that the traces are being captured and sent to the observability backend. This step confirms that the MicroProfile Telemetry setup functions correctly and that distributed tracing data is available for monitoring and debugging.
 
-==== Run Jaeger
+==== Run LGTM (Logs, Grafana, Traces, and Metrics)
 
-Run Jaeger using Docker with OTLP support:
+https://github.com/grafana/docker-otel-lgtm[LGTM] is a comprehensive Docker-based observability stack that combines multiple open-source tools into a single, unified platform for collecting, storing, and visualizing telemetry data. It provides an integrated solution that consolidates logs, metrics, and traces in one place, simplifying observability management for developers.
+
+LGTM includes:
+
+* *Logs (Loki)*: A log aggregation system for storing and querying logs
+* *Grafana*: A powerful visualization platform for dashboards and analytics
+* *Traces (Tempo)*: A distributed tracing backend for storing and analyzing traces
+* *Metrics (Prometheus)*: A time-series database for collecting and querying metrics
+* *OpenTelemetry Collector*: An intermediary for receiving and processing telemetry data.
+
+===== Set Up LGTM with Docker Compose
+
+To run the complete LGTM stack, create a `docker-compose.yml` file in your project directory with the following configuration:
+
+[source, yaml]
+----
+version: '3.8'
+
+services:
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-storage:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki-storage:/loki
+    command: -config.file=/etc/loki/local-config.yml
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    volumes:
+      - tempo-storage:/var/tempo
+    command: [ "-config.file=/etc/tempo/local-config.yml" ]
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "9411:9411"
+    volumes:
+      - ./otel-collector-config.yml:/etc/otel-collector-config.yml
+    command: [ "--config=/etc/otel-collector-config.yml" ]
+    depends_on:
+      - loki
+      - prometheus
+      - tempo
+
+volumes:
+  grafana-storage:
+  prometheus-storage:
+  loki-storage:
+  tempo-storage:
+----
+
+===== Configure OpenTelemetry Collector
+
+Create an `otel-collector-config.yml` file to configure the OpenTelemetry Collector to receive telemetry data and export it to the appropriate backends:
+
+[source, yaml]
+----
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 10s
+    send_batch_size: 1024
+
+exporters:
+  logging:
+    loglevel: debug
+
+  prometheus:
+    endpoint: "0.0.0.0:9411"
+
+  otlp:
+    client:
+      endpoint: tempo:4317
+      tls:
+        insecure: true
+
+  loki:
+    endpoint: http://loki:3100/loki/api/v1/push
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp, logging]
+
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus, logging]
+
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [loki, logging]
+----
+
+===== Configure Prometheus
+
+Create a `prometheus.yml` file to configure Prometheus to scrape metrics:
+
+[source, yaml]
+----
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'otel-collector'
+    static_configs:
+      - targets: ['otel-collector:9411']
+----
+
+===== Start the LGTM Stack
+
+To start all services, run the following command in the directory containing the `docker-compose.yml` file:
 
 [source, bash]
 ----
-docker run -d --name jaeger \
-  -p 16686:16686 \
-  -p 4317:4317 \
-  -p 4318:4318 \
-  jaegertracing/all-in-one:latest
+docker-compose up -d
 ----
 
-The above command runs the *all-in-one* Jaeger container, which includes the collector, query service, and UI, with native OTLP support on ports 4317 (gRPC) and 4318 (HTTP/protobuf).
+Verify that all services are running:
 
-Access the Jaeger UI at `http://<hostname>:16686`.
+[source, bash]
+----
+docker-compose ps
+----
 
-Ensure that all services of the MicroProfile e-commerce application are running.
+===== Configure MicroProfile Application for LGTM
 
-Search using parameters such as operation name, time range, or service name for the traces associated with different microservices, and confirm that the telemetry data is visible.
-View a detailed breakdown of each span within the trace, including timing and attributes.
+To send telemetry data to the LGTM stack, update the `src/main/resources/META-INF/microprofile-config.properties` file in your MicroProfile application with the following configuration:
+
+[source]
+----
+# Enable OpenTelemetry
+otel.sdk.disabled=false
+
+# Set the OTLP exporter endpoint
+otel.exporter.otlp.endpoint=http://otel-collector:4317
+
+# Define the service name
+otel.service.name=payment-service
+
+# Sampling: parentbased_always_on is the default
+otel.traces.sampler=parentbased_always_on
+
+# Configure traces exporter
+otel.traces.exporter=otlp
+
+# Configure metrics exporter
+otel.metrics.exporter=otlp
+
+# Configure logs exporter
+otel.logs.exporter=otlp
+----
+
+===== Access the LGTM Components
+
+Once the LGTM stack is running and your MicroProfile application is sending telemetry data, access the various components to monitor your services:
+
+====== Grafana
+
+Access the Grafana dashboards at `http://<hostname>:3000`. The default username is `admin` and the default password is `admin`. You can create custom dashboards to visualize metrics, logs, and traces.
+
+To set up data sources in Grafana:
+
+1. Navigate to *Configuration* -> *Data Sources*
+2. Add the following data sources:
+   - *Prometheus*: `http://prometheus:9090`
+   - *Loki*: `http://loki:3100`
+   - *Tempo*: `http://tempo:4317`
+
+====== View Logs in Grafana/Loki
+
+1. Open Grafana at `http://<hostname>:3000`
+2. Click on *Explore* in the left sidebar
+3. Select *Loki* as the data source
+4. Use the log query syntax to filter logs. For example:
++
+[source]
+----
+{job="payment-service"} |= "error"
+----
++
+This query retrieves all error logs from the payment service. You can also filter by trace ID to correlate logs with specific traces:
++
+[source]
+----
+{job="payment-service"} |= "trace_id=abc123"
+----
+
+====== View Metrics in Prometheus
+
+1. Access Prometheus directly at `http://<hostname>:9090` or through Grafana
+2. In the *Prometheus* tab, use PromQL (Prometheus Query Language) to query metrics. For example:
++
+[source]
+----
+http_requests_total{service="payment-service"}
+----
++
+This query retrieves the total number of HTTP requests for the payment service. You can also create graphs by clicking the *Graph* tab and add custom panels to Grafana dashboards for long-term monitoring.
+
+====== View Traces in Grafana with Tempo
+
+1. Open Grafana at `http://<hostname>:3000`
+2. Click on *Explore* in the left sidebar
+3. Select *Tempo* as the data source
+4. Search for traces using various criteria:
+   - *Service Name*: Select the payment service to view traces for that service
+   - *Trace ID*: Enter a specific trace ID to find a particular trace
+   - *Operation*: Filter by operation name (e.g., `payment.process`)
+   - *Duration*: Set a time range to find traces within a specific duration
+   - *Status*: Filter by trace status (e.g., OK, ERROR)
+5. Click on a trace to view its detailed breakdown:
+   - *Timeline*: View the temporal relationship between spans
+   - *Span Details*: Examine individual span attributes, events, and exceptions
+   - *Logs*: View logs associated with the trace by clicking on the *Logs* tab
+   - *Metrics*: View metrics related to the trace (if configured)
+6. Use the *Service Graph* to visualize service dependencies and identify bottlenecks or performance issues
+
+===== Troubleshooting LGTM
+
+If telemetry data is not appearing in LGTM, follow these troubleshooting steps:
+
+1. **Verify Services are Running**: Confirm that all LGTM services are running:
++
+[source, bash]
+----
+docker-compose ps
+----
+
+2. **Check Network Connectivity**: Ensure that the MicroProfile application can reach the OpenTelemetry Collector. If running outside Docker, use the host IP instead of `localhost` or container names.
+
+3. **Verify Configuration**: Confirm that the OTLP endpoint in the application configuration matches the OpenTelemetry Collector address.
+
+4. **Check Logs**: View the logs from the OpenTelemetry Collector and other LGTM services to identify any errors:
++
+[source, bash]
+----
+docker-compose logs otel-collector
+docker-compose logs tempo
+docker-compose logs loki
+docker-compose logs prometheus
+----
+
+5. **Verify Data Flow**: Use the OpenTelemetry Collector's logging exporter to confirm that telemetry data is being received and processed.
+
+6. **Test Application Requests**: Ensure that the MicroProfile application is processing requests. Generate some HTTP requests to trigger telemetry data collection:
++
+[source, bash]
+----
+curl -X GET http://localhost:8080/api/payments/123
+----
 
 == Types of Telemetry
 
