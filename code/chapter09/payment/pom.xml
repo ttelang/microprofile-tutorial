@@ -54,14 +54,6 @@
       <scope>provided</scope>
     </dependency>
 
-    <!-- MicroProfile Telemetry 2.1 API -->
-    <dependency>
-      <groupId>org.eclipse.microprofile.telemetry</groupId>
-      <artifactId>microprofile-telemetry-api</artifactId>
-      <version>2.1</version>
-      <scope>provided</scope>
-    </dependency>
-
     <!-- OpenTelemetry API for manual instrumentation -->
     <dependency>
       <groupId>io.opentelemetry</groupId>

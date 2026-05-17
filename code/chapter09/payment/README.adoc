@@ -124,7 +124,7 @@ The Payment Service implements distributed tracing, metrics, and logs export usi
 
 === Telemetry Configuration
 
-The service is configured to send telemetry data to Jaeger, enabling comprehensive transaction monitoring:
+The service is configured to export all three telemetry signals (traces, metrics, and logs) to the LGTM observability stack via the OpenTelemetry Collector:
 
 ==== Application Configuration (microprofile-config.properties)
 
@@ -221,35 +221,65 @@ Traces are enriched with business context to enable business-oriented analysis:
 
 === Viewing Telemetry Data
 
-Telemetry data can be viewed in Jaeger UI:
+Telemetry data is viewed through the LGTM stack. Start the stack from the `code/chapter09/` directory:
 
 [source,bash]
 ----
-# Start Jaeger container (if not already running)
-docker run -d --name jaeger \
-  -p 16686:16686 \
-  -p 4317:4317 \
-  -p 4318:4318 \
-  jaegertracing/all-in-one:latest
-
-# Access Jaeger UI
-xdg-open http://localhost:16686
+cd ../   # from code/chapter09/payment
+docker-compose up -d
 ----
 
-In the Jaeger UI:
-1. Select "payment-service" from the Service dropdown
-2. Choose an operation or search by transaction attributes
-3. Explore the full transaction trace across services
+The following UIs are available once the stack is running:
+
+[options="header"]
+|===
+|Component |URL |Purpose
+|Grafana |`http://localhost:13000` |Unified dashboard (admin / admin)
+|Prometheus |`http://localhost:19090` |Metrics query and exploration
+|===
+
+NOTE: The docker-compose exposes Grafana on port 13000 and Prometheus on port 19090 to avoid conflicts in GitHub Codespaces. On a local machine you can edit `docker-compose.yml` to use the standard ports 3000 and 9090.
+
+==== View Traces in Grafana (Tempo)
+
+1. Open Grafana at `http://localhost:13000`.
+2. Click *Explore* in the left sidebar.
+3. Select *Tempo* as the data source.
+4. Search by service name `payment-service` or paste a trace ID.
+5. Open a trace to inspect the span tree, attributes, and events.
+
+==== View Logs in Grafana (Loki)
+
+1. Open Grafana at `http://localhost:13000`.
+2. Click *Explore* and select *Loki* as the data source.
+3. Enter a log query such as:
++
+[source]
+----
+{job="payment-service"}
+----
++
+Add `|= "error"` to filter for errors, or `|= "traceId"` to find log lines correlated with a specific trace.
+
+==== View Metrics in Prometheus
+
+1. Open `http://localhost:19090`.
+2. Query metrics using PromQL. For example:
++
+[source]
+----
+http_server_request_duration_seconds_count{job="otel-collector"}
+----
 
 === Troubleshooting Telemetry
 
-If telemetry data is not appearing in Jaeger:
+If telemetry data is not appearing in the LGTM stack:
 
-1. **Verify Jaeger is running** with OTLP ports exposed (4317, 4318)
-2. **Check Liberty server configuration** in server.xml
-3. **Validate application configuration** in microprofile-config.properties
-4. **Check network connectivity** between the service and Jaeger
-5. **Inspect Liberty server logs** for telemetry-related messages
+1. **Verify all LGTM services are running**: `docker-compose ps` in `code/chapter09/`
+2. **Check the OTel Collector receives data**: `docker-compose logs otel-collector`
+3. **Validate the OTLP endpoint** in `microprofile-config.properties` matches the collector's exposed port (`4317` locally, `24317` in Codespaces)
+4. **Check Liberty server logs** for telemetry export errors: `target/liberty/wlp/usr/servers/mpServer/logs/messages.log`
+5. **Verify Tempo, Loki, and Prometheus** are reachable from the collector: `docker-compose logs tempo loki prometheus`
 
 === Testing Telemetry
 
@@ -257,13 +287,13 @@ To generate and verify telemetry data:
 
 [source,bash]
 ----
-# Generate sample telemetry with payment request
+# Payment processing flow
 curl -X POST -H "Content-Type: application/json" \
-  -d '{"cardNumber":"4111-1111-1111-1111", "cardHolderName":"Test User", "expiryDate":"12/25", "securityCode":"123", "amount":75.50}' \
+  -d '{"cardNumber":"4111111111111111", "cardHolderName":"Test User", "expiryDate":"12/25", "securityCode":"123", "amount":75.50}' \
   http://localhost:9080/payment/api/payments
 
-# Check for payment service in Jaeger UI services dropdown
-curl -s http://localhost:16686/api/services
+# Confirm the OTel Collector received data (logging exporter output)
+docker-compose logs --tail=20 otel-collector
 ----
 
 === Step-by-Step Verification
@@ -301,21 +331,22 @@ Confirm these values are present in `src/main/resources/META-INF/microprofile-co
 * `otel.metrics.exporter=otlp`
 * `otel.logs.exporter=otlp`
 
-==== 3. Start Jaeger for trace ingestion
+==== 3. Start the LGTM observability stack
 
-Open a new terminal and run the following command to start Jaeger in a Docker container:
+Open a new terminal and start the full observability stack from the `code/chapter09/` directory:
+
 [source,bash]
 ----
-docker run -d --name jaeger \
-  -p 16686:16686 \
-  -p 4317:4317 \
-  -p 4318:4318 \
-  jaegertracing/all-in-one:latest
+cd code/chapter09
+docker-compose up -d
+docker-compose ps
 ----
 
 Expected result:
 
-* Jaeger UI available at `http://localhost:16686`.
+* All five services (`grafana`, `prometheus`, `loki`, `tempo`, `otel-collector`) show status `Up`.
+* Grafana UI available at `http://localhost:13000` (login: admin / admin).
+* OTel Collector listening on OTLP gRPC port 4317 (host port 24317 in Codespaces).
 
 ==== 4. Generate telemetry traffic manually
 
@@ -343,38 +374,24 @@ curl "http://localhost:9080/payment/api/health/gateway"
 curl -X POST "http://localhost:9080/payment/api/notify/PAY-12345?recipient=ops@example.com"
 ----
 
-==== 5. Verify traces in Jaeger
+==== 5. Verify traces in Grafana (Tempo)
 
-In Jaeger UI:
-
-1. Open `http://localhost:16686` in a browser.
-2. In the *Search* panel, select service `payment-service`.
-3. Set *Lookback* to `Last 15 min` (or a wider range if needed).
-4. Click *Find Traces*.
+1. Open Grafana at `http://localhost:13000`.
+2. Click *Explore* in the left sidebar and select *Tempo* as the data source.
+3. In the *Search* tab, set *Service Name* to `payment-service`.
+4. Click *Run query* to list recent traces.
 5. Open one trace from `/payment/api/payments` or `/payment/api/verify`.
-6. In the trace view, confirm you can see:
-7. Root HTTP span for the inbound request.
-8. Child/internal spans such as `payment.process`.
-9. Span attributes including `payment.amount`, `payment.method`, and `payment.status`.
-10. For failed requests, verify error state/events are visible on spans.
-11. For `/payment/api/verify`, confirm trace includes verification workflow spans and request timing.
+6. In the trace view, confirm:
+** Root HTTP span for the inbound request.
+** Child span `payment.process` with attributes `payment.amount`, `payment.method`, and `payment.status`.
+** For failed requests, verify error status and recorded exception events are visible.
+** For `/payment/api/verify`, confirm the trace includes validation, fraud-check, and funds-verification sub-spans.
 
-If no traces appear in UI:
+If no traces appear:
 
 1. Generate fresh traffic from Step 4.
-2. Verify `otel.exporter.otlp.endpoint` points to the running Jaeger OTLP endpoint.
-3. Re-run search with broader lookback window.
-
-CLI check (optional):
-
-[source,bash]
-----
-curl -s http://localhost:16686/api/services
-----
-
-Expected result:
-
-* Response includes `payment-service`.
+2. Check `otel.exporter.otlp.endpoint` in `microprofile-config.properties` matches the OTel Collector port.
+3. Run `docker-compose logs otel-collector` and confirm trace data is being received and forwarded to Tempo.
 
 ==== 6. Verify metrics publication
 
@@ -389,20 +406,26 @@ Expected result:
 * Fault tolerance metrics are present (`ft_retry...`, `ft_circuitbreaker...`, `ft_bulkhead...`, `ft_timeout...`).
 * JVM/runtime metrics are present (`jvm_...`, `memory_...`, `cpu_...`).
 
-==== 7. Verify logs and trace correlation signals
+==== 7. Verify logs and trace correlation in Grafana (Loki)
 
-Watch server logs while sending requests:
+Watch Liberty logs locally:
 
 [source,bash]
 ----
 tail -f target/liberty/wlp/usr/servers/mpServer/logs/messages.log
 ----
 
+Then verify logs reached Loki:
+
+1. Open Grafana at `http://localhost:13000` and click *Explore*.
+2. Select *Loki* as the data source.
+3. Query `{job="payment-service"}` to see all application logs.
+4. On a log line that contains a `traceId`, click the trace link to jump directly to the correlated trace in Tempo.
+
 Expected result:
 
-* You see payment flow logs and fault tolerance events.
-* If your telemetry backend supports OTLP logs, logs are exported through the configured OTLP endpoint.
-* If the backend does not implement OTLP logs/metrics services, traces can still succeed while logs/metrics export reports `UNIMPLEMENTED`.
+* Payment flow log messages are visible in Loki.
+* Log lines emitted during an active trace include `traceId` and `spanId` fields, enabling one-click correlation to Tempo.
 
 ==== 8. Verify OpenAPI endpoint used by this module
 
@@ -420,84 +443,11 @@ Expected result:
 
 [source,bash]
 ----
-# Stop Jaeger container
-docker rm -f jaeger
+# Stop the LGTM stack (from code/chapter09/)
+docker-compose down
 
 # Stop Liberty server (from mvn liberty:run terminal)
 # Press Ctrl+C
-----
-
-=== Verifying Telemetry with Zipkin
-
-Use this flow when you want to validate MicroProfile OpenTelemetry traces in Zipkin instead of Jaeger.
-
-==== 1. Start Zipkin
-
-[source,bash]
-----
-docker run -d --name zipkin \
-  -p 9411:9411 \
-  openzipkin/zipkin:latest
-----
-
-Expected result:
-
-* Zipkin UI is available at `http://localhost:9411`.
-
-==== 2. Run the payment service with Zipkin trace exporter
-
-From `code/chapter09/payment`, start Liberty with temporary environment overrides:
-
-[source,bash]
-----
-OTEL_TRACES_EXPORTER=zipkin \
-OTEL_EXPORTER_ZIPKIN_ENDPOINT=http://localhost:9411/api/v2/spans \
-mvn liberty:run
-----
-
-Notes:
-
-* This overrides trace export for the current run only.
-* Existing `otel.logs.exporter=none` remains valid for local verification.
-
-==== 3. Generate trace traffic
-
-[source,bash]
-----
-curl -X POST "http://localhost:9080/payment/api/payments" \
-  -H "Content-Type: application/json" \
-  -d '{"cardNumber":"4111111111111111","cardHolderName":"Test User","expiryDate":"12/25","securityCode":"123","amount":75.50}'
-
-curl -X POST "http://localhost:9080/payment/api/verify" \
-  -H "Content-Type: application/json" \
-  -d '{"cardNumber":"4111111111111111","cardHolderName":"Test User","expiryDate":"12/25","securityCode":"123","amount":75.50}'
-----
-
-==== 4. Validate traces in Zipkin UI
-
-1. Open `http://localhost:9411`.
-2. Select service `payment-service`.
-3. Click *Run Query*.
-4. Open a trace for `/payment/api/payments` or `/payment/api/verify`.
-5. Verify spans include `payment.process` and `payment.verify`.
-6. Confirm span tags include `payment.amount`, `payment.method`, and `payment.status`.
-
-Optional API check:
-
-[source,bash]
-----
-curl -s http://localhost:9411/api/v2/services
-----
-
-Expected result:
-
-* Response includes `payment-service`.
-
-==== 5. Clean up Zipkin
-
-[source,bash]
-----
-docker rm -f zipkin
 ----
 
 === Benefits of Telemetry Implementation
