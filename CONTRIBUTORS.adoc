@@ -3,10 +3,22 @@
 :toc-title: Table of Contents
 :toclevels: 3
 :doctype: book
+:description: Guidelines for contributing documentation, fixes, and improvements
+:keywords: contribution, guidelines, github, antora
 
 This guide provides information for contributors to the MicroProfile Tutorial documentation. Learn how to set up, build, and customize the documentation site built with https://antora.org/[Antora].
 
 toc::[]
+
+[NOTE]
+====
+**Quick Start for Contributors**
+1. Clone the repo: `git clone ...`
+2. Install Antora: `npm install -g @antora/cli`
+3. Build locally: `./dev-server.sh watch`
+4. Make your changes in `modules/ROOT/pages/`
+5. Submit a PR
+====
 
 ## Prerequisites
 
@@ -888,3 +900,9 @@ When troubleshooting UI problems:
 2. Check the browser console for JavaScript errors
 3. Verify that all required resources are loading correctly
 4. Test with different browsers to identify browser-specific issues
+
+== Useful Resources
+
+* link:https://docs.antora.org/[Antora Documentation]
+* link:https://docs.asciidoctor.org/[AsciiDoc Reference]
+* link:https://github.com/microprofile/microprofile-tutorial-ui[UI Bundle Repository]
