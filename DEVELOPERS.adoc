@@ -18,16 +18,18 @@ The source code for the tutorial is organized by chapter in the `code/` director
 
 ```
 code/
-├── chapter02/    # Getting Started
-├── chapter03/    # Persistence and Database
-├── chapter04/    # Configuration
-├── chapter05/    # Health Checks
-├── chapter06/    # Metrics
-├── chapter07/    # OpenAPI
-├── chapter08/    # JWT Authentication
-├── chapter09/    # Fault Tolerance
-├── chapter10/    # REST Client
-└── chapter11/    # Complete Application
+├── chapter02/    # Getting Started with MicroProfile
+├── chapter03/    # Jakarta EE 10 Core Profile
+├── chapter04/    # OpenAPI
+├── chapter05/    # Configuration
+├── chapter06/    # Health
+├── chapter07/    # Metrics
+├── chapter08/    # Fault Tolerance
+├── chapter09/    # Telemetry
+├── chapter10/    # JWT
+├── chapter11/    # REST Client
+├── chapter12/    # GraphQL
+└── chapter13/    # Reactive Messsaging
 ```
 
 ### Chapter Structure
