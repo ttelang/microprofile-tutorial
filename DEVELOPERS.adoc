@@ -10,7 +10,7 @@ toc::[]
 
 ## Overview
 
-The MicroProfile Tutorial includes a comprehensive e-commerce application built with Jakarta EE 10 and MicroProfile 7.1. The application demonstrates real-world usage of MicroProfile features through a multi-service architecture including catalog, inventory, user, payment, and order services.
+The MicroProfile Tutorial includes a comprehensive e-commerce application built with Jakarta EE 10 and MicroProfile 7.1. The application demonstrates real-world usage of MicroProfile features through a multi-service architecture including catalog, inventory, user, payment, shopping cart, shipment, and order services.
 
 ## Code Organization
 
@@ -206,7 +206,7 @@ Each chapter introduces specific MicroProfile features. Here's a brief overview:
 
 ### Chapter 2: Getting Started
 
-**Location**: `code/chapter02/mp-ecomm-store/`
+**Location**: `code/chapter02/catalog/`
 
 **Topics Covered**:
 - Basic REST endpoints with Jakarta RESTful Web Services
@@ -214,11 +214,11 @@ Each chapter introduces specific MicroProfile features. Here's a brief overview:
 - Running on Open Liberty
 
 **Key Endpoints**:
-- `GET /mp-ecomm-store/api/products` - List products
+- `GET /catalog/api/products` - List products
 
 ### Chapter 3: Persistence and Database
 
-**Location**: `code/chapter03/catalog/` and `code/chapter03/mp-ecomm-store/`
+**Location**: `code/chapter03/catalog/`
 
 **Topics Covered**:
 - Jakarta Persistence API (JPA)
