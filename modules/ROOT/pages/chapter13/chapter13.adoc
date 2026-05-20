@@ -366,6 +366,10 @@ Use `Message<T>` when you need explicit acknowledgment control, access to metada
 
 *4. Reactive Streams Processing*:
 
+The MicroProfile Reactive Messaging specification is built on the *MicroProfile Reactive Streams Operators* specification and heavily utilizes `CompletionStage` for asynchronous operations. The core reactive types defined by the MicroProfile Reactive Messaging specification are the standard Reactive Streams interfaces: `Publisher<T>`, `Subscriber<T>`, and `Processor<T,R>`, along with their builder counterparts (`PublisherBuilder<T>`, `SubscriberBuilder<T>`, `ProcessorBuilder<T,R>`) from MicroProfile Reactive Streams Operators.
+
+NOTE: Mutiny (`io.smallrye.mutiny`) is *not* part of the MicroProfile Reactive Messaging specification. It is the reactive library chosen by SmallRye Reactive Messaging (the reference implementation used by Quarkus). Because `Multi<T>` and `Uni<T>` implements the Reactive Streams `Publisher<T>` contract, it integrates seamlessly. However, you are free to use other reactive libraries. The examples in this chapter use Mutiny, but the patterns apply to any Reactive Streams-compatible type.
+
 `Multi<T>` is a reactive type from the Mutiny library (`io.smallrye.mutiny.Multi`) that represents an asynchronous stream of zero or more items. It implements the Reactive Streams `Publisher<T>` contract and provides a rich set of operators for transforming, filtering, merging, and grouping streams in a composable, non-blocking way. Common operators include:
 
 * `map(Function)` — transforms each item to a new value.
