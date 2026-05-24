@@ -10,9 +10,13 @@ import org.eclipse.microprofile.openapi.annotations.callbacks.CallbackOperation;
 import org.eclipse.microprofile.openapi.annotations.extensions.Extension;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
+import org.eclipse.microprofile.openapi.annotations.parameters.RequestBodySchema;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponseSchema;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
+import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import io.microprofile.tutorial.store.product.entity.Product;
@@ -81,11 +85,10 @@ public class ProductResource {
     @Path("/{id}")
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(summary = "Get product by ID", description = "Returns a product by its ID")
-    @APIResponses({
-        @APIResponse(responseCode = "200", description = "Product found", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Product.class))),
-        @APIResponse(responseCode = "404", description = "Product not found"),
-        @APIResponse(responseCode = "503", description = "Service is under maintenance")
-    })
+    @APIResponseSchema(value = Product.class, responseCode = "200", responseDescription = "Product found")
+    @APIResponse(responseCode = "404", description = "Product not found")
+    @APIResponse(responseCode = "503", description = "Service is under maintenance")
+    @SecurityRequirement(name = "bearerAuth")
     public Response getProductById(@PathParam("id") Long id) {
         LOGGER.log(Level.INFO, "REST: Fetching product with id: {0}", id);
 
@@ -101,9 +104,9 @@ public class ProductResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(summary = "Create a new product", description = "Creates a new product")
-    @APIResponses({
-        @APIResponse(responseCode = "201", description = "Product created", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Product.class)))
-    })
+    @RequestBodySchema(Product.class)
+    @APIResponseSchema(value = Product.class, responseCode = "201", responseDescription = "Product created")
+    @SecurityRequirement(name = "bearerAuth")
     public Response createProduct(Product product) {
         LOGGER.info("REST: Creating product: " + product);
         Product createdProduct = productService.createProduct(product);
@@ -115,10 +118,10 @@ public class ProductResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(summary = "Update a product", description = "Updates an existing product by its ID")
-    @APIResponses({
-        @APIResponse(responseCode = "200", description = "Product updated", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Product.class))),
-        @APIResponse(responseCode = "404", description = "Product not found")
-    })
+    @RequestBodySchema(Product.class)
+    @APIResponseSchema(value = Product.class, responseCode = "200", responseDescription = "Product updated")
+    @APIResponse(responseCode = "404", description = "Product not found")
+    @SecurityRequirement(name = "bearerAuth")
     public Response updateProduct(@PathParam("id") Long id, Product updatedProduct) {
         LOGGER.info("REST: Updating product with id: " + id);
         Product updated = productService.updateProduct(id, updatedProduct);
@@ -129,14 +132,13 @@ public class ProductResource {
         }
     }
 
-@DELETE
+    @DELETE
     @Path("/{id}")
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(summary = "Delete a product", description = "Deletes a product by its ID")
-    @APIResponses({
-        @APIResponse(responseCode = "204", description = "Product deleted"),
-        @APIResponse(responseCode = "404", description = "Product not found")
-    })
+    @APIResponse(responseCode = "204", description = "Product deleted")
+    @APIResponse(responseCode = "404", description = "Product not found")
+    @SecurityRequirement(name = "bearerAuth")
     public Response deleteProduct(@PathParam("id") Long id) {
         LOGGER.info("REST: Deleting product with id: " + id);
         boolean deleted = productService.deleteProduct(id);
@@ -150,15 +152,21 @@ public class ProductResource {
     @GET
     @Path("/search")
     @Produces(MediaType.APPLICATION_JSON)
-    @Operation(summary = "Search products", description = "Search products by criteria")
-    @APIResponses({
-        @APIResponse(responseCode = "200", description = "Search results", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Product.class)))
-    })
+    @Operation(summary = "Search products", description = "Search products by name, description, or price range")
+    @APIResponseSchema(value = Product.class, responseCode = "200", responseDescription = "Search results")
     public Response searchProducts(
-            @QueryParam("name") String name,
-            @QueryParam("description") String description,
-            @QueryParam("minPrice") Double minPrice,
-            @QueryParam("maxPrice") Double maxPrice) {
+            @QueryParam("name") 
+            @Parameter(description = "Filter by product name (case-insensitive)", example = "Laptop")
+            String name,
+            @QueryParam("description")
+            @Parameter(description = "Filter by product description (case-insensitive)", example = "High-performance")
+            String description,
+            @QueryParam("minPrice")
+            @Parameter(description = "Minimum price filter", example = "100.0")
+            Double minPrice,
+            @QueryParam("maxPrice")
+            @Parameter(description = "Maximum price filter", example = "2000.0")
+            Double maxPrice) {
         LOGGER.info("REST: Searching products with criteria");
         List<Product> results = productService.searchProducts(name, description, minPrice, maxPrice);
         return Response.ok(results).build();
