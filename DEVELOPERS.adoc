@@ -33,6 +33,193 @@ code/
 
 ```
 
+### Chapter 2: Getting Started with MicroProfile
+
+**Location**: `code/chapter02/catalog/`
+
+**Topics Covered**:
+
+- Basic REST endpoints with Jakarta RESTful Web Services
+- JSON processing with JSON-B
+- Running on Open Liberty
+- Creating your first microservice
+
+**Key Endpoints**:
+
+- `GET /catalog/api/products` - List products
+
+### Chapter 3: Jakarta EE 10 Core Profile
+
+**Location**: `code/chapter03/catalog/`
+
+**Topics Covered**:
+
+- Jakarta Persistence API (JPA)
+- Derby embedded database
+- Repository pattern implementation
+- Service layer with transaction management
+- Bean Validation for input validation
+
+**Key Endpoints**:
+
+- `GET /catalog/api/products` - List all products
+- `GET /catalog/api/products/{id}` - Get product by ID
+- `POST /catalog/api/products` - Create a new product
+- `PUT /catalog/api/products/{id}` - Update a product
+- `DELETE /catalog/api/products/{id}` - Delete a product
+
+### Chapter 4: OpenAPI
+
+**Location**: `code/chapter04/catalog/`
+
+**Topics Covered**:
+
+- MicroProfile OpenAPI
+- API documentation with annotations
+- OpenAPI specification generation
+- Swagger UI integration
+- Documenting request/response schemas
+
+**Key Endpoints**:
+
+- `GET /openapi` - OpenAPI specification
+- `GET /openapi/ui` - Swagger UI interface
+
+### Chapter 5: Configuration
+
+**Location**: `code/chapter05/catalog/`
+
+**Topics Covered**:
+
+- MicroProfile Config specification
+- Configuration sources (environment variables, system properties, microprofile-config.properties)
+- Injecting configuration values
+- Dynamic configuration updates
+- Configuration profiles for different environments
+
+**Key Features**:
+
+- Externalized configuration management
+- Support for multiple configuration sources
+- Type-safe configuration injection
+
+### Chapter 6: Health
+
+**Location**: `code/chapter06/catalog/` and `code/chapter06/payment/`
+
+**Topics Covered**:
+
+- MicroProfile Health checks
+- Liveness probes for container orchestration
+- Readiness probes for traffic management
+- Startup checks for initialization validation
+- Custom health indicators
+
+**Key Endpoints**:
+
+- `GET /health` - Overall health status
+- `GET /health/live` - Liveness probe
+- `GET /health/ready` - Readiness probe
+- `GET /health/started` - Startup probe
+
+### Chapter 7: Metrics
+
+**Location**: `code/chapter07/catalog/`
+
+**Topics Covered**:
+
+- MicroProfile Metrics specification
+- Application metrics collection
+- Custom counters, gauges, and timers
+- Prometheus format export
+- Monitoring with Prometheus
+
+**Key Endpoints**:
+
+- `GET /metrics` - All metrics in Prometheus format
+- `GET /metrics/application` - Application-specific metrics
+- `GET /metrics/base` - Base system metrics
+- `GET /metrics/vendor` - Vendor-specific metrics
+
+### Chapter 8: Fault Tolerance
+
+**Location**: `code/chapter08/payment/`
+
+**Topics Covered**:
+
+- MicroProfile Fault Tolerance patterns
+- Timeout configuration and handling
+- Retry policies with backoff strategies
+- Circuit breaker patterns
+- Fallback methods for graceful degradation
+- Bulkhead patterns for isolation
+
+### Chapter 9: Telemetry
+
+**Location**: `code/chapter09/order/`
+
+**Topics Covered**:
+
+- Distributed tracing with MicroProfile Telemetry
+- Traces, spans, and context propagation
+- Integration with OpenTelemetry
+- Observability best practices
+- Exporting traces to collectors
+
+### Chapter 10: JWT
+
+**Location**: `code/chapter10/payment/`
+
+**Topics Covered**:
+
+- MicroProfile JWT authentication
+- JWT token generation and validation
+- Role-based access control (RBAC)
+- Securing REST endpoints with authentication
+- Token verification and claims extraction
+
+**Key Security Features**:
+
+- Bearer token authentication
+- Role-based method access control
+- Token validation and verification
+
+### Chapter 11: REST Client
+
+**Location**: `code/chapter11/order/` and `code/chapter11/user/`
+
+**Topics Covered**:
+
+- MicroProfile REST Client for service-to-service communication
+- Type-safe REST client interfaces
+- Client-side load balancing
+- Integration patterns between microservices
+- Error handling in REST clients
+
+### Chapter 12: GraphQL
+
+**Location**: `code/chapter12/catalog/`
+
+**Topics Covered**:
+
+- GraphQL API implementation
+- Query and mutation definitions
+- Schema design for GraphQL
+- Comparison with REST API
+- Type-safe GraphQL queries
+
+### Chapter 13: Reactive Messaging
+
+**Location**: `code/chapter13/order/` and `code/chapter13/inventory/`
+
+**Topics Covered**:
+
+- MicroProfile Reactive Messaging
+- Event-driven architecture patterns
+- Message channels and connectors
+- Processing streams of events
+- Integration with Apache Kafka
+
 ### Chapter Structure
 
 Each chapter directory contains one or more microservices with the following structure:
@@ -201,6 +388,24 @@ mvn test
 mvn test -Dtest=YourTestClassName
 ----
 
+### Debugging the Application
+
+When using `mvn liberty:dev`, you can attach a debugger on port 7777 (default debug port).
+
+**In VS Code:**
+
+1. Add a debug configuration to `.vscode/launch.json`
+2. Set remote debugging to localhost:7777
+3. Start the application with `mvn liberty:dev`
+4. Attach the debugger
+
+**In IntelliJ IDEA:**
+
+1. Create a Remote JVM Debug configuration
+2. Set host to localhost and port to 7777
+3. Start the application with `mvn liberty:dev`
+4. Run the debug configuration
+
 ## Working with Individual Chapters
 
 Each chapter introduces specific MicroProfile features. 
@@ -260,6 +465,11 @@ The MicroProfile Tutorial applications use the following technology stack:
 * **Jakarta EE 10** - Enterprise Java specifications
 * **MicroProfile 7.1** - Cloud-native microservices specifications
 * **Maven** - Build and dependency management
+* **Open Liberty** - Lightweight Jakarta EE and MicroProfile runtime
+* **Derby** - Embedded database (for development)
+* **Apache Kafka** - Message broker for reactive messaging
+* **Docker** - packages applications and all their dependencies into lightweight, isolated containers
+* **Kubernetes** - an open-source container orchestration platform that automates the deployment, scaling, and management of containerized applications across clusters of hosts (by clusters of hosts we mean a group of interconnected physical or virtual machines  that work together as a single, unified system to run applications)
 
 ### Jakarta EE APIs Used
 
@@ -286,7 +496,7 @@ The MicroProfile Tutorial applications use the following technology stack:
 
 * **Lombok** - Reduces boilerplate code with annotations
 * **JUnit 5** - Unit testing framework
-* **Derby** - Embedded database (for development)
+
 
 ## Best Practices
 
@@ -360,6 +570,28 @@ mvn -version
 - Look for database lock files that might need deletion
 - Review server logs for detailed error messages
 
+#### Liberty Server Doesn't Start
+
+**Problem**: The Liberty server fails to start or crashes immediately.
+
+**Solution**:
+
+- Check the console output for error messages
+- Verify JDK version is 17 or later
+- Look at Liberty logs in `target/liberty/wlp/usr/servers/defaultServer/logs/`
+- Ensure no other process is using the configured ports
+
+#### Changes Not Reflected
+
+**Problem**: Code changes don't appear when accessing the application.
+
+**Solution**:
+
+- Ensure you're running in `mvn liberty:dev` mode
+- Wait a few seconds for Liberty to detect and reload changes
+- Check console output for compilation errors
+- Try forcing a rebuild with Ctrl+R in dev mode
+
 ## Next Steps
 
 After setting up your development environment and exploring the code:
@@ -370,12 +602,51 @@ After setting up your development environment and exploring the code:
 4. **Integrate Services**: Practice calling one service from another using the REST Client
 5. **Deploy to Production**: Learn about deploying MicroProfile applications to cloud platforms
 
+### Getting Help
+
+If you encounter issues not covered here:
+
+1. **Check the Service README**: Each service has its own README.adoc with specific information
+2. **Review Liberty Logs**: Located in `target/liberty/wlp/usr/servers/defaultServer/logs/`
+3. **Consult MicroProfile Documentation**: https://microprofile.io
+5. **Community Support**: 
+   - MicroProfile Google Group: https://groups.google.com/forum/#!forum/microprofile
+   - Stack Overflow: Tag questions with `microprofile`
+
+## GitHub Codespaces Support
+
+The tutorial code includes GitHub Codespaces configuration for cloud-based development:
+
+### Using Codespaces
+
+1. Navigate to the GitHub repository
+2. Click "Code" → "Codespaces" → "Create codespace on main"
+3. Wait for the environment to initialize
+4. The codespace includes:
+   - Pre-installed JDK 21 via SDKMAN
+   - Maven build tools
+   - VS Code extensions for Java development
+
+### Codespace Configuration
+
+The codespace configuration is defined in `.devcontainer/devcontainer.json` within each service directory. This ensures a consistent development environment across all developers.
+
 ## Additional Resources
 
 ### Official Documentation
 
 * **MicroProfile**: https://microprofile.io
 * **Jakarta EE**: https://jakarta.ee
+
+### Learning Resources
+
+* **Open Liberty Guides**: https://openliberty.io/guides/
+* **Jakarta EE Tutorial**: https://eclipse-ee4j.github.io/jakartaee-tutorial/
+
+### Community
+
+* **MicroProfile Google Group**: https://groups.google.com/forum/#!forum/microprofile
+* **Jakarta EE Community**: https://jakarta.ee/community/
 
 ## Contributing
 
