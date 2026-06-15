@@ -4,13 +4,13 @@
 :toclevels: 3
 :doctype: book
 
-This guide provides information for developers who want to download and work with the MicroProfile e-commerce application source code. Each chapter of the tutorial includes practical code examples that demonstrate key MicroProfile features.
+This guide provides information for developers who want to download and work with the MicroProfile e-commerce application source code. Each chapter of the tutorial includes practical code examples that demonstrate various MicroProfile features.
 
 toc::[]
 
 ## Overview
 
-The MicroProfile Tutorial includes a comprehensive e-commerce application built with Jakarta EE 10 and MicroProfile 7.1. The application demonstrates real-world usage of MicroProfile features through practical examples organized by chapter.
+The MicroProfile Tutorial includes a comprehensive e-commerce application built with Jakarta EE 10 and MicroProfile 7.1. The application demonstrates real-world use of MicroProfile features through a multi-service architecture that includes catalog, inventory, user, payment, and order services.
 
 ## Code Organization
 
@@ -18,18 +18,19 @@ The source code for the tutorial is organized by chapter in the `code/` director
 
 ```
 code/
-├── chapter02/    # Getting Started with MicroProfile
+├── chapter02/    # Getting Started
 ├── chapter03/    # Jakarta EE 10 Core Profile
 ├── chapter04/    # OpenAPI
 ├── chapter05/    # Configuration
-├── chapter06/    # Health
+├── chapter06/    # Health Checks
 ├── chapter07/    # Metrics
 ├── chapter08/    # Fault Tolerance
 ├── chapter09/    # Telemetry
-├── chapter10/    # JWT
+├── chapter10/    # JWT Authentication
 ├── chapter11/    # REST Client
-├── chapter12/    # GraphQL
+├── chapter12/    # Graph QL
 └── chapter13/    # Reactive Messaging
+
 ```
 
 ### Chapter Structure
@@ -63,7 +64,7 @@ Before working with the code, ensure you have the following installed:
 
 #### Development Environment Setup
 
-We recommend using SDKMAN for managing Java versions, as it makes it easy to switch between different JDK versions.
+We recommend using SDKMAN to manage Java versions, as it makes it easy to switch between JDK versions.
 
 ##### Installing SDKMAN
 
@@ -83,16 +84,16 @@ source "$HOME/.sdkman/bin/sdkman-init.sh"
 sdk list java
 
 # Install JDK 21 (Microsoft build)
-sdk install java 21.0.9-ms
+sdk install java 21.0.11-ms
 
 # List installed Java versions
 sdk list java | grep -E ".*\s+installed"
 
-# Switch to JDK 17 for the current shell session
-sdk use java 21.0.9-ms
+# Switch to JDK 21 for the current shell session
+sdk use java 21.0.11-ms
 
-# Make JDK 17 the default for all sessions
-sdk default java 21.0.9-ms
+# Make JDK 21 the default for all sessions
+sdk default java 21.0.11-ms
 
 # Verify the current Java version
 java -version
@@ -140,7 +141,7 @@ cd code/chapter03/catalog
 
 ## Building and Running the Code
 
-The tutorial applications use Maven and the Open Liberty Maven plugin for building and running.
+The tutorial uses Maven and the Open Liberty Maven plugin to build and run the application.
 
 ### Building an Application
 
@@ -152,7 +153,6 @@ mvn clean package
 ----
 
 This command:
-
 - Compiles the Java source code
 - Runs unit tests
 - Packages the application as a WAR file
@@ -167,7 +167,6 @@ mvn liberty:dev
 ----
 
 **Development mode features:**
-
 - Automatically rebuilds and redeploys on code changes
 - Runs tests on demand by pressing Enter
 - Supports hot reload for faster development
@@ -180,11 +179,11 @@ To exit development mode, press `Ctrl+C` or type `q` and press Enter.
 Once the server is running, you can access the application endpoints. The default configuration typically uses:
 
 * **Host**: localhost (or your system hostname)
-* **Port**: Varies by service (commonly 5050, 5051, 5052, etc.)
+* **Port**: Varies by service (commonly 9080)
 
 For example, for the catalog service in Chapter 3:
 ```
-http://localhost:5050/catalog/api/products
+http://localhost:9080/catalog/api/products
 ```
 
 Replace `localhost` with your system hostname if accessing from a different machine.
@@ -204,194 +203,7 @@ mvn test -Dtest=YourTestClassName
 
 ## Working with Individual Chapters
 
-Each chapter introduces specific MicroProfile features. Here's a brief overview:
-
-### Chapter 2: Getting Started with MicroProfile
-
-**Location**: `code/chapter02/catalog/`
-
-**Topics Covered**:
-
-- Basic REST endpoints with Jakarta RESTful Web Services
-- JSON processing with JSON-B
-- Running on Open Liberty
-- Creating your first microservice
-
-**Key Endpoints**:
-
-- `GET /catalog/api/products` - List products
-
-### Chapter 3: Jakarta EE 10 Core Profile
-
-**Location**: `code/chapter03/catalog/`
-
-**Topics Covered**:
-
-- Jakarta Persistence API (JPA)
-- Derby embedded database
-- Repository pattern implementation
-- Service layer with transaction management
-- Bean Validation for input validation
-
-**Key Endpoints**:
-
-- `GET /catalog/api/products` - List all products
-- `GET /catalog/api/products/{id}` - Get product by ID
-- `POST /catalog/api/products` - Create a new product
-- `PUT /catalog/api/products/{id}` - Update a product
-- `DELETE /catalog/api/products/{id}` - Delete a product
-
-### Chapter 4: OpenAPI
-
-**Location**: `code/chapter04/catalog/`
-
-**Topics Covered**:
-
-- MicroProfile OpenAPI
-- API documentation with annotations
-- OpenAPI specification generation
-- Swagger UI integration
-- Documenting request/response schemas
-
-**Key Endpoints**:
-
-- `GET /openapi` - OpenAPI specification
-- `GET /openapi/ui` - Swagger UI interface
-
-### Chapter 5: Configuration
-
-**Location**: `code/chapter05/catalog/`
-
-**Topics Covered**:
-
-- MicroProfile Config specification
-- Configuration sources (environment variables, system properties, microprofile-config.properties)
-- Injecting configuration values
-- Dynamic configuration updates
-- Configuration profiles for different environments
-
-**Key Features**:
-
-- Externalized configuration management
-- Support for multiple configuration sources
-- Type-safe configuration injection
-
-### Chapter 6: Health
-
-**Location**: `code/chapter06/catalog/` and `code/chapter06/payment/`
-
-**Topics Covered**:
-
-- MicroProfile Health checks
-- Liveness probes for container orchestration
-- Readiness probes for traffic management
-- Startup checks for initialization validation
-- Custom health indicators
-
-**Key Endpoints**:
-
-- `GET /health` - Overall health status
-- `GET /health/live` - Liveness probe
-- `GET /health/ready` - Readiness probe
-- `GET /health/started` - Startup probe
-
-### Chapter 7: Metrics
-
-**Location**: `code/chapter07/catalog/`
-
-**Topics Covered**:
-
-- MicroProfile Metrics specification
-- Application metrics collection
-- Custom counters, gauges, and timers
-- Prometheus format export
-- Monitoring with Prometheus
-
-**Key Endpoints**:
-
-- `GET /metrics` - All metrics in Prometheus format
-- `GET /metrics/application` - Application-specific metrics
-- `GET /metrics/base` - Base system metrics
-- `GET /metrics/vendor` - Vendor-specific metrics
-
-### Chapter 8: Fault Tolerance
-
-**Location**: `code/chapter08/payment/`
-
-**Topics Covered**:
-
-- MicroProfile Fault Tolerance patterns
-- Timeout configuration and handling
-- Retry policies with backoff strategies
-- Circuit breaker patterns
-- Fallback methods for graceful degradation
-- Bulkhead patterns for isolation
-
-### Chapter 9: Telemetry
-
-**Location**: `code/chapter09/order/`
-
-**Topics Covered**:
-
-- Distributed tracing with MicroProfile Telemetry
-- Traces, spans, and context propagation
-- Integration with OpenTelemetry
-- Observability best practices
-- Exporting traces to collectors
-
-### Chapter 10: JWT
-
-**Location**: `code/chapter10/payment/`
-
-**Topics Covered**:
-
-- MicroProfile JWT authentication
-- JWT token generation and validation
-- Role-based access control (RBAC)
-- Securing REST endpoints with authentication
-- Token verification and claims extraction
-
-**Key Security Features**:
-
-- Bearer token authentication
-- Role-based method access control
-- Token validation and verification
-
-### Chapter 11: REST Client
-
-**Location**: `code/chapter11/order/` and `code/chapter11/user/`
-
-**Topics Covered**:
-
-- MicroProfile REST Client for service-to-service communication
-- Type-safe REST client interfaces
-- Client-side load balancing
-- Integration patterns between microservices
-- Error handling in REST clients
-
-### Chapter 12: GraphQL
-
-**Location**: `code/chapter12/catalog/`
-
-**Topics Covered**:
-
-- GraphQL API implementation
-- Query and mutation definitions
-- Schema design for GraphQL
-- Comparison with REST API
-- Type-safe GraphQL queries
-
-### Chapter 13: Reactive Messaging
-
-**Location**: `code/chapter13/order/` and `code/chapter13/inventory/`
-
-**Topics Covered**:
-
-- MicroProfile Reactive Messaging
-- Event-driven architecture patterns
-- Message channels and connectors
-- Processing streams of events
-- Integration with Apache Kafka
+Each chapter introduces specific MicroProfile features. 
 
 ## Common Development Tasks
 
@@ -405,13 +217,13 @@ Edit `src/main/liberty/config/server.xml`:
 ----
 <httpEndpoint id="defaultHttpEndpoint"
               host="*"
-              httpPort="5050"  <!-- Change this port -->
+              httpPort="9080"  <!-- Change this port -->
               httpsPort="9443" />
 ----
 
 ### Configuring the Database
 
-Most chapters use Derby embedded database for simplicity. The database configuration is in `src/main/resources/META-INF/persistence.xml`:
+Most chapters use the Derby embedded database for simplicity. The database configuration is in `src/main/resources/META-INF/persistence.xml`:
 
 [source,xml]
 ----
@@ -439,24 +251,6 @@ To add new dependencies, edit the `pom.xml` file. The tutorial uses Maven for de
 </dependencies>
 ----
 
-### Debugging the Application
-
-When using `mvn liberty:dev`, you can attach a debugger on port 7777 (default debug port).
-
-**In VS Code:**
-
-1. Add a debug configuration to `.vscode/launch.json`
-2. Set remote debugging to localhost:7777
-3. Start the application with `mvn liberty:dev`
-4. Attach the debugger
-
-**In IntelliJ IDEA:**
-
-1. Create a Remote JVM Debug configuration
-2. Set host to localhost and port to 7777
-3. Start the application with `mvn liberty:dev`
-4. Run the debug configuration
-
 ## Technology Stack
 
 The MicroProfile Tutorial applications use the following technology stack:
@@ -465,7 +259,6 @@ The MicroProfile Tutorial applications use the following technology stack:
 
 * **Jakarta EE 10** - Enterprise Java specifications
 * **MicroProfile 7.1** - Cloud-native microservices specifications
-* **Open Liberty** - Lightweight Jakarta EE and MicroProfile runtime
 * **Maven** - Build and dependency management
 
 ### Jakarta EE APIs Used
@@ -486,15 +279,14 @@ The MicroProfile Tutorial applications use the following technology stack:
 * **MicroProfile JWT** - JWT authentication
 * **MicroProfile Fault Tolerance** - Resilience patterns
 * **MicroProfile REST Client** - Type-safe REST clients
-* **MicroProfile Telemetry** - Distributed tracing and observability
-* **MicroProfile Reactive Messaging** - Event-driven messaging
+* **MicroProfile GraphQL** - GraphQL based calls
+* **MicroProfile Reactive Messaging** - Event Driven Architecture and Reactive Messaging using Asynchronous calls
 
 ### Additional Libraries
 
 * **Lombok** - Reduces boilerplate code with annotations
 * **JUnit 5** - Unit testing framework
 * **Derby** - Embedded database (for development)
-* **Apache Kafka** - Message broker for reactive messaging
 
 ## Best Practices
 
@@ -505,7 +297,6 @@ When working with the tutorial code, consider these best practices:
 1. **Start with Early Chapters**: If you're new to MicroProfile, start with Chapter 2 and progress sequentially.
 2. **Read the Documentation**: Each service includes a README.adoc with specific instructions and explanations.
 3. **Experiment**: The code is designed for learning - modify it, break it, and understand how it works.
-4. **Use Development Mode**: Always use `mvn liberty:dev` during development for instant feedback.
 
 ### Code Organization
 
@@ -521,7 +312,7 @@ When working with the tutorial code, consider these best practices:
 
 ### Configuration
 
-1. **Externalize Configuration**: Use MicroProfile Config for values that might change between environments.
+1. **Externalize Configuration**: Use MicroProfile Config for values that may vary across environments.
 2. **Use Profiles**: Configure different settings for development, testing, and production.
 3. **Document Configuration**: Keep track of required configuration properties.
 
@@ -535,8 +326,8 @@ When working with the tutorial code, consider these best practices:
 
 **Solution**:
 ```bash
-# Find process using the port (e.g., 5050)
-lsof -i :5050
+# Find process using the port (e.g., 9080)
+lsof -i :9080
 
 # Kill the process
 kill <PID>
@@ -559,68 +350,15 @@ mvn -version
 # Check your internet connection and proxy settings if behind a firewall
 ```
 
-#### Liberty Server Doesn't Start
-
-**Problem**: The Liberty server fails to start or crashes immediately.
-
-**Solution**:
-
-- Check the console output for error messages
-- Verify JDK version is 17 or later
-- Look at Liberty logs in `target/liberty/wlp/usr/servers/defaultServer/logs/`
-- Ensure no other process is using the configured ports
-
 #### Database Connection Errors
 
 **Problem**: Application cannot connect to the database.
 
 **Solution**:
-
 - Verify the database configuration in `persistence.xml`
 - Check that Derby is included in dependencies
 - Look for database lock files that might need deletion
-- Review Liberty server logs for detailed error messages
-
-#### Changes Not Reflected
-
-**Problem**: Code changes don't appear when accessing the application.
-
-**Solution**:
-
-- Ensure you're running in `mvn liberty:dev` mode
-- Wait a few seconds for Liberty to detect and reload changes
-- Check console output for compilation errors
-- Try forcing a rebuild with Ctrl+R in dev mode
-
-### Getting Help
-
-If you encounter issues not covered here:
-
-1. **Check the Service README**: Each service has its own README.adoc with specific information
-2. **Review Liberty Logs**: Located in `target/liberty/wlp/usr/servers/defaultServer/logs/`
-3. **Consult MicroProfile Documentation**: https://microprofile.io
-4. **Open Liberty Guides**: https://openliberty.io/guides/
-5. **Community Support**: 
-   - MicroProfile Google Group: https://groups.google.com/forum/#!forum/microprofile
-   - Stack Overflow: Tag questions with `microprofile`
-
-## GitHub Codespaces Support
-
-The tutorial code includes GitHub Codespaces configuration for cloud-based development:
-
-### Using Codespaces
-
-1. Navigate to the GitHub repository
-2. Click "Code" → "Codespaces" → "Create codespace on main"
-3. Wait for the environment to initialize
-4. The codespace includes:
-   - Pre-installed JDK 21 via SDKMAN
-   - Maven build tools
-   - VS Code extensions for Java development
-
-### Codespace Configuration
-
-The codespace configuration is defined in `.devcontainer/devcontainer.json` within each service directory. This ensures a consistent development environment across all developers.
+- Review server logs for detailed error messages
 
 ## Next Steps
 
@@ -629,7 +367,7 @@ After setting up your development environment and exploring the code:
 1. **Run the Examples**: Start with Chapter 2 and work through each chapter sequentially
 2. **Modify the Code**: Try adding new features or changing existing functionality
 3. **Build Your Own Service**: Create a new microservice using the patterns learned
-4. **Integrate Services**: Practice calling one service from another using REST Client
+4. **Integrate Services**: Practice calling one service from another using the REST Client
 5. **Deploy to Production**: Learn about deploying MicroProfile applications to cloud platforms
 
 ## Additional Resources
@@ -637,20 +375,7 @@ After setting up your development environment and exploring the code:
 ### Official Documentation
 
 * **MicroProfile**: https://microprofile.io
-* **Open Liberty**: https://openliberty.io
 * **Jakarta EE**: https://jakarta.ee
-
-### Learning Resources
-
-* **Open Liberty Guides**: https://openliberty.io/guides/
-* **MicroProfile Examples**: https://github.com/microprofile
-* **Jakarta EE Tutorial**: https://eclipse-ee4j.github.io/jakartaee-tutorial/
-
-### Community
-
-* **MicroProfile Google Group**: https://groups.google.com/forum/#!forum/microprofile
-* **Open Liberty Community**: https://openliberty.io/community/
-* **Jakarta EE Community**: https://jakarta.ee/community/
 
 ## Contributing
 
