@@ -36,5 +36,30 @@
 		}
 	},
 
+	"forwardPorts": [9080, 5050, 5060, 6050],
+
+	"portsAttributes": {
+		"9080": {
+			"label": "Payment Service",
+			"onAutoForward": "notify",
+			"visibility": "public"
+		},
+		"5050": {
+			"label": "Catalog Service",
+			"onAutoForward": "notify",
+			"visibility": "public"
+		},
+		"5060": {
+			"label": "GraphQL Catalog Service",
+			"onAutoForward": "notify",
+			"visibility": "public"
+		},
+		"6050": {
+			"label": "Inventory Service",
+			"onAutoForward": "notify",
+			"visibility": "public"
+		}
+	},
+
 	"postCreateCommand": "npm install && gem install asciidoctor-pdf"
 }
